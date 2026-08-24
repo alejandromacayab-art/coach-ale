@@ -207,6 +207,7 @@
         <option value="amount">Medida — número libre (km, min, kg…)</option>
         <option value="workout">Entrenamiento — ejercicios, series y kg</option>
         <option value="food">Alimentación — grupos priorizados y chatarra</option>
+        <option value="activity">Actividad física — deportes y minutos</option>
       </select>
     </label>
     <div class="two" id="goalWrap">
@@ -272,6 +273,24 @@
       <textarea class="inp" id="wkNote" rows="2" placeholder="Sensaciones, dolores, PRs…" style="resize:vertical"></textarea></label>
     <button class="btn" id="wkSave">Guardar entrenamiento</button>
     <button class="btn ghost" style="margin-top:8px" id="wkClose">Cerrar</button>
+  </div>
+</div>
+
+<!-- ===== Modal actividad física ===== -->
+<div class="modal" id="acModal">
+  <div class="sheet">
+    <h3>🏃 Actividad física</h3>
+    <p class="sub">Elige qué hiciste hoy y anota los minutos de cada una.</p>
+    <div class="total">
+      <div><b id="acTotal">0 min</b><span>Total del día</span></div>
+      <div class="side" id="acSide">Meta: 60 min</div>
+    </div>
+    <label class="f"><span>¿Qué hiciste?</span>
+      <div class="tags" id="acPick"></div>
+    </label>
+    <div class="panel" id="acList" style="padding:6px 14px;margin-bottom:14px"></div>
+    <button class="btn" id="acSave">Guardar</button>
+    <button class="btn ghost" style="margin-top:8px" id="acClose">Cerrar</button>
   </div>
 </div>
 
@@ -357,13 +376,13 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-8";
+const APP_VERSION = "2026.08.24-9";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
   {id:"agua",   name:"Tomar agua",  emoji:"💧", type:"count",  goal:8,   unit:"vasos", step:1,    color:"#38bdf8"},
   {id:"entren", name:"Entrenar",    emoji:"🏋️", type:"workout",goal:1,   unit:"",      step:1,    color:"#22e07a"},
-  {id:"correr", name:"Correr",      emoji:"🏃", type:"amount", goal:5,   unit:"km",    step:1,    color:"#f97316"},
+  {id:"activi", name:"Actividad física", emoji:"🏃", type:"activity", goal:60, unit:"min", step:5, color:"#f97316"},
   {id:"caminar",name:"Caminar",     emoji:"🚶", type:"amount", goal:8000,unit:"pasos", step:1000, color:"#fbbf24"},
   {id:"comida", name:"Comer sano",  emoji:"🥗", type:"food",   goal:3,   unit:"grupos",step:1,    color:"#2dd4bf"},
   {id:"leer",   name:"Leer",        emoji:"📖", type:"amount", goal:10,  unit:"páginas",step:2,   color:"#a78bfa"},
@@ -397,6 +416,20 @@ const JUNK_ITEMS = [
   {e:"🍫", l:"Dulces"},        {e:"🍪", l:"Snacks/galletas"},
   {e:"🍺", l:"Alcohol"},       {e:"🍦", l:"Postre/helado"}
 ];
+/* Deportes y actividades para el registro diario */
+const ACTIVIDADES = [
+  {k:"correr",   e:"🏃", l:"Correr"},      {k:"caminar",  e:"🚶", l:"Caminar"},
+  {k:"ciclismo", e:"🚴", l:"Ciclismo"},    {k:"natacion", e:"🏊", l:"Natación"},
+  {k:"trekking", e:"🥾", l:"Trekking"},    {k:"futbol",   e:"⚽️", l:"Fútbol"},
+  {k:"basquet",  e:"🏀", l:"Básquetbol"},  {k:"tenis",    e:"🎾", l:"Tenis"},
+  {k:"padel",    e:"🎾", l:"Pádel"},       {k:"volei",    e:"🏐", l:"Vóleibol"},
+  {k:"boxeo",    e:"🥊", l:"Boxeo"},       {k:"escalada", e:"🧗", l:"Escalada"},
+  {k:"remo",     e:"🚣", l:"Remo"},        {k:"baile",    e:"💃", l:"Baile"},
+  {k:"yoga",     e:"🧘", l:"Yoga"},        {k:"funcional",e:"🤸", l:"Funcional"},
+  {k:"golf",     e:"⛳️", l:"Golf"},        {k:"otra",     e:"⭐️", l:"Otra"}
+];
+const actNombre = k => ACTIVIDADES.find(a=>a.k===k) || {e:"⭐️", l:k};
+
 /* Ejercicios sugeridos para autocompletar */
 const EX_PRESETS = ["Sentadilla","Press banca","Peso muerto","Dominadas","Remo con barra","Press militar",
   "Curl bíceps","Extensión tríceps","Prensa","Zancadas","Elevaciones laterales","Fondos","Hip thrust",
@@ -427,6 +460,11 @@ function load(){
         mv("estirar",{id:"personal", name:"Trabajo personal", emoji:"🚀", type:"amount", goal:60, unit:"min", step:15, color:"#fb7185"});
         d.v = 3;
       }
+      if(d.v < 4){                                     // correr pasa a actividad física
+        mv("correr", {id:"activi", name:"Actividad física", emoji:"🏃",
+                      type:"activity", goal:60, unit:"min", step:5, color:"#f97316"});
+        d.v = 4;
+      }
       d.theme ||= "dark";
       d.settings = Object.assign({}, DEF_SETTINGS, d.settings||{});
       d.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  d.settings.rem||{});
@@ -437,7 +475,7 @@ function load(){
       return d;
     }
   }catch(e){ console.warn("estado corrupto:",e); }
-  return {v:3, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"dark",
+  return {v:4, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"dark",
           settings: JSON.parse(JSON.stringify(DEF_SETTINGS))};
 }
 /* Firmas para detectar qué cambió de verdad: solo entonces movemos la marca de
@@ -473,6 +511,7 @@ function dayLog(k){
   const l = (S.logs[k] ||= {values:{}, meals:{}, note:"", mood:0, sleep:null});
   l.workout ||= {ex:[]};
   l.food ||= {groups:[], junk:[], note:""};
+  l.actividad ||= {items:{}};
   return l;
 }
 
@@ -753,7 +792,8 @@ function renderCards(){
   box.innerHTML = S.habits.map(h=>{
     const v = l.values[h.id]||0, p = progress(h,v), done = p>=1, st = streak(h);
     let body;
-    if(h.type==="workout"){ body = workoutCardBody(h,l); }
+    if(h.type==="activity"){ body = actividadCardBody(h,l); }
+    else if(h.type==="workout"){ body = workoutCardBody(h,l); }
     else if(h.type==="food"){ body = foodCardBody(h,l); }
     else if(h.type==="check"){
       body = `<div class="row"><div class="hval">${done?"Hecho":"Pendiente"}</div>
@@ -770,7 +810,7 @@ function renderCards(){
           </div>
         </div>${dots}`;
     }
-    return `<div class="hcard ${done?'done':''}" style="--a:${h.color||'#22e07a'}">
+    return `<div class="hcard ${done?'done':''}" data-card="${h.id}" style="--a:${h.color||'#22e07a'}">
       <div class="hh">
         <div class="emoji">${h.emoji}</div>
         <div style="min-width:0"><div class="hname">${esc(h.name)}</div>
@@ -784,12 +824,14 @@ function renderCards(){
 
   box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>bump(b.dataset.p,+1));
   box.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>bump(b.dataset.m,-1));
+  box.querySelectorAll("[data-ac]").forEach(b=>b.onclick=()=>openActividad());
   box.querySelectorAll("[data-wk]").forEach(b=>b.onclick=()=>openWorkout());
   box.querySelectorAll("[data-fd]").forEach(b=>b.onclick=()=>openFood());
   box.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
     const lg=dayLog(cur), h=S.habits.find(x=>x.id===b.dataset.t);
     const was = !!lg.values[h.id];
-    lg.values[h.id] = was?0:1; save(); renderToday();
+    lg.values[h.id] = was?0:1; save();
+    refrescarTarjeta(h.id);
     if(!was) celebrate(h);
   });
 }
@@ -800,8 +842,35 @@ function bump(id,dir){
   let v = (Number(l.values[id])||0) + dir*step;
   v = Math.max(0, Math.round(v*100)/100);
   const was = isDone(h, l.values[id]||0);
-  l.values[id] = v; save(); renderToday();
+  l.values[id] = v; save();
+  refrescarTarjeta(id);                       // solo esta tarjeta, sin rehacer la lista
   if(!was && isDone(h,v)) celebrate(h);
+}
+
+/* Actualiza una tarjeta en su sitio. Redibujar la lista entera movía los
+   botones bajo el dedo y hacía que un toque cayera en el hábito de al lado. */
+function refrescarTarjeta(id){
+  const h = S.habits.find(x=>x.id===id); if(!h) return;
+  const card = document.querySelector(`[data-card="${id}"]`); if(!card) return;
+  const l = dayLog(cur), v = l.values[id]||0, p = progress(h,v), done = p>=1;
+
+  card.classList.toggle("done", done);
+  const bar = card.querySelector(".bar"); if(bar) bar.style.width = (p*100)+"%";
+
+  const val = card.querySelector(".hval");
+  if(h.type === "check"){
+    if(val) val.textContent = done ? "Hecho" : "Pendiente";
+    const t = card.querySelector(".toggle");
+    if(t){ t.classList.toggle("on", done); t.textContent = done ? "✓" : "○"; }
+  }else if(h.type !== "workout" && h.type !== "food"){
+    if(val) val.innerHTML = `${fmt(v)}<small>/ ${fmt(h.goal)} ${esc(h.unit||"")}</small>`;
+    card.querySelectorAll(".dot").forEach((d,i)=>{
+      d.className = "dot" + (v >= i+1 ? " f" : (v > i ? " p" : ""));
+    });
+  }
+  const st = streak(h), sEl = card.querySelector(".streak");
+  if(sEl){ sEl.className = "streak" + (st>1 ? " on" : ""); sEl.textContent = st>1 ? "🔥 "+st : ""; }
+  renderHero();
 }
 function celebrate(h){
   toast(`${h.emoji} ${h.name} · meta cumplida`);
@@ -827,15 +896,26 @@ function renderMeals(){
 function autosize(t){ t.style.height="auto"; t.style.height=Math.max(38,t.scrollHeight)+"px"; }
 
 function renderMood(){
-  const l = dayLog(cur), faces=["😞","😕","😐","🙂","😄"];
-  document.getElementById("mood").innerHTML = faces.map((f,i)=>
-    `<button class="sbtn" data-mood="${i+1}" style="${l.mood===i+1?'background:var(--accent2);border-color:var(--accent)':''}">${f}</button>`).join("");
-  document.querySelectorAll("[data-mood]").forEach(b=>b.onclick=()=>{
-    const lg=dayLog(cur), n=+b.dataset.mood; lg.mood = lg.mood===n?0:n; save(); renderMood();
-  });
+  const l = dayLog(cur), faces=["😞","😕","😐","🙂","😄"], box = document.getElementById("mood");
+  if(!box.children.length){
+    box.innerHTML = faces.map((f,i)=>`<button class="sbtn" data-mood="${i+1}">${f}</button>`).join("");
+    box.querySelectorAll("[data-mood]").forEach(b=>b.onclick=()=>{
+      const lg = dayLog(cur), n = +b.dataset.mood;
+      lg.mood = lg.mood === n ? 0 : n; save(); marcarAnimo();
+    });
+  }
+  marcarAnimo();
   const n = document.getElementById("note");
   n.value = l.note||"";
   n.oninput = ()=>{ dayLog(cur).note = n.value; save(); };
+}
+function marcarAnimo(){
+  const m = dayLog(cur).mood;
+  document.querySelectorAll("[data-mood]").forEach(b=>{
+    const on = +b.dataset.mood === m;
+    b.style.background = on ? "var(--accent2)" : "";
+    b.style.borderColor = on ? "var(--accent)" : "";
+  });
 }
 
 function renderToday(){ renderDate(); renderHero(); renderSleepCard(); renderCards(); }
@@ -861,12 +941,20 @@ function drawScales(){
   const diff = Math.round((sk.h-ideal)*10)/10;
   document.getElementById("skHrsHint").textContent =
     diff===0 ? "justo tu meta" : diff>0 ? `+${fmt(diff)} h sobre tu meta` : `${fmt(diff)} h bajo tu meta`;
-  document.getElementById("skQual").innerHTML = QUAL.map((o,i)=>
-    `<button data-q="${i+1}" class="${sk.q===i+1?'on':''}">${o.e}<small>${o.l}</small></button>`).join("");
-  document.getElementById("skFeel").innerHTML = FEEL.map((o,i)=>
-    `<button data-f="${i+1}" class="${sk.f===i+1?'on':''}">${o.e}<small>${o.l}</small></button>`).join("");
-  document.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{ sk.q=+b.dataset.q; drawScales(); updateSkPreview(); });
-  document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{ sk.f=+b.dataset.f; drawScales(); updateSkPreview(); });
+  const qBox = document.getElementById("skQual"), fBox = document.getElementById("skFeel");
+  if(!qBox.children.length){
+    qBox.innerHTML = QUAL.map((o,i)=>`<button data-q="${i+1}">${o.e}<small>${o.l}</small></button>`).join("");
+    fBox.innerHTML = FEEL.map((o,i)=>`<button data-f="${i+1}">${o.e}<small>${o.l}</small></button>`).join("");
+    qBox.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{ sk.q=+b.dataset.q; marcarEscalas(); updateSkPreview(); });
+    fBox.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{ sk.f=+b.dataset.f; marcarEscalas(); updateSkPreview(); });
+  }
+  marcarEscalas();
+}
+/* Solo cambia la marca: el contenido no se rehace, así el dedo nunca
+   toca un botón que se movió mientras lo pulsabas. */
+function marcarEscalas(){
+  document.querySelectorAll("[data-q]").forEach(b=>b.classList.toggle("on", +b.dataset.q === sk.q));
+  document.querySelectorAll("[data-f]").forEach(b=>b.classList.toggle("on", +b.dataset.f === sk.f));
 }
 function updateSkPreview(){
   const ok = sk.q && sk.f;
@@ -887,8 +975,16 @@ function tipFor(sc, x){
   if(sc>=85)          return "Excelente. Repite lo que hiciste anoche.";
   return "Buen descanso, mantén el horario constante.";
 }
-document.getElementById("skPlus").onclick  = ()=>{ sk.h = clamp(Math.round((sk.h+0.5)*10)/10, 0, 14); drawScales(); updateSkPreview(); };
-document.getElementById("skMinus").onclick = ()=>{ sk.h = clamp(Math.round((sk.h-0.5)*10)/10, 0, 14); drawScales(); updateSkPreview(); };
+function ponHoras(d){
+  sk.h = clamp(Math.round((sk.h + d)*10)/10, 0, 14);
+  document.getElementById("skHrsLbl").textContent = fmt(sk.h)+" h";
+  const ideal = Number(S.settings.wake.goalHours)||8, dif = Math.round((sk.h-ideal)*10)/10;
+  document.getElementById("skHrsHint").textContent =
+    dif===0 ? "justo tu meta" : dif>0 ? `+${fmt(dif)} h sobre tu meta` : `${fmt(dif)} h bajo tu meta`;
+  updateSkPreview();
+}
+document.getElementById("skPlus").onclick  = ()=>ponHoras(+0.5);
+document.getElementById("skMinus").onclick = ()=>ponHoras(-0.5);
 document.getElementById("skCancel").onclick = ()=>{
   S.settings.wake.lastAsked = todayKey(); save();
   document.getElementById("sleepModal").classList.remove("open");
@@ -1337,9 +1433,10 @@ function openModal(id){
 }
 function typeUI(){
   const t = fType.value;
-  if(t==="workout"||t==="food"){
+  if(t==="workout"||t==="food"||t==="activity"){
     document.getElementById("stepWrap").classList.add("hidden");
     document.getElementById("goalWrap").classList.toggle("hidden", t==="workout");
+    if(t==="activity") document.getElementById("goalWrap").classList.remove("hidden");
     return;
   }
   document.getElementById("stepWrap").classList.toggle("hidden", t==="check");
@@ -1457,6 +1554,87 @@ function saveWorkout(){
 }
 
 /* ============================================================
+   ACTIVIDAD FÍSICA
+   ============================================================ */
+const acTotal = l => Object.values(l?.actividad?.items || {}).reduce((a,m)=>a+(Number(m)||0), 0);
+
+function actividadCardBody(h,l){
+  const t = acTotal(l), ks = Object.keys(l.actividad.items||{}).filter(k=>Number(l.actividad.items[k])>0);
+  return `<div class="row">
+      <div class="hval">${t}<small>/ ${fmt(h.goal)} min</small></div>
+      <button class="toggle ${t>=h.goal?'on':''}" data-ac="1">${t>=h.goal?"✓":"+"}</button>
+    </div>
+    <div class="hgoal" style="margin-top:8px">${ks.length
+      ? ks.map(k=>`${actNombre(k).e} ${actNombre(k).l} ${l.actividad.items[k]}′`).join(" · ")
+      : "Sin actividad registrada"}</div>
+    <button class="cardbtn" data-ac="1">${t ? "Editar actividad" : "Registrar actividad"}</button>`;
+}
+
+function openActividad(){
+  shutModals();
+  const h = S.habits.find(x=>x.type==="activity");
+  document.getElementById("acSide").textContent = `Meta: ${fmt(h?.goal||60)} min`;
+  const box = document.getElementById("acPick");
+  if(!box.children.length){
+    box.innerHTML = ACTIVIDADES.map(a=>`<button class="tag" data-a="${a.k}">${a.e} ${a.l}</button>`).join("");
+    box.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{
+      const it = dayLog(cur).actividad.items, k = b.dataset.a;
+      if(k in it){ delete it[k]; b.classList.remove("on"); }
+      else { it[k] = 30; b.classList.add("on"); }        // arranca en 30, tú lo ajustas
+      syncActividad(); listaActividad();
+    });
+  }
+  marcarActividades();
+  listaActividad();
+  document.getElementById("acModal").classList.add("open");
+}
+function marcarActividades(){
+  const it = dayLog(cur).actividad.items;
+  document.querySelectorAll("[data-a]").forEach(b=>b.classList.toggle("on", b.dataset.a in it));
+}
+function listaActividad(){
+  const it = dayLog(cur).actividad.items, ks = Object.keys(it);
+  document.getElementById("acList").innerHTML = ks.length
+    ? ks.map(k=>{
+        const a = actNombre(k);
+        return `<div class="actrow">
+          <span style="font-size:18px">${a.e}</span>
+          <div class="n">${esc(a.l)}</div>
+          <button class="sbtn" data-am="${k}">−</button>
+          <input inputmode="numeric" data-amin="${k}" value="${it[k]}">
+          <span class="u">min</span>
+          <button class="sbtn plus" data-ap="${k}" style="--a:#f97316">+</button>
+        </div>`; }).join("")
+    : `<div class="empty" style="padding:16px">Elige una actividad de arriba</div>`;
+
+  const L = document.getElementById("acList");
+  L.querySelectorAll("[data-amin]").forEach(inp=>inp.oninput=()=>{
+    const v = Math.max(0, Math.min(600, parseInt(inp.value.replace(/\D/g,"")) || 0));
+    dayLog(cur).actividad.items[inp.dataset.amin] = v;
+    syncActividad();
+  });
+  L.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>ajustaMin(b.dataset.ap, +5));
+  L.querySelectorAll("[data-am]").forEach(b=>b.onclick=()=>ajustaMin(b.dataset.am, -5));
+  totalActividad();
+}
+function ajustaMin(k, d){
+  const it = dayLog(cur).actividad.items;
+  it[k] = Math.max(0, Math.min(600, (Number(it[k])||0) + d));
+  const inp = document.querySelector(`[data-amin="${k}"]`);
+  if(inp) inp.value = it[k];
+  syncActividad();
+}
+function totalActividad(){
+  document.getElementById("acTotal").textContent = acTotal(dayLog(cur)) + " min";
+}
+function syncActividad(){
+  const l = dayLog(cur), h = S.habits.find(x=>x.type==="activity");
+  if(h) l.values[h.id] = acTotal(l);
+  totalActividad();
+  save();
+}
+
+/* ============================================================
    ALIMENTACIÓN · prioridades y comida chatarra
    ============================================================ */
 const junkCount = k => (S.logs[k]?.food?.junk||[]).reduce((a,j)=>a+(j.n||1),0);
@@ -1496,40 +1674,55 @@ function openFood(){
 }
 function drawFood(){
   const f = dayLog(cur).food;
-  document.getElementById("fdGroups").innerHTML = FOOD_GROUPS.map(g=>
-    `<button class="tag ${f.groups.includes(g.k)?'on':''}" data-g="${g.k}">${g.e} ${g.l}</button>`).join("");
-  document.getElementById("fdGroupsN").textContent = `${f.groups.length} grupo${f.groups.length===1?"":"s"}`;
-  document.getElementById("fdJunkPick").innerHTML = JUNK_ITEMS.map(j=>
-    `<button class="tag junk" data-j="${esc(j.l)}" data-je="${j.e}">${j.e} ${j.l}</button>`).join("");
+  const gBox = document.getElementById("fdGroups"), jBox = document.getElementById("fdJunkPick");
+
+  if(!gBox.children.length){
+    gBox.innerHTML = FOOD_GROUPS.map(g=>`<button class="tag" data-g="${g.k}">${g.e} ${g.l}</button>`).join("");
+    jBox.innerHTML = JUNK_ITEMS.map(j=>`<button class="tag junk" data-j="${esc(j.l)}" data-je="${j.e}">${j.e} ${j.l}</button>`).join("");
+    gBox.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{
+      const k = b.dataset.g, i = f.groups.indexOf(k);
+      i < 0 ? f.groups.push(k) : f.groups.splice(i,1);
+      b.classList.toggle("on", i < 0);                 // solo este botón cambia
+      contarGrupos(); syncFood();
+    });
+    jBox.querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{
+      const it = f.junk.find(x=>x.l === b.dataset.j);
+      it ? it.n++ : f.junk.push({l:b.dataset.j, e:b.dataset.je, n:1});
+      syncFood(); listaChatarra(); drawRisk();
+    });
+  }
+  gBox.querySelectorAll("[data-g]").forEach(b=>b.classList.toggle("on", f.groups.includes(b.dataset.g)));
+  contarGrupos(); listaChatarra(); drawRisk();
+}
+
+function contarGrupos(){
+  const n = dayLog(cur).food.groups.length;
+  document.getElementById("fdGroupsN").textContent = `${n} grupo${n===1?"":"s"}`;
+}
+
+function listaChatarra(){
+  const f = dayLog(cur).food;
   document.getElementById("fdJunkList").innerHTML = f.junk.length
     ? f.junk.map((j,i)=>`<div class="jrow">
         <span style="font-size:17px">${j.e}</span>
         <div class="n">${esc(j.l)}</div>
         <div class="stepper">
           <button class="sbtn" data-jm="${i}">−</button>
-          <div style="min-width:26px;text-align:center;font-weight:800">${j.n}</div>
+          <div style="min-width:26px;text-align:center;font-weight:800" data-jn="${i}">${j.n}</div>
           <button class="sbtn" data-jp="${i}">+</button>
         </div></div>`).join("")
     : `<div class="empty" style="padding:16px">Sin comida chatarra hoy 🎉</div>`;
-
-  document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{
-    const k=b.dataset.g, i=f.groups.indexOf(k);
-    i<0 ? f.groups.push(k) : f.groups.splice(i,1);
-    syncFood(); drawFood();
-  });
-  document.querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{
-    const l0=b.dataset.j, e=b.dataset.je;
-    const it = f.junk.find(x=>x.l===l0);
-    it ? it.n++ : f.junk.push({l:l0, e, n:1});
-    syncFood(); drawFood();
-  });
-  document.querySelectorAll("[data-jp]").forEach(b=>b.onclick=()=>{ f.junk[+b.dataset.jp].n++; syncFood(); drawFood(); });
+  document.querySelectorAll("[data-jp]").forEach(b=>b.onclick=()=>{
+    const i = +b.dataset.jp; f.junk[i].n++;
+    document.querySelector(`[data-jn="${i}"]`).textContent = f.junk[i].n;   // sin rehacer la fila
+    syncFood(); drawRisk(); });
   document.querySelectorAll("[data-jm]").forEach(b=>b.onclick=()=>{
-    const i=+b.dataset.jm; f.junk[i].n--; if(f.junk[i].n<=0) f.junk.splice(i,1);
-    syncFood(); drawFood();
-  });
-  drawRisk();
+    const i = +b.dataset.jm; f.junk[i].n--;
+    if(f.junk[i].n <= 0){ f.junk.splice(i,1); syncFood(); listaChatarra(); drawRisk(); return; }
+    document.querySelector(`[data-jn="${i}"]`).textContent = f.junk[i].n;
+    syncFood(); drawRisk(); });
 }
+
 function drawRisk(){
   const j = S.settings.junk;
   const d = junkCount(cur), w = junkWeek(cur), lv = riskLevel(d,w), R = RISK[lv];
@@ -1797,6 +1990,15 @@ document.getElementById("sleepModal").onclick=e=>{ if(e.target.id==="sleepModal"
   S.settings.wake.lastAsked=todayKey(); save(); e.currentTarget.classList.remove("open"); } };
 fType.onchange = typeUI;
 
+function cerrarActividad(){
+  syncActividad();
+  document.getElementById("acModal").classList.remove("open");
+  renderToday();
+}
+document.getElementById("acSave").onclick  = ()=>{ cerrarActividad(); toast("🏃 Actividad guardada"); };
+document.getElementById("acClose").onclick = cerrarActividad;
+document.getElementById("acModal").onclick = e=>{ if(e.target.id==="acModal") cerrarActividad(); };
+
 document.getElementById("wkAdd").onclick   = ()=>addExercise(false);
 document.getElementById("wkSave").onclick  = saveWorkout;
 document.getElementById("wkClose").onclick = saveWorkout;
@@ -1823,7 +2025,7 @@ document.getElementById("fSave").onclick=()=>{
     color: document.querySelector("[data-c].on")?.dataset.c || COLORS[0],
     type,
     goal: (type==="check"||type==="workout") ? 1 : Math.max(0.1, Number(fGoal.value)||1),
-    unit: type==="check" ? "" : (type==="workout" ? "" : (type==="food" ? "grupos" : fUnit.value.trim())),
+    unit: type==="check" ? "" : (type==="workout" ? "" : (type==="food" ? "grupos" : (type==="activity" ? "min" : fUnit.value.trim()))),
     step: (type==="check"||type==="workout"||type==="food") ? 1 : Math.max(0.1, Number(fStep.value)||1)
   };
   if(editing) Object.assign(editing, data);
@@ -1883,6 +2085,7 @@ document.addEventListener("keydown",e=>{
     document.getElementById("sleepModal").classList.remove("open");
     if(document.getElementById("wkModal").classList.contains("open")) saveWorkout();
     if(document.getElementById("fdModal").classList.contains("open")) closeFood();
+    if(document.getElementById("acModal").classList.contains("open")) cerrarActividad();
   }
   if(e.target.matches("input,textarea,select")) return;
   if(e.key==="ArrowLeft"){ cur=shift(cur,-1); renderAll(); }
