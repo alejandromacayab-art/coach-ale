@@ -4,7 +4,13 @@ App web instalable (PWA) para registrar hábitos, entrenamiento, alimentación y
 Funciona sin internet y guarda todo en tu propio dispositivo.
 
 ```
-index.html              la app completa
+index.html              la app del deportista
+panel.html + panel.js   el panel del entrenador
+nube.js                 capa de datos: cuentas y sincronización
+config.js               los dos valores de conexión a la base de datos
+estilos.css             hoja de estilos común
+base-de-datos/          esquema y permisos de PostgreSQL
+vendor/                 librería de Supabase (incluida, funciona sin internet)
 sw.js                   service worker: caché offline + recepción de notificaciones
 manifest.webmanifest    datos de instalación (nombre, iconos, colores)
 icons/                  iconos de la app (logo de Coach Ale)
@@ -115,29 +121,34 @@ Cambia esos horarios, haz `git push` y listo. La zona horaria también se config
 
 ---
 
+## Cuentas y panel del entrenador
+
+La app funciona en dos modos según `config.js`:
+
+- **Sin configurar** — todo se guarda solo en el dispositivo. No hay cuentas ni panel.
+- **Conectada a Supabase** — cada persona entra con su correo, sus datos viven en la
+  base de datos y el entrenador ve el panel con todos sus deportistas.
+
+Para conectarla, sigue `base-de-datos/README.md` y pega los dos valores en `config.js`.
+
+**Quién ve qué.** Los permisos no los decide la app, los decide PostgreSQL:
+cada deportista alcanza únicamente sus propias filas, y el entrenador puede *leer*
+—nunca escribir— las de los deportistas que tiene asignados. Nadie entra sin estar
+en la lista de invitaciones; la primera cuenta que se registre queda como entrenador.
+
+**El panel** (`panel.html`) muestra el resumen del grupo, la tabla de deportistas con
+cargas, sueño y semáforo de chatarra, y la ficha individual con el detalle día a día
+de cada sesión: ejercicios, series y kilos.
+
 ## Sincronización entre dispositivos
 
-Los registros viven en tu dispositivo, pero pueden sincronizarse con el repositorio
-**privado** `coach-ale-datos`, de modo que el celular y el computador vean lo mismo.
+Con la base de datos conectada, esto es automático: entras con tu correo en cualquier
+dispositivo y ves lo mismo. Cada día es una fila con su propia marca de tiempo, y al
+fusionar gana la versión modificada más tarde, así que usar el celular y el computador
+el mismo día no pisa nada.
 
-1. Crea una clave en <https://github.com/settings/personal-access-tokens/new>
-   - Expiración: *No expiration* (o un año)
-   - Repository access: *Only select repositories* → **coach-ale-datos**
-   - Permissions → Repository permissions → **Contents: Read and write**
-2. Pégala en la app, en **Ajustes → Sincronización entre dispositivos**.
-3. Repite el paso 2 en cada dispositivo.
-
-La clave se guarda solo en el dispositivo donde la pegas; nunca se sube al repositorio
-público ni viaja a ningún otro sitio. Si la pierdes o la revocas, basta con generar otra.
-
-**Cómo resuelve los conflictos.** Cada día registrado lleva su propia marca de tiempo y
-solo se actualiza cuando algo cambia de verdad. Al sincronizar, para cada día gana la
-versión modificada más tarde, así que editar el lunes en el celular y el martes en el
-computador no pisa nada. Los hábitos y los ajustes viajan juntos con su propia marca.
-Cada guardado queda como un commit, así que siempre puedes recuperar una versión anterior.
-
-La app sincroniza sola al abrirse, al volver a ella, unos segundos después de cada cambio
-y cada cinco minutos. También hay un botón para hacerlo a mano.
+Si no conectas la base de datos, usa **Ajustes → Datos → Exportar** para llevarte un
+respaldo `.json` e importarlo en el otro dispositivo.
 
 ## Detalles útiles
 
