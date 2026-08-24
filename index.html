@@ -325,6 +325,7 @@
   <div style="width:100%;max-width:380px">
     <img src="assets/logo-dark.png" alt="Coach Ale" style="width:190px;max-width:60%;margin:0 auto 22px;display:block">
 
+    <p id="lgVer" style="text-align:center;color:var(--tx3);font-size:11.5px;margin:0 0 14px"></p>
     <div id="lgEntrar">
       <h2 style="margin:0 0 6px;font-size:20px;letter-spacing:-.03em;text-align:center">Entra a tu registro</h2>
       <p style="margin:0 0 20px;color:var(--tx2);font-size:13.5px;text-align:center">
@@ -376,7 +377,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-13";
+const APP_VERSION = "2026.08.24-14";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -569,6 +570,26 @@ function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 function slug(s){
   return s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"")
           .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "h";
+}
+
+/* Pone al día una lista de hábitos venga de donde venga: del dispositivo
+   o de la nube. Devuelve true si tuvo que cambiar algo. */
+const CAMBIOS_HABITOS = [
+  ["entren",  {type:"workout", goal:1, unit:""}],
+  ["comida",  {type:"food", goal:3, unit:"grupos", step:1}],
+  ["medit",   {id:"leer", name:"Leer", emoji:"📖", type:"amount", goal:10, unit:"páginas", step:2, color:"#a78bfa"}],
+  ["estirar", {id:"personal", name:"Trabajo personal", emoji:"🚀", type:"amount", goal:60, unit:"min", step:15, color:"#fb7185"}],
+  ["correr",  {id:"activi", name:"Actividad física", emoji:"🏃", type:"activity", goal:60, unit:"min", step:5, color:"#f97316"}]
+];
+function arreglarHabitos(lista){
+  if(!Array.isArray(lista)) return false;
+  let cambio = false;
+  CAMBIOS_HABITOS.forEach(([id, patch])=>{
+    const h = lista.find(x=>x && x.id === id);
+    if(!h) return;
+    if(Object.entries(patch).some(([k,v])=> h[k] !== v)){ Object.assign(h, patch); cambio = true; }
+  });
+  return cambio;
 }
 
 /* ============================================================
@@ -1873,11 +1894,16 @@ async function syncNow(manual){
     // --- hábitos y ajustes
     let subirConfig = null;
     const rc = remoto.config;
+    /* La cuenta puede tener guardada una lista de hábitos de una versión
+       anterior. La ponemos al día antes de compararla; si la tocamos, la
+       versión corregida es la que manda y se devuelve a la nube. */
+    if(rc && arreglarHabitos(rc.datos?.habits)){ rc.mt = Date.now(); rc.corregida = true; }
     if(rc && (rc.mt||0) > (S.metaMt||0)){
       S.habits = rc.datos.habits || S.habits;
       S.settings = Object.assign({}, S.settings, rc.datos.settings || {});
       if(rc.datos.theme) S.theme = rc.datos.theme;
       S.metaMt = rc.mt; cambio = true;
+      if(rc.corregida) subirConfig = aFilas().config;
     }else if(!rc || (S.metaMt||0) > (rc.mt||0)){
       subirConfig = aFilas().config;
     }
@@ -1913,6 +1939,8 @@ function hace(ms){
 
 /* ---------------- acceso ---------------- */
 function mostrarLogin(ver){
+  const vEl = document.getElementById("lgVer");
+  if(vEl) vEl.textContent = "versión " + APP_VERSION;
   document.getElementById("login").classList.toggle("hidden", !ver);
   document.body.style.overflow = ver ? "hidden" : "";
 }
