@@ -376,7 +376,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-9";
+const APP_VERSION = "2026.08.24-10";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -429,6 +429,12 @@ const ACTIVIDADES = [
   {k:"golf",     e:"⛳️", l:"Golf"},        {k:"otra",     e:"⭐️", l:"Otra"}
 ];
 const actNombre = k => ACTIVIDADES.find(a=>a.k===k) || {e:"⭐️", l:k};
+/* En estas la distancia dice tanto como el tiempo */
+const CON_KM = new Set(["correr","caminar","ciclismo","natacion","trekking","remo"]);
+/* Cada actividad se guarda como {min, km}; los registros antiguos eran solo un número */
+const actMin = v => (v && typeof v === "object") ? (Number(v.min)||0) : (Number(v)||0);
+const actKm  = v => (v && typeof v === "object") ? (Number(v.km)||0)  : 0;
+const actNorm = v => (v && typeof v === "object") ? v : {min:Number(v)||0, km:0};
 
 /* Ejercicios sugeridos para autocompletar */
 const EX_PRESETS = ["Sentadilla","Press banca","Peso muerto","Dominadas","Remo con barra","Press militar",
@@ -1556,16 +1562,19 @@ function saveWorkout(){
 /* ============================================================
    ACTIVIDAD FÍSICA
    ============================================================ */
-const acTotal = l => Object.values(l?.actividad?.items || {}).reduce((a,m)=>a+(Number(m)||0), 0);
+const acTotal   = l => Object.values(l?.actividad?.items || {}).reduce((a,v)=>a+actMin(v), 0);
+const acTotalKm = l => Object.values(l?.actividad?.items || {}).reduce((a,v)=>a+actKm(v), 0);
 
 function actividadCardBody(h,l){
-  const t = acTotal(l), ks = Object.keys(l.actividad.items||{}).filter(k=>Number(l.actividad.items[k])>0);
+  const t = acTotal(l), ks = Object.keys(l.actividad.items||{}).filter(k=>actMin(l.actividad.items[k])>0 || actKm(l.actividad.items[k])>0);
   return `<div class="row">
       <div class="hval">${t}<small>/ ${fmt(h.goal)} min</small></div>
       <button class="toggle ${t>=h.goal?'on':''}" data-ac="1">${t>=h.goal?"✓":"+"}</button>
     </div>
     <div class="hgoal" style="margin-top:8px">${ks.length
-      ? ks.map(k=>`${actNombre(k).e} ${actNombre(k).l} ${l.actividad.items[k]}′`).join(" · ")
+      ? ks.map(k=>{ const v = l.actividad.items[k];
+          return `${actNombre(k).e} ${actNombre(k).l} ${actMin(v)}′${actKm(v)?` · ${fmt(actKm(v))} km`:""}`;
+        }).join(" · ")
       : "Sin actividad registrada"}</div>
     <button class="cardbtn" data-ac="1">${t ? "Editar actividad" : "Registrar actividad"}</button>`;
 }
@@ -1580,7 +1589,7 @@ function openActividad(){
     box.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{
       const it = dayLog(cur).actividad.items, k = b.dataset.a;
       if(k in it){ delete it[k]; b.classList.remove("on"); }
-      else { it[k] = 30; b.classList.add("on"); }        // arranca en 30, tú lo ajustas
+      else { it[k] = {min:30, km:0}; b.classList.add("on"); }   // arranca en 30, tú lo ajustas
       syncActividad(); listaActividad();
     });
   }
@@ -1596,21 +1605,35 @@ function listaActividad(){
   const it = dayLog(cur).actividad.items, ks = Object.keys(it);
   document.getElementById("acList").innerHTML = ks.length
     ? ks.map(k=>{
-        const a = actNombre(k);
+        const a = actNombre(k), v = actNorm(it[k]);
         return `<div class="actrow">
-          <span style="font-size:18px">${a.e}</span>
-          <div class="n">${esc(a.l)}</div>
-          <button class="sbtn" data-am="${k}">−</button>
-          <input inputmode="numeric" data-amin="${k}" value="${it[k]}">
-          <span class="u">min</span>
-          <button class="sbtn plus" data-ap="${k}" style="--a:#f97316">+</button>
+          <div class="cab"><span style="font-size:18px">${a.e}</span><b>${esc(a.l)}</b></div>
+          <div class="campos">
+            <div class="grupo">
+              <button class="sbtn" data-am="${k}">−</button>
+              <input inputmode="numeric" data-amin="${k}" value="${v.min}">
+              <span class="u">min</span>
+              <button class="sbtn plus" data-ap="${k}" style="--a:#f97316">+</button>
+            </div>
+            ${CON_KM.has(k) ? `<div class="grupo km">
+              <input inputmode="decimal" data-akm="${k}" value="${v.km||""}" placeholder="0">
+              <span class="u">km</span></div>` : ""}
+          </div>
         </div>`; }).join("")
     : `<div class="empty" style="padding:16px">Elige una actividad de arriba</div>`;
 
   const L = document.getElementById("acList");
   L.querySelectorAll("[data-amin]").forEach(inp=>inp.oninput=()=>{
-    const v = Math.max(0, Math.min(600, parseInt(inp.value.replace(/\D/g,"")) || 0));
-    dayLog(cur).actividad.items[inp.dataset.amin] = v;
+    const it2 = dayLog(cur).actividad.items, k = inp.dataset.amin;
+    it2[k] = actNorm(it2[k]);
+    it2[k].min = Math.max(0, Math.min(600, parseInt(inp.value.replace(/\D/g,"")) || 0));
+    syncActividad();
+  });
+  L.querySelectorAll("[data-akm]").forEach(inp=>inp.oninput=()=>{
+    const it2 = dayLog(cur).actividad.items, k = inp.dataset.akm;
+    it2[k] = actNorm(it2[k]);
+    const n = parseFloat(inp.value.replace(",",".").replace(/[^\d.]/g,""));
+    it2[k].km = Math.max(0, Math.min(500, isFinite(n) ? n : 0));
     syncActividad();
   });
   L.querySelectorAll("[data-ap]").forEach(b=>b.onclick=()=>ajustaMin(b.dataset.ap, +5));
@@ -1619,13 +1642,18 @@ function listaActividad(){
 }
 function ajustaMin(k, d){
   const it = dayLog(cur).actividad.items;
-  it[k] = Math.max(0, Math.min(600, (Number(it[k])||0) + d));
+  it[k] = actNorm(it[k]);
+  it[k].min = Math.max(0, Math.min(600, it[k].min + d));
   const inp = document.querySelector(`[data-amin="${k}"]`);
-  if(inp) inp.value = it[k];
+  if(inp) inp.value = it[k].min;
   syncActividad();
 }
 function totalActividad(){
-  document.getElementById("acTotal").textContent = acTotal(dayLog(cur)) + " min";
+  const l = dayLog(cur), km = acTotalKm(l);
+  document.getElementById("acTotal").textContent = acTotal(l) + " min";
+  const h = S.habits.find(x=>x.type==="activity");
+  document.getElementById("acSide").innerHTML =
+    `Meta: ${fmt(h?.goal||60)} min` + (km ? `<br>${fmt(Math.round(km*10)/10)} km recorridos` : "");
 }
 function syncActividad(){
   const l = dayLog(cur), h = S.habits.find(x=>x.type==="activity");

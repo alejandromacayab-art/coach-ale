@@ -124,7 +124,10 @@ async function verAtleta(id){
   }catch(e){ $("main").innerHTML = `<div class="empty">${esc(Nube.traduce(e.message))}</div>`; return; }
 
   const vol = d => Number(d?.workout?.volume || 0);
-  const act = d => Object.values(d?.actividad?.items || {}).reduce((a,m)=>a+(Number(m)||0), 0);
+  const mn  = v => (v && typeof v === "object") ? (Number(v.min)||0) : (Number(v)||0);
+  const km2 = v => (v && typeof v === "object") ? (Number(v.km)||0)  : 0;
+  const act = d => Object.values(d?.actividad?.items || {}).reduce((a,v)=>a+mn(v), 0);
+  const actKm = d => Object.values(d?.actividad?.items || {}).reduce((a,v)=>a+km2(v), 0);
   const junk = d => (d?.food?.junk||[]).reduce((s,j)=>s+(j.n||1),0);
   const sesiones = dias.filter(r=>vol(r.datos)>0);
   const kgTot = dias.reduce((s,r)=>s+vol(r.datos),0);
@@ -163,6 +166,7 @@ async function verAtleta(id){
         <div class="stat"><b>${sesiones.length?kg(kgTot/sesiones.length):0}</b><span>Kg por sesión</span></div>
         <div class="stat"><b style="color:${colorSueno(sueMed)}">${sueMed||"–"}</b><span>Sueño · ${hMed||"–"} h</span></div>
         <div class="stat"><b style="color:#fb923c">${dias.reduce((s,r)=>s+act(r.datos),0)}</b><span>Min de actividad</span></div>
+        <div class="stat"><b style="color:#fb923c">${Math.round(dias.reduce((s,r)=>s+actKm(r.datos),0)*10)/10}</b><span>Km recorridos</span></div>
         <div class="stat"><b style="color:${colorChatarra(chat/6)}">${chat}</b><span>Chatarra total</span></div>
       </div>
       <div class="panel" style="margin-top:12px">
@@ -183,7 +187,7 @@ async function verAtleta(id){
       ${dias.length ? dias.map(r=>{
         const d = r.datos||{}, v = vol(d), j = junk(d), s = d.sleep;
         const ejercicios = (d.workout?.ex||[]).filter(e=>(e.sets||[]).some(x=>Number(x.w)&&Number(x.r)));
-        const acts = Object.entries(d.actividad?.items||{}).filter(([,m])=>Number(m)>0);
+        const acts = Object.entries(d.actividad?.items||{}).filter(([,v])=>mn(v)>0||km2(v)>0);
         const grupos = (d.food?.groups||[]).length;
         if(!v && !j && !s && !ejercicios.length && !grupos && !d.note && !acts.length) return "";
         return `<div class="dcard">
@@ -192,13 +196,14 @@ async function verAtleta(id){
             ${s ? `<span class="pill" style="color:${colorSueno(s.score)}">😴 ${s.score} · ${s.hours} h</span>` : ""}
             ${grupos ? `<span class="pill">🥗 ${grupos} grupos</span>` : ""}
             ${j ? `<span class="pill" style="color:${colorChatarra(j)}">🍔 ${j}</span>` : ""}
-            ${act(d) ? `<span class="pill" style="color:#fb923c">🏃 ${act(d)} min</span>` : ""}
+            ${act(d) ? `<span class="pill" style="color:#fb923c">🏃 ${act(d)} min${actKm(d)?` · ${actKm(d)} km`:""}</span>` : ""}
             ${v ? `<span class="pill" style="color:#4ade80">🏋️ ${kg(v)} kg</span>` : ""}
           </div>
           ${ejercicios.map(e=>`<div class="ex"><b>${esc(e.name||"Ejercicio")}</b> · ${
             (e.sets||[]).filter(x=>Number(x.w)&&Number(x.r))
               .map(x=>`${x.w}×${x.r}`).join("  ·  ")}</div>`).join("")}
-          ${acts.length ? `<div class="ex">${acts.map(([k,m])=>`${esc(k)} <b>${m}′</b>`).join(" · ")}</div>` : ""}
+          ${acts.length ? `<div class="ex">${acts.map(([k,v])=>
+              `${esc(k)} <b>${mn(v)}′</b>${km2(v)?` · <b>${km2(v)} km</b>`:""}`).join(" · ")}</div>` : ""}
           ${d.workout?.note ? `<div class="ex" style="color:var(--tx3);font-style:italic">“${esc(d.workout.note)}”</div>` : ""}
           ${d.note ? `<div class="ex" style="color:var(--tx3)">📝 ${esc(d.note)}</div>` : ""}
         </div>`;

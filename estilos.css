@@ -311,10 +311,15 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 
 
 /* ---------- Actividad física ---------- */
-.actrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.actrow{padding:12px 0;border-bottom:1px solid var(--line)}
 .actrow:last-child{border-bottom:none}
-.actrow .n{flex:1;font-size:14px;font-weight:600;min-width:0}
-.actrow input{width:82px;padding:9px 10px;border-radius:11px;border:1px solid var(--line);
-  background:var(--card2);outline:none;font-size:15px;font-weight:700;text-align:center}
-.actrow input:focus{border-color:var(--accent)}
-.actrow .u{font-size:11.5px;color:var(--tx3);width:26px}
+.actrow .cab{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.actrow .cab b{font-size:14.5px;font-weight:700}
+.actrow .campos{display:flex;gap:8px;flex-wrap:wrap}
+.actrow .grupo{display:flex;align-items:center;gap:6px;background:var(--card2);
+  border:1px solid var(--line);border-radius:12px;padding:4px 8px}
+.actrow .grupo.km{padding:4px 10px}
+.actrow input{width:56px;padding:7px 4px;border:none;background:transparent;outline:none;
+  font-size:16px;font-weight:800;text-align:center;color:var(--tx)}
+.actrow .grupo:focus-within{border-color:#f97316}
+.actrow .u{font-size:11.5px;color:var(--tx3);font-weight:700}
