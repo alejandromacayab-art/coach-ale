@@ -27,14 +27,37 @@ async function usuario(){
   const s = await sesion();
   return s ? s.user : null;
 }
-async function enviarEnlace(correo, volverA){
+async function entrar(correo, clave){
   if(!sb) throw new Error("La app no está conectada a la base de datos");
-  const {error} = await sb.auth.signInWithOtp({
-    email: correo.trim().toLowerCase(),
-    options: { emailRedirectTo: volverA || location.href.split("#")[0] }
+  const {data, error} = await sb.auth.signInWithPassword({
+    email: correo.trim().toLowerCase(), password: clave
   });
   if(error) throw new Error(traduce(error.code || error.message));
+  return data.session;
+}
+
+async function registrarse(correo, clave, nombre){
+  if(!sb) throw new Error("La app no está conectada a la base de datos");
+  const {data, error} = await sb.auth.signUp({
+    email: correo.trim().toLowerCase(), password: clave,
+    options: { data: { nombre: (nombre||"").trim() || null } }
+  });
+  if(error) throw new Error(traduce(error.code || error.message));
+  return data.session;
+}
+
+/* Recuperar contraseña sí necesita correo, y ahí manda el límite de Supabase */
+async function recuperar(correo){
+  if(!sb) throw new Error("La app no está conectada a la base de datos");
+  const {error} = await sb.auth.resetPasswordForEmail(correo.trim().toLowerCase(),
+    { redirectTo: location.href.split("#")[0] });
+  if(error) throw new Error(traduce(error.code || error.message));
   return true;
+}
+
+async function cambiarClave(nueva){
+  const {error} = await sb.auth.updateUser({password: nueva});
+  if(error) throw new Error(traduce(error.code || error.message));
 }
 async function salir(){ if(sb) await sb.auth.signOut(); }
 function alCambiarSesion(cb){ if(sb) sb.auth.onAuthStateChange((_e,s)=>cb(s)); }
@@ -131,6 +154,10 @@ async function quitarInvitacion(correo){
 /* ---------------- mensajes en cristiano ---------------- */
 function traduce(m){
   const s = String(m||"");
+  if(/invalid_credentials|Invalid login/i.test(s))  return "Correo o contraseña incorrectos.";
+  if(/user_already_exists|already registered/i.test(s)) return "Ese correo ya tiene cuenta. Entra con tu contraseña.";
+  if(/weak_password|Password should be/i.test(s))   return "La contraseña debe tener al menos 8 caracteres.";
+  if(/unexpected_failure|Database error/i.test(s))  return "Ese correo no está invitado. Pídele el acceso a tu entrenador.";
   if(/not invited|no está invitado/i.test(s)) return "Ese correo no está invitado. Pídele el acceso a tu entrenador.";
   if(/over_email_send_rate_limit/i.test(s))   return "Supabase solo permite 2 correos por hora en el plan gratuito. "
                                                    + "Espera un rato o configura un servicio de correo propio.";
@@ -143,7 +170,8 @@ function traduce(m){
 }
 
 global.Nube = {
-  activa, cliente:()=>sb, sesion, usuario, enviarEnlace, salir, alCambiarSesion,
+  activa, cliente:()=>sb, sesion, usuario, salir, alCambiarSesion,
+  entrar, registrarse, recuperar, cambiarClave,
   miPerfil, ponerNombre, bajar, subir,
   misAtletas, diasDe, configDe, invitaciones, invitar, quitarInvitacion, traduce
 };

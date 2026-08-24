@@ -243,14 +243,15 @@ $("invModal").onclick = e=>{ if(e.target.id==="invModal"){ $("invModal").classLi
 function mostrarLogin(v){ $("login").classList.toggle("hidden", !v); }
 
 $("go").onclick = async ()=>{
-  const c = $("mail").value.trim();
+  const c = $("mail").value.trim(), p = $("pass").value;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)){ toast("Escribe un correo válido"); return; }
-  try{
-    await Nube.enviarEnlace(c);
-    $("p1").classList.add("hidden"); $("p2").classList.remove("hidden");
-  }catch(e){ toast(Nube.traduce(e.message)); }
+  if(!p){ toast("Escribe tu contraseña"); return; }
+  $("go").disabled = true; $("go").textContent = "Entrando…";
+  try{ await Nube.entrar(c, p); location.reload(); }
+  catch(e){ toast(e.message); }
+  finally{ $("go").disabled = false; $("go").textContent = "Entrar"; }
 };
-$("mail").addEventListener("keydown", e=>{ if(e.key==="Enter") $("go").click(); });
+["mail","pass"].forEach(i=>$(i).addEventListener("keydown", e=>{ if(e.key==="Enter") $("go").click(); }));
 
 $("themeBtn").onclick = ()=>{
   const d = document.documentElement.dataset.theme === "dark";

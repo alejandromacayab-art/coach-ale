@@ -303,25 +303,38 @@
 <!-- ===== Pantalla de acceso ===== -->
 <div id="login" class="hidden" style="position:fixed;inset:0;z-index:300;background:var(--bg);
      display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto">
-  <div style="width:100%;max-width:380px;text-align:center">
+  <div style="width:100%;max-width:380px">
     <img src="assets/logo-dark.png" alt="Coach Ale" style="width:190px;max-width:60%;margin:0 auto 22px;display:block">
-    <div id="loginPaso1">
-      <h2 style="margin:0 0 6px;font-size:20px;letter-spacing:-.03em">Entra a tu registro</h2>
-      <p style="margin:0 0 22px;color:var(--tx2);font-size:13.5px">
-        Te enviamos un enlace a tu correo. Sin contraseñas que recordar.</p>
-      <input class="inp" id="loginMail" type="email" inputmode="email" autocomplete="email"
-             placeholder="tu@correo.com" style="text-align:center">
-      <button class="btn" style="margin-top:12px" id="loginGo">Enviarme el enlace</button>
-      <p style="margin:16px 0 0;color:var(--tx3);font-size:12px">
-        El acceso es solo para deportistas invitados por Coach Ale.</p>
+
+    <div id="lgEntrar">
+      <h2 style="margin:0 0 6px;font-size:20px;letter-spacing:-.03em;text-align:center">Entra a tu registro</h2>
+      <p style="margin:0 0 20px;color:var(--tx2);font-size:13.5px;text-align:center">
+        Con tu correo y tu contraseña.</p>
+      <label class="f"><span>Correo</span>
+        <input class="inp" id="lgMail" type="email" inputmode="email" autocomplete="username" placeholder="tu@correo.com"></label>
+      <label class="f"><span>Contraseña</span>
+        <input class="inp" id="lgPass" type="password" autocomplete="current-password" placeholder="••••••••"></label>
+      <button class="btn" id="lgGo">Entrar</button>
+      <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:12.5px">
+        <button id="lgIrCrear" style="color:var(--accent);font-weight:700">Crear mi cuenta</button>
+        <button id="lgOlvide" style="color:var(--tx3)">Olvidé mi contraseña</button>
+      </div>
     </div>
-    <div id="loginPaso2" class="hidden">
-      <div style="font-size:44px;margin-bottom:10px">📬</div>
-      <h2 style="margin:0 0 6px;font-size:20px;letter-spacing:-.03em">Revisa tu correo</h2>
-      <p style="margin:0 0 20px;color:var(--tx2);font-size:13.5px">
-        Te mandamos un enlace a <b id="loginMailEcho"></b>. Ábrelo desde este mismo
-        dispositivo y entrarás directo.</p>
-      <button class="btn ghost" id="loginBack">Usar otro correo</button>
+
+    <div id="lgCrear" class="hidden">
+      <h2 style="margin:0 0 6px;font-size:20px;letter-spacing:-.03em;text-align:center">Crea tu cuenta</h2>
+      <p style="margin:0 0 20px;color:var(--tx2);font-size:13.5px;text-align:center">
+        Solo para deportistas invitados por Coach Ale.</p>
+      <label class="f"><span>Tu nombre</span>
+        <input class="inp" id="crName" autocomplete="name" placeholder="Cómo quieres que te llame"></label>
+      <label class="f"><span>Correo</span>
+        <input class="inp" id="crMail" type="email" inputmode="email" autocomplete="username" placeholder="tu@correo.com"></label>
+      <label class="f"><span>Contraseña</span>
+        <input class="inp" id="crPass" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres"></label>
+      <label class="f"><span>Repite la contraseña</span>
+        <input class="inp" id="crPass2" type="password" autocomplete="new-password" placeholder="••••••••"></label>
+      <button class="btn" id="crGo">Crear cuenta y entrar</button>
+      <button class="btn ghost" style="margin-top:8px" id="crVolver">Ya tengo cuenta</button>
     </div>
   </div>
 </div>
@@ -344,7 +357,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-5";
+const APP_VERSION = "2026.08.24-6";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1678,22 +1691,48 @@ async function trasEntrar(){
   }
 }
 
-document.getElementById("loginGo").onclick = async ()=>{
-  const c = document.getElementById("loginMail").value.trim();
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)){ toast("Escribe un correo válido"); return; }
-  try{
-    await Nube.enviarEnlace(c);
-    document.getElementById("loginMailEcho").textContent = c;
-    document.getElementById("loginPaso1").classList.add("hidden");
-    document.getElementById("loginPaso2").classList.remove("hidden");
-  }catch(e){ toast(e.message); }
+const $$ = id => document.getElementById(id);
+function verModo(crear){
+  $$("lgEntrar").classList.toggle("hidden", crear);
+  $$("lgCrear").classList.toggle("hidden", !crear);
+}
+$$("lgIrCrear").onclick = ()=>verModo(true);
+$$("crVolver").onclick  = ()=>verModo(false);
+
+const correoOk = c => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c);
+
+$$("lgGo").onclick = async ()=>{
+  const c = $$("lgMail").value.trim(), p = $$("lgPass").value;
+  if(!correoOk(c)){ toast("Escribe un correo válido"); return; }
+  if(!p){ toast("Escribe tu contraseña"); return; }
+  $$("lgGo").disabled = true; $$("lgGo").textContent = "Entrando…";
+  try{ await Nube.entrar(c, p); }
+  catch(e){ toast(e.message); }
+  finally{ $$("lgGo").disabled = false; $$("lgGo").textContent = "Entrar"; }
 };
-document.getElementById("loginBack").onclick = ()=>{
-  document.getElementById("loginPaso2").classList.add("hidden");
-  document.getElementById("loginPaso1").classList.remove("hidden");
+
+$$("crGo").onclick = async ()=>{
+  const n = $$("crName").value.trim(), c = $$("crMail").value.trim();
+  const p = $$("crPass").value, p2 = $$("crPass2").value;
+  if(!correoOk(c)){ toast("Escribe un correo válido"); return; }
+  if(p.length < 8){ toast("La contraseña necesita al menos 8 caracteres"); return; }
+  if(p !== p2){ toast("Las contraseñas no coinciden"); return; }
+  $$("crGo").disabled = true; $$("crGo").textContent = "Creando…";
+  try{ await Nube.registrarse(c, p, n); }
+  catch(e){ toast(e.message); }
+  finally{ $$("crGo").disabled = false; $$("crGo").textContent = "Crear cuenta y entrar"; }
 };
-document.getElementById("loginMail").addEventListener("keydown", e=>{
-  if(e.key === "Enter") document.getElementById("loginGo").click();
+
+$$("lgOlvide").onclick = async ()=>{
+  const c = $$("lgMail").value.trim();
+  if(!correoOk(c)){ toast("Escribe primero tu correo arriba"); return; }
+  if(!confirm(`Te enviaremos un correo a ${c} para restablecer la contraseña. ¿Continuar?`)) return;
+  try{ await Nube.recuperar(c); toast("Te mandamos un correo para restablecerla"); }
+  catch(e){ toast(e.message); }
+};
+
+[["lgMail","lgGo"],["lgPass","lgGo"],["crPass2","crGo"]].forEach(([campo,boton])=>{
+  $$(campo).addEventListener("keydown", e=>{ if(e.key === "Enter") $$(boton).click(); });
 });
 
 /* ============================================================

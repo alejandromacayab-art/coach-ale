@@ -25,8 +25,11 @@
    La clave **`service_role`** de esa misma pantalla sí es secreta. No la copies
    a ningún sitio ni la compartas: se salta todos los permisos.
 
-5. En **Authentication → Providers**, deja activado **Email** y activa
-   *Confirm email*. Desactiva el resto.
+5. En **Authentication → Sign In / Providers**:
+   - **Email** activado
+   - **Confirm email** DESACTIVADO — así el registro es inmediato y no depende del
+     correo, que en el plan gratuito está limitado a 2 envíos por hora
+   - **Minimum password length**: 8
 
 ## Cómo funcionan los permisos
 

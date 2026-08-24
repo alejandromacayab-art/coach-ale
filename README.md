@@ -126,10 +126,14 @@ Cambia esos horarios, haz `git push` y listo. La zona horaria también se config
 La app funciona en dos modos según `config.js`:
 
 - **Sin configurar** — todo se guarda solo en el dispositivo. No hay cuentas ni panel.
-- **Conectada a Supabase** — cada persona entra con su correo, sus datos viven en la
+- **Conectada a Supabase** — cada persona entra con correo y contraseña, sus datos viven en la
   base de datos y el entrenador ve el panel con todos sus deportistas.
 
 Para conectarla, sigue `base-de-datos/README.md` y pega los dos valores en `config.js`.
+
+**Cómo se entra.** Correo y contraseña, sin confirmación por correo: quien está
+invitado crea su cuenta y entra en el acto. Solo el «olvidé mi contraseña» necesita
+un envío de correo, sujeto al límite del plan gratuito de Supabase (2 por hora).
 
 **Quién ve qué.** Los permisos no los decide la app, los decide PostgreSQL:
 cada deportista alcanza únicamente sus propias filas, y el entrenador puede *leer*
