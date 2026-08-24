@@ -2,7 +2,7 @@
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "coachale-v12";
+const CACHE = "coachale-v13";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
@@ -24,8 +24,14 @@ self.addEventListener("activate", e=>{
 self.addEventListener("fetch", e=>{
   const req = e.request;
   if(req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
+  // el HTML se pide siempre al servidor, sin pasar por la caché del navegador:
+  // si no, una copia guardada podía tapar una versión nueva durante horas
+  const esHTML = req.mode === "navigate" ||
+                 (req.headers.get("accept")||"").includes("text/html") ||
+                 /\.(html|js|css|webmanifest)$/.test(new URL(req.url).pathname);
+  const pedir = esHTML ? fetch(new Request(req.url, {cache:"no-store"})) : fetch(req);
   e.respondWith(
-    fetch(req).then(res=>{
+    pedir.then(res=>{
       const copy = res.clone();
       caches.open(CACHE).then(c=>c.put(req, copy)).catch(()=>{});
       return res;
