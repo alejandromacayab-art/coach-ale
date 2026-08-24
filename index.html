@@ -624,7 +624,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-1";
+const APP_VERSION = "2026.08.24-2";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1901,8 +1901,9 @@ async function syncNow(manual){
   syncing = true;
   if(manual) toast("Sincronizando…");
   try{
-    let sha = null, remote = null;
-    const r = await api(SY.path);
+    let sha = null, remote = null, r;
+    try{ r = await api(SY.path); }
+    catch(e){ throw new Error("no hay conexión a internet, o el navegador bloqueó la petición"); }
     if(r.status === 200){
       const j = await r.json();
       sha = j.sha;
@@ -1944,9 +1945,11 @@ async function syncNow(manual){
 }
 
 function errMsg(code){
-  if(code === 401) return "la clave no es válida o caducó";
-  if(code === 403) return "la clave no tiene permiso sobre ese repositorio";
-  if(code === 404) return "no encuentro el repositorio (revisa el nombre)";
+  if(code === 401) return "(401) la clave no es válida, está incompleta o caducó";
+  if(code === 403) return "(403) la clave existe pero le falta el permiso Contents: Read and write";
+  if(code === 404) return "(404) no llego al repositorio. O el nombre está mal, o la clave no lo tiene "
+                        + "seleccionado en «Only select repositories», o le falta el permiso Contents";
+  if(code === 422) return "(422) el archivo cambió mientras guardaba; vuelve a intentarlo";
   return "error " + code;
 }
 function hace(ms){
