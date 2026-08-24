@@ -181,3 +181,19 @@ from public.perfiles p
 where p.rol = 'atleta' and p.coach_id = auth.uid();
 
 grant select on public.panel_atletas to authenticated;
+
+-- ------------------------------------------------------------
+-- 8. CAMBIOS EN VIVO
+--    Permite que el panel del entrenador se entere al instante
+--    cuando un deportista guarda algo. Los permisos por fila
+--    siguen mandando: solo llegan los cambios que puedes ver.
+-- ------------------------------------------------------------
+do $$
+begin
+  begin execute 'alter publication supabase_realtime add table public.dias';
+  exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table public.perfiles';
+  exception when duplicate_object then null; end;
+end $$;
+
+alter table public.dias replica identity full;

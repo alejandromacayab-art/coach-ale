@@ -357,7 +357,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-7";
+const APP_VERSION = "2026.08.24-8";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1889,10 +1889,14 @@ document.addEventListener("keydown",e=>{
   if(e.key==="ArrowRight" && cur<todayKey()){ cur=shift(cur,1); renderAll(); }
 });
 document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState!=="visible") return;
-  if(cur !== todayKey() && !document.getElementById("modal").classList.contains("open")){}
+  if(document.visibilityState !== "visible"){
+    clearTimeout(syncTimer);          // al salir de la app, subimos ya lo que quedaba pendiente
+    syncNow(false);
+    return;
+  }
   maybeAskSleep(); remTick(); screensTick(); syncNow(false);
 });
+addEventListener("pagehide", ()=>{ clearTimeout(syncTimer); syncNow(false); });
 
 /* ============================================================
    INIT

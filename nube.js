@@ -151,6 +151,21 @@ async function quitarInvitacion(correo){
   if(error) throw new Error(traduce(error.message));
 }
 
+/* ---------------- cambios en vivo ----------------
+   La base avisa al panel en cuanto un deportista guarda algo.
+   Solo llegan los cambios que los permisos por fila te dejan ver. */
+function escuchar(alCambiar, alEstado){
+  if(!sb) return null;
+  const canal = sb.channel("panel-en-vivo")
+    .on("postgres_changes", {event:"*", schema:"public", table:"dias"},
+        p => alCambiar && alCambiar(p.new?.user_id || p.old?.user_id, p))
+    .on("postgres_changes", {event:"*", schema:"public", table:"perfiles"},
+        p => alCambiar && alCambiar(p.new?.id || p.old?.id, p))
+    .subscribe(estado => alEstado && alEstado(estado));
+  return canal;
+}
+function dejarDeEscuchar(canal){ if(sb && canal) sb.removeChannel(canal); }
+
 /* ---------------- mensajes en cristiano ---------------- */
 function traduce(m){
   const s = String(m||"");
@@ -173,6 +188,7 @@ global.Nube = {
   activa, cliente:()=>sb, sesion, usuario, salir, alCambiarSesion,
   entrar, registrarse, recuperar, cambiarClave,
   miPerfil, ponerNombre, bajar, subir,
-  misAtletas, diasDe, configDe, invitaciones, invitar, quitarInvitacion, traduce
+  misAtletas, diasDe, configDe, invitaciones, invitar, quitarInvitacion,
+  escuchar, dejarDeEscuchar, traduce
 };
 })(window);

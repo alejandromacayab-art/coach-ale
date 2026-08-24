@@ -140,6 +140,12 @@ cada deportista alcanza únicamente sus propias filas, y el entrenador puede *le
 —nunca escribir— las de los deportistas que tiene asignados. Nadie entra sin estar
 en la lista de invitaciones; la primera cuenta que se registre queda como entrenador.
 
+**En vivo.** El panel se suscribe a los cambios de la base: cuando un deportista guarda
+algo, su fila se actualiza sola y parpadea, sin recargar la página. El indicador de la
+cabecera muestra si la conexión está viva. Por su parte, la app del deportista sube sus
+datos unos segundos después de cada cambio y también al cerrarse o pasar a segundo plano,
+para que nada se quede esperando en el teléfono.
+
 **El panel** (`panel.html`) muestra el resumen del grupo, la tabla de deportistas con
 cargas, sueño y semáforo de chatarra, y la ficha individual con el detalle día a día
 de cada sesión: ejercicios, series y kilos.

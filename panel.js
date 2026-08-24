@@ -5,6 +5,7 @@
 "use strict";
 
 let perfil = null, atletas = [], invs = [];
+let canal = null, vista = {tipo:"lista", id:null}, refrescoTimer = null, enVivo = false;
 const $ = id => document.getElementById(id);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const kg  = n => Math.round(Number(n)||0).toLocaleString("es-CL");
@@ -43,7 +44,8 @@ function colorSueno(n){ return !n ? "#6f7887" : n >= 70 ? "#22e07a" : n >= 50 ? 
    LISTA DE DEPORTISTAS
    ============================================================ */
 async function verLista(){
-  $("main").innerHTML = `<div class="empty">Cargando deportistas…</div>`;
+  vista = {tipo:"lista", id:null};
+  if(!document.querySelector(".tabla")) $("main").innerHTML = `<div class="empty">Cargando deportistas…</div>`;
   try{
     atletas = await Nube.misAtletas();
   }catch(e){ $("main").innerHTML = `<div class="empty">${esc(Nube.traduce(e.message))}</div>`; return; }
@@ -112,7 +114,9 @@ async function verLista(){
    ============================================================ */
 async function verAtleta(id){
   const a = atletas.find(x=>x.id === id);
-  $("main").innerHTML = `<div class="empty">Cargando ficha…</div>`;
+  const mismaFicha = vista.tipo === "ficha" && vista.id === id;
+  vista = {tipo:"ficha", id};
+  if(!mismaFicha) $("main").innerHTML = `<div class="empty">Cargando ficha…</div>`;
   let dias = [];
   try{
     const desde = new Date(); desde.setDate(desde.getDate()-45);
@@ -197,7 +201,7 @@ async function verAtleta(id){
     </section>`;
 
   $("volver").onclick = verLista;
-  window.scrollTo({top:0});
+  if(!mismaFicha) window.scrollTo({top:0});
 }
 
 /* ============================================================
@@ -236,6 +240,42 @@ $("invSave").onclick = async ()=>{
 };
 $("invClose").onclick = ()=>{ $("invModal").classList.remove("open"); verLista(); };
 $("invModal").onclick = e=>{ if(e.target.id==="invModal"){ $("invModal").classList.remove("open"); verLista(); } };
+
+/* ============================================================
+   CAMBIOS EN VIVO
+   La base avisa al panel en cuanto un deportista guarda algo.
+   ============================================================ */
+function pintarVivo(on){
+  enVivo = on;
+  const p = $("vivo");
+  if(!p) return;
+  p.classList.toggle("on", on);
+  $("vivoTxt").textContent = on ? "en vivo" : "sin conexión";
+}
+
+function conectarEnVivo(){
+  canal = Nube.escuchar(
+    uid => { clearTimeout(refrescoTimer); refrescoTimer = setTimeout(()=>refrescar(uid), 1200); },
+    estado => pintarVivo(estado === "SUBSCRIBED")
+  );
+}
+
+async function refrescar(uid){
+  if(vista.tipo === "lista"){
+    const antes = JSON.stringify(atletas.find(a=>a.id===uid) || null);
+    await verLista();
+    const fila = document.querySelector(`[data-id="${uid}"]`);
+    if(fila && antes !== JSON.stringify(atletas.find(a=>a.id===uid) || null)){
+      fila.classList.add("cambio");
+      setTimeout(()=>fila.classList.remove("cambio"), 2200);
+    }
+  }else if(vista.tipo === "ficha" && vista.id === uid){
+    const y = window.scrollY;
+    await verAtleta(uid);
+    window.scrollTo({top:y});
+    toast("Actualizado recién");
+  }
+}
 
 /* ============================================================
    ACCESO Y ARRANQUE
@@ -285,6 +325,8 @@ $("themeBtn").onclick = ()=>{
          href="index.html">Ir a mi registro</a></div>`;
     return;
   }
-  verLista();
+  await verLista();
+  conectarEnVivo();
   Nube.alCambiarSesion(s=>{ if(!s) location.reload(); });
+  addEventListener("beforeunload", ()=>Nube.dejarDeEscuchar(canal));
 })();
