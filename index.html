@@ -376,7 +376,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-11";
+const APP_VERSION = "2026.08.24-13";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -452,14 +452,17 @@ function load(){
     if(raw){
       const d = JSON.parse(raw);
       d.habits ||= []; d.logs ||= {};
+      const vAntes = d.v || 0;
+      /* Renombra o reconfigura un hábito ya existente. Vive fuera de los bloques
+         de migración porque todos lo usan. */
+      const mv = (oldId, patch)=>{
+        const h = d.habits.find(x=>x.id===oldId); if(!h) return;
+        Object.assign(h, patch);
+        if(patch.id && patch.id!==oldId)
+          Object.values(d.logs).forEach(l=>{ if(l.values) delete l.values[oldId]; });
+      };
       if(!(d.v >= 2)){ d.theme = "dark"; d.v = 2; }   // migración: la app pasa a fondo negro
       if(d.v < 3){                                     // migración: entrenamiento, comida y hábitos nuevos
-        const mv = (oldId, patch)=>{
-          const h = d.habits.find(x=>x.id===oldId); if(!h) return;
-          Object.assign(h, patch);
-          if(patch.id && patch.id!==oldId)
-            Object.values(d.logs).forEach(l=>{ if(l.values) delete l.values[oldId]; });
-        };
         mv("entren", {type:"workout", goal:1, unit:""});
         mv("comida", {type:"food", goal:3, unit:"grupos", step:1});
         mv("medit",  {id:"leer", name:"Leer", emoji:"📖", type:"amount", goal:10, unit:"páginas", step:2, color:"#a78bfa"});
@@ -478,9 +481,28 @@ function load(){
       d.settings.screens = Object.assign({}, DEF_SETTINGS.screens, d.settings.screens||{});
       d.settings.junk = Object.assign({}, DEF_SETTINGS.junk, d.settings.junk||{});
       d.habits.forEach((h,i)=> h.color ||= COLORS[i % COLORS.length]);
+      /* Si acabamos de migrar, la lista nueva tiene que ganarle a la que está en
+         la nube. Sin esto, al sincronizar volvían los hábitos viejos. */
+      if((d.v||0) > vAntes) d.metaMt = Date.now();
       return d;
     }
-  }catch(e){ console.warn("estado corrupto:",e); }
+  }catch(e){
+    console.error("No se pudo leer el estado guardado:", e);
+    /* Antes esto descartaba TODO y arrancaba de cero. Ahora intentamos rescatar
+       los datos tal cual estaban, aunque la migración haya fallado. */
+    try{
+      const crudo = JSON.parse(localStorage.getItem(KEY));
+      if(crudo && crudo.habits && crudo.logs){
+        crudo.settings = Object.assign({}, DEF_SETTINGS, crudo.settings||{});
+        crudo.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  crudo.settings.rem||{});
+        crudo.settings.wake = Object.assign({}, DEF_SETTINGS.wake, crudo.settings.wake||{});
+        crudo.settings.screens = Object.assign({}, DEF_SETTINGS.screens, crudo.settings.screens||{});
+        crudo.settings.junk = Object.assign({}, DEF_SETTINGS.junk, crudo.settings.junk||{});
+        crudo.theme ||= "dark";
+        return crudo;
+      }
+    }catch(e2){}
+  }
   return {v:4, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"dark",
           settings: JSON.parse(JSON.stringify(DEF_SETTINGS))};
 }
