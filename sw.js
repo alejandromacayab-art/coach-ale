@@ -1,11 +1,12 @@
-/* Service worker de Bienestar
+/* Service worker de Coach Ale
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "bienestar-v1";
+const CACHE = "coachale-v3";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
-  "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"
+  "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
+  "./assets/symbol-dark.png", "./assets/symbol-light.png"
 ];
 
 self.addEventListener("install", e=>{
@@ -59,7 +60,7 @@ self.addEventListener("push", e=>{
   const kind = data.kind || "habits";
 
   e.waitUntil((async ()=>{
-    let title = data.title || "Bienestar";
+    let title = data.title || "Coach Ale";
     let body  = data.body  || "";
     const st = await readState();
     const fresh = st && st.date === hoyKey();
@@ -69,7 +70,7 @@ self.addEventListener("push", e=>{
         title = "¡Día completo! 🎉";
         body  = "Ya cerraste todos tus círculos de hoy. Descansa tranquilo.";
       }else if(fresh){
-        title = `Vas ${st.pct}% del día 🌿`;
+        title = `Vas ${st.pct}% del día 🏋️`;
         body  = st.detail
           ? `${st.detail}. Te quedan ${st.pending} hábito${st.pending===1?"":"s"} por cerrar.`
           : `Te quedan ${st.pending} hábito${st.pending===1?"":"s"} por cerrar.`;

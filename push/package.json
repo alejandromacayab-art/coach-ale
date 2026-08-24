@@ -1,9 +1,9 @@
 {
-  "name": "bienestar-push",
+  "name": "coach-ale-push",
   "version": "1.0.0",
   "private": true,
   "type": "commonjs",
-  "description": "Envía las alertas de Bienestar al celular mediante Web Push",
+  "description": "Envía las alertas de Coach Ale al celular mediante Web Push",
   "scripts": {
     "keys": "node generate-keys.js",
     "send": "node send.js",

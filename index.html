@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#0B1521">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<title>Bienestar · Registro personal</title>
+<title>Coach Ale · Registro personal</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="Bienestar">
+<meta name="apple-mobile-web-app-title" content="Coach Ale">
 <style>
 :root{
   /* NEGRO + colores vivos */
@@ -53,9 +53,13 @@ header{position:sticky;top:0;z-index:50;padding-top:env(safe-area-inset-top);
   background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(14px);
   border-bottom:1px solid var(--line)}
 .hbar{display:flex;align-items:center;gap:10px;padding:12px 0}
-.brand{font-weight:800;font-size:17px;letter-spacing:-.03em;display:flex;align-items:center;gap:7px}
-.brand em{font-style:normal;background:linear-gradient(92deg,#22e07a,#38bdf8);
-  -webkit-background-clip:text;background-clip:text;color:transparent}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.brand img{height:28px;width:auto;display:block}
+.brand .wm{font-size:15px;font-weight:500;letter-spacing:.14em;line-height:1;
+  display:flex;flex-direction:column;gap:2px;color:var(--tx)}
+.brand .wm b{font-weight:800;letter-spacing:.06em;font-size:16px}
+:root[data-theme="dark"] .brand .lg-light{display:none}
+:root[data-theme="light"] .brand .lg-dark{display:none}
 .spacer{flex:1}
 .iconbtn{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
   border:1px solid var(--line);background:var(--card);font-size:15px;position:relative}
@@ -323,7 +327,11 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 <header>
   <div class="wrap">
     <div class="hbar">
-      <div class="brand">🌿 <em>Bienestar</em></div>
+      <div class="brand">
+        <img src="assets/symbol-dark.png" alt="" class="lg-dark" aria-hidden="true">
+        <img src="assets/symbol-light.png" alt="" class="lg-light" aria-hidden="true">
+        <span class="wm">COACH<b>ALE</b></span>
+      </div>
       <div class="spacer"></div>
       <button class="iconbtn" id="bellBtn" title="Recordatorios">🔔</button>
       <button class="iconbtn" id="themeBtn" title="Tema">☀️</button>
@@ -882,7 +890,7 @@ function pendingSummary(){
 function fireReminder(manual){
   const p = pendingSummary();
   if(!p && !manual){ return false; }
-  const title = p ? `Vas ${p.pct}% del día 🌿` : "¡Día completo! 🎉";
+  const title = p ? `Vas ${p.pct}% del día 🏋️` : "¡Día completo! 🎉";
   const body  = p ? `${p.detalle}. Te quedan ${p.n} hábito${p.n>1?"s":""} por cerrar.`
                   : "Completaste todos tus círculos de hoy.";
   if(notifState()==="granted"){
@@ -894,7 +902,7 @@ function fireReminder(manual){
 }
 function iconDataUrl(){
   return "data:image/svg+xml,"+encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#000"/><text x="50" y="72" font-size="62" text-anchor="middle">🌿</text></svg>`);
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#000"/><text x="50" y="72" font-size="62" text-anchor="middle">🏋️</text></svg>`);
 }
 
 function remTick(){
@@ -1410,12 +1418,12 @@ async function renderInstall(){
          <li>Abre esta página en <b>Safari</b> (no sirve Chrome en iPhone).</li>
          <li>Toca el botón <b>Compartir</b> ⬆︎ de abajo.</li>
          <li>Elige <b>Agregar a pantalla de inicio</b>.</li>
-         <li>Abre la app desde el icono 🌿 y vuelve aquí a activar las alertas.</li>
+         <li>Abre la app desde el icono de Coach Ale y vuelve aquí a activar las alertas.</li>
        </ol>`
     : `<ol class="steps">
          <li>Toca el menú <b>⋮</b> del navegador.</li>
          <li>Elige <b>Instalar aplicación</b> o <b>Agregar a pantalla principal</b>.</li>
-         <li>Abre la app desde el icono 🌿 y activa las alertas.</li>
+         <li>Abre la app desde el icono de Coach Ale y activa las alertas.</li>
        </ol>`;
 
   const pushBlock = !PUSH_PUBLIC_KEY
@@ -1804,7 +1812,7 @@ document.getElementById("fDel").onclick=()=>{
 document.getElementById("expBtn").onclick=()=>{
   const blob = new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = `bienestar-${todayKey()}.json`;
+  a.href = URL.createObjectURL(blob); a.download = `coach-ale-${todayKey()}.json`;
   a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 };
 document.getElementById("impBtn").onclick=()=>document.getElementById("impFile").click();

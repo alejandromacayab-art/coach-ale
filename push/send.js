@@ -1,4 +1,4 @@
-/* Envía las alertas de Bienestar por Web Push.
+/* Envía las alertas de Coach Ale por Web Push.
    Pensado para ejecutarse cada 30 min desde GitHub Actions (o cualquier cron).
 
    Variables de entorno:
@@ -68,7 +68,7 @@ function pendientes(){
       const hh = String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0");
       if(dentro(hh)){
         out.push({kind:"habits",
-          title:"Bienestar 🌿",
+          title:"Coach Ale 🏋️",
           body:"¿Cómo van tus círculos de hoy? Abre la app y completa lo que falte."});
         break;
       }
@@ -83,7 +83,7 @@ async function main(){
   let jobs;
   if(forceIdx > -1){
     const k = process.argv[forceIdx+1] || "habits";
-    jobs = [{kind:k, title:"Bienestar 🌿", body:"Notificación de prueba: si ves esto, las alertas funcionan."}];
+    jobs = [{kind:k, title:"Coach Ale 🏋️", body:"Notificación de prueba: si ves esto, las alertas funcionan."}];
   }else{
     jobs = pendientes();
   }

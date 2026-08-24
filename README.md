@@ -1,4 +1,4 @@
-# 🌿 Bienestar — app de registro personal
+# 🏋️ Coach Ale — app de registro personal
 
 App web instalable (PWA) para registrar hábitos, entrenamiento, alimentación y sueño.
 Funciona sin internet y guarda todo en tu propio dispositivo.
@@ -7,7 +7,8 @@ Funciona sin internet y guarda todo en tu propio dispositivo.
 index.html              la app completa
 sw.js                   service worker: caché offline + recepción de notificaciones
 manifest.webmanifest    datos de instalación (nombre, iconos, colores)
-icons/                  iconos de la app
+icons/                  iconos de la app (logo de Coach Ale)
+assets/                 logotipo en versión clara y oscura
 push/                   servidor de alertas (Node + web-push)
 .github/workflows/      cron que envía las alertas cada 30 minutos
 ```
@@ -74,7 +75,7 @@ En el repo, **Settings → Secrets and variables → Actions → New repository 
 
 1. Abre `https://TU-USUARIO.github.io/bienestar/` en **Safari**.
 2. Botón **Compartir** ⬆︎ → **Agregar a pantalla de inicio**.
-3. Abre la app desde el icono 🌿 (ya no desde Safari).
+3. Abre la app desde el icono de Coach Ale (ya no desde Safari).
 
 ---
 
@@ -96,7 +97,7 @@ En el repo, **Settings → Secrets and variables → Actions → New repository 
 
 ## Paso 5 · Probar
 
-En el repo: **Actions → Alertas de Bienestar → Run workflow**, elige `habits` y ejecútalo.
+En el repo: **Actions → Alertas de Coach Ale → Run workflow**, elige `habits` y ejecútalo.
 En unos segundos debería sonar el celular. Si llega, ya está todo funcionando.
 
 A partir de ahí las alertas salen solas según `push/config.json`:

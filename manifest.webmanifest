@@ -1,13 +1,13 @@
 {
-  "name": "Bienestar · Registro personal",
-  "short_name": "Bienestar",
-  "description": "Registro diario de hábitos, entrenamiento, alimentación y sueño.",
+  "name": "Coach Ale · Registro personal",
+  "short_name": "Coach Ale",
+  "description": "Coach Ale · Entrenamiento online. Registro diario de hábitos, entrenamiento, alimentación y sueño.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#0B1521",
+  "theme_color": "#0B1521",
   "lang": "es",
   "categories": ["health", "lifestyle", "productivity"],
   "icons": [
