@@ -357,7 +357,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-6";
+const APP_VERSION = "2026.08.24-7";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1279,12 +1279,33 @@ function renderSyncPanel(){
     ${esCoach ? `<a class="btn" style="display:block;text-align:center;text-decoration:none;margin-top:12px"
         href="panel.html">Abrir el panel de deportistas</a>` : ""}
     <button class="btn ghost" style="margin-top:${esCoach?8:12}px" id="syncGo">Sincronizar ahora</button>
+    <button class="btn ghost" style="margin-top:8px" id="claveBtn">🔑 Poner o cambiar mi contraseña</button>
+    <div id="claveBox" class="hidden" style="margin-top:10px">
+      <label class="f"><span>Contraseña nueva</span>
+        <input class="inp" id="clave1" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres"></label>
+      <label class="f"><span>Repítela</span>
+        <input class="inp" id="clave2" type="password" autocomplete="new-password" placeholder="••••••••"></label>
+      <button class="btn" id="claveOk">Guardar contraseña</button>
+    </div>
     <button class="btn ghost" style="margin-top:8px" id="syncOut">Cerrar sesión</button>
     <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
       Tus registros se guardan en tu cuenta y aparecen en cualquier dispositivo donde entres
       con este correo. Se sincroniza sola al abrir la app, al volver a ella y tras cada cambio.</p>`;
 
   document.getElementById("syncGo").onclick = ()=>syncNow(true);
+  document.getElementById("claveBtn").onclick = ()=>
+    document.getElementById("claveBox").classList.toggle("hidden");
+  document.getElementById("claveOk").onclick = async ()=>{
+    const a = document.getElementById("clave1").value, b = document.getElementById("clave2").value;
+    if(a.length < 8){ toast("Necesita al menos 8 caracteres"); return; }
+    if(a !== b){ toast("Las contraseñas no coinciden"); return; }
+    try{
+      await Nube.cambiarClave(a);
+      document.getElementById("clave1").value = ""; document.getElementById("clave2").value = "";
+      document.getElementById("claveBox").classList.add("hidden");
+      toast("Contraseña guardada. Ya puedes entrar con ella.");
+    }catch(e){ toast(e.message); }
+  };
   document.getElementById("syncOut").onclick = async ()=>{
     if(!confirm("Se cerrará la sesión en este dispositivo. Tus datos siguen en tu cuenta. ¿Continuar?")) return;
     await Nube.salir(); sesionUsuario = null; perfil = null;
