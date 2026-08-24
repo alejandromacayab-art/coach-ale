@@ -33,7 +33,7 @@ async function enviarEnlace(correo, volverA){
     email: correo.trim().toLowerCase(),
     options: { emailRedirectTo: volverA || location.href.split("#")[0] }
   });
-  if(error) throw new Error(traduce(error.message));
+  if(error) throw new Error(traduce(error.code || error.message));
   return true;
 }
 async function salir(){ if(sb) await sb.auth.signOut(); }
@@ -132,7 +132,9 @@ async function quitarInvitacion(correo){
 function traduce(m){
   const s = String(m||"");
   if(/not invited|no está invitado/i.test(s)) return "Ese correo no está invitado. Pídele el acceso a tu entrenador.";
-  if(/rate limit|too many/i.test(s))          return "Demasiados intentos seguidos. Espera un minuto.";
+  if(/over_email_send_rate_limit/i.test(s))   return "Supabase solo permite 2 correos por hora en el plan gratuito. "
+                                                   + "Espera un rato o configura un servicio de correo propio.";
+  if(/rate limit|too many/i.test(s))          return "Demasiados intentos seguidos. Espera un rato.";
   if(/invalid.*email|email.*invalid/i.test(s))return "Ese correo no parece válido.";
   if(/row-level security|permission denied/i.test(s)) return "No tienes permiso para ver eso.";
   if(/Failed to fetch|NetworkError/i.test(s)) return "Sin conexión a internet.";
