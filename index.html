@@ -620,6 +620,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
+const APP_VERSION = "2026.08.23-3";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -791,8 +792,19 @@ async function initSW(){
   if(!("serviceWorker" in navigator)) return;
   if(location.protocol === "file:") return;      // file:// no admite service workers
   try{
-    swReg = await navigator.serviceWorker.register("sw.js", {scope:"./"});
+    // si ya había una versión corriendo, al activarse la nueva recargamos una vez
+    let recargando = false;
+    navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+      if(recargando || !navigator.serviceWorker.controller) return;
+      recargando = true; location.reload();
+    });
+    swReg = await navigator.serviceWorker.register("sw.js", {scope:"./", updateViaCache:"none"});
     await navigator.serviceWorker.ready;
+    swReg.update().catch(()=>{});
+    // y buscamos actualizaciones cada vez que vuelves a la app
+    document.addEventListener("visibilitychange", ()=>{
+      if(document.visibilityState === "visible" && swReg) swReg.update().catch(()=>{});
+    });
     renderInstall && renderInstall();
   }catch(e){ console.warn("SW no registrado:", e); }
 }
@@ -1443,7 +1455,21 @@ async function renderInstall(){
            ${swOK ? "Después de activarlas, copia la suscripción y pégala como secreto en el repositorio."
                   : "Esperando al service worker… recarga la página si no aparece."}</p>`;
 
-  box.innerHTML = estado + (standalone ? "" : pasos) + pushBlock;
+  const pie = `<p style="font-size:11.5px;color:var(--tx3);margin:16px 0 0;text-align:center">
+      Coach Ale · versión ${APP_VERSION}${swOK?" · sin conexión disponible":""}
+      <br><button id="forceUpd" style="color:var(--accent);font-weight:700;font-size:11.5px;padding:6px">
+        Buscar actualización</button></p>`;
+  box.innerHTML = estado + (standalone ? "" : pasos) + pushBlock + pie;
+  const fu = document.getElementById("forceUpd");
+  if(fu) fu.onclick = async ()=>{
+    toast("Buscando actualización…");
+    try{
+      const ks = await caches.keys();
+      await Promise.all(ks.map(k=>caches.delete(k)));
+      if(swReg) await swReg.update();
+    }catch(e){}
+    setTimeout(()=>location.reload(true), 700);
+  };
 
   const cp = document.getElementById("copySub");
   if(cp) cp.onclick = async ()=>{
