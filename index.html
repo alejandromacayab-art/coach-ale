@@ -380,7 +380,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-15";
+const APP_VERSION = "2026.08.24-16";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -642,7 +642,9 @@ async function initSW(){
     let recargando = false;
     navigator.serviceWorker.addEventListener("controllerchange", ()=>{
       if(recargando || !navigator.serviceWorker.controller) return;
-      recargando = true; location.reload();
+      recargando = true;
+      try{ sessionStorage.setItem("recienActualizada", "1"); }catch(e){}
+      location.reload();
     });
     swReg = await navigator.serviceWorker.register("sw.js", {scope:"./", updateViaCache:"none"});
     await navigator.serviceWorker.ready;
@@ -2190,6 +2192,14 @@ renderAll();
 go("hoy");
 initSW();
 mirrorState();
+/* Si acabamos de recargar por una versión nueva, se lo decimos:
+   una pantalla que se recarga sola sin explicación asusta. */
+try{
+  if(sessionStorage.getItem("recienActualizada")){
+    sessionStorage.removeItem("recienActualizada");
+    setTimeout(()=>toast("✨ App actualizada a la última versión"), 900);
+  }
+}catch(e){}
 touch();                       // firma inicial: evita marcar cambios falsos
 initSesion();
 setInterval(()=>syncNow(false), 300000);
