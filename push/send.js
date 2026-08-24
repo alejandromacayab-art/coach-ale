@@ -25,7 +25,12 @@ function loadSubs(){
   const raw = process.env.PUSH_SUBSCRIPTION
     || (fs.existsSync(path.join(__dirname,"subscriptions.json"))
         && fs.readFileSync(path.join(__dirname,"subscriptions.json"),"utf8"));
-  if(!raw){ console.error("Falta PUSH_SUBSCRIPTION (o push/subscriptions.json)"); process.exit(1); }
+  if(!raw){
+    console.log("Todavía no hay ningún dispositivo suscrito.");
+    console.log("Actívalo en la app (Ajustes → App en el celular) y guarda el texto");
+    console.log("como el secreto PUSH_SUBSCRIPTION del repositorio.");
+    return [];
+  }
   const parsed = JSON.parse(raw);
   return Array.isArray(parsed) ? parsed : [parsed];
 }
@@ -85,6 +90,7 @@ async function main(){
   if(!jobs.length){ console.log(`Nada que enviar a las ${Math.floor(localNow()/60)}:${String(localNow()%60).padStart(2,"0")} (${TZ}).`); return; }
 
   const subs = loadSubs();
+  if(!subs.length) return;          // sin dispositivos: no es un error, simplemente no hay a quién avisar
   let ok = 0, gone = 0;
   for(const job of jobs){
     for(const sub of subs){
