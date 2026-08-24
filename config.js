@@ -12,6 +12,6 @@
    en este dispositivo, sin cuentas ni sincronización.
    ============================================================ */
 window.COACH_ALE_CONFIG = {
-  url:  "",
-  key:  ""
+  url:  "https://raiukwvdjpmefgujubsq.supabase.co",
+  key:  "sb_publishable_5x3TkhgYZcm-PlPwgOX6wg_fqxA73r_"
 };
