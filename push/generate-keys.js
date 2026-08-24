@@ -2,7 +2,7 @@
    Uso:  cd push && npm install && npm run keys        */
 const webpush = require("web-push");
 const k = webpush.generateVAPIDKeys();
-console.log("\n=== Claves VAPID de Bienestar ===\n");
+console.log("\n=== Claves VAPID de Coach Ale ===\n");
 console.log("VAPID_PUBLIC_KEY  =", k.publicKey);
 console.log("VAPID_PRIVATE_KEY =", k.privateKey);
 console.log(`
