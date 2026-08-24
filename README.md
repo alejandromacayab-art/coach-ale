@@ -113,6 +113,32 @@ Cambia esos horarios, haz `git push` y listo. La zona horaria también se config
 
 ---
 
+---
+
+## Sincronización entre dispositivos
+
+Los registros viven en tu dispositivo, pero pueden sincronizarse con el repositorio
+**privado** `coach-ale-datos`, de modo que el celular y el computador vean lo mismo.
+
+1. Crea una clave en <https://github.com/settings/personal-access-tokens/new>
+   - Expiración: *No expiration* (o un año)
+   - Repository access: *Only select repositories* → **coach-ale-datos**
+   - Permissions → Repository permissions → **Contents: Read and write**
+2. Pégala en la app, en **Ajustes → Sincronización entre dispositivos**.
+3. Repite el paso 2 en cada dispositivo.
+
+La clave se guarda solo en el dispositivo donde la pegas; nunca se sube al repositorio
+público ni viaja a ningún otro sitio. Si la pierdes o la revocas, basta con generar otra.
+
+**Cómo resuelve los conflictos.** Cada día registrado lleva su propia marca de tiempo y
+solo se actualiza cuando algo cambia de verdad. Al sincronizar, para cada día gana la
+versión modificada más tarde, así que editar el lunes en el celular y el martes en el
+computador no pisa nada. Los hábitos y los ajustes viajan juntos con su propia marca.
+Cada guardado queda como un commit, así que siempre puedes recuperar una versión anterior.
+
+La app sincroniza sola al abrirse, al volver a ella, unos segundos después de cada cambio
+y cada cinco minutos. También hay un botón para hacerlo a mano.
+
 ## Detalles útiles
 
 - **Los avisos son específicos.** La app guarda tu progreso del día en el navegador y el
