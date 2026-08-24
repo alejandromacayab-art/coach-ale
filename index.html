@@ -344,7 +344,7 @@
     <div id="lgCrear" class="hidden">
       <h2 style="margin:0 0 6px;font-size:20px;letter-spacing:-.03em;text-align:center">Crea tu cuenta</h2>
       <p style="margin:0 0 20px;color:var(--tx2);font-size:13.5px;text-align:center">
-        Solo para deportistas invitados por Coach Ale.</p>
+        Lleva tu registro de entrenamiento, alimentación y sueño.</p>
       <label class="f"><span>Tu nombre</span>
         <input class="inp" id="crName" autocomplete="name" placeholder="Cómo quieres que te llame"></label>
       <label class="f"><span>Correo</span>
@@ -355,6 +355,9 @@
         <input class="inp" id="crPass2" type="password" autocomplete="new-password" placeholder="••••••••"></label>
       <button class="btn" id="crGo">Crear cuenta y entrar</button>
       <button class="btn ghost" style="margin-top:8px" id="crVolver">Ya tengo cuenta</button>
+      <p style="margin:16px 0 0;color:var(--tx3);font-size:11.5px;line-height:1.6;text-align:center">
+        Al crear tu cuenta aceptas que Coach Ale vea tus registros para hacer tu
+        seguimiento. Puedes pedir que se borren cuando quieras.</p>
     </div>
   </div>
 </div>
@@ -377,7 +380,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-14";
+const APP_VERSION = "2026.08.24-15";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [

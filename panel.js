@@ -224,14 +224,14 @@ async function abrirInvitar(){
 async function pintarInvitaciones(){
   try{ invs = await Nube.invitaciones(); }catch(e){ invs = []; }
   $("invList").innerHTML = invs.length
-    ? `<div class="stitle">Invitados</div>` + invs.map(i=>`
+    ? `<div class="stitle">Nombres reservados</div>` + invs.map(i=>`
         <div class="hrow">
           <div class="m">${i.usada ? "✅" : "⏳"}</div>
           <div class="t"><b>${esc(i.nombre||i.correo)}</b>
             <span>${esc(i.correo)} · ${i.usada ? "ya entró" : "pendiente"}</span></div>
           <button class="mini" data-quitar="${esc(i.correo)}">Quitar</button>
         </div>`).join("")
-    : `<div class="empty" style="padding:18px">Aún no has invitado a nadie.</div>`;
+    : `<div class="empty" style="padding:18px">Sin nombres reservados.</div>`;
   document.querySelectorAll("[data-quitar]").forEach(b=>b.onclick=async ()=>{
     if(!confirm(`¿Quitar la invitación de ${b.dataset.quitar}?`)) return;
     try{ await Nube.quitarInvitacion(b.dataset.quitar); toast("Invitación quitada"); pintarInvitaciones(); }
@@ -244,9 +244,14 @@ $("invSave").onclick = async ()=>{
   try{
     await Nube.invitar(c, n);
     $("invMail").value = ""; $("invName").value = "";
-    toast("Invitado. Ya puede crear su cuenta.");
+    toast("Nombre reservado para ese correo.");
     await pintarInvitaciones();
   }catch(e){ toast(Nube.traduce(e.message)); }
+};
+document.getElementById("copiarEnlace").onclick = async ()=>{
+  const t = document.getElementById("enlaceReg").textContent.trim();
+  try{ await navigator.clipboard.writeText(t); toast("Enlace copiado"); }
+  catch(e){ toast("Selecciona y copia el enlace de arriba"); }
 };
 $("invClose").onclick = ()=>{ $("invModal").classList.remove("open"); verLista(); };
 $("invModal").onclick = e=>{ if(e.target.id==="invModal"){ $("invModal").classList.remove("open"); verLista(); } };

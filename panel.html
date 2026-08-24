@@ -89,11 +89,15 @@ tbody tr.cambio{animation:destello 2.2s ease-out}
 <!-- invitar -->
 <div class="modal" id="invModal">
   <div class="sheet">
-    <h3>Invitar deportista</h3>
-    <p class="sub">Solo quien esté en tu lista puede crear una cuenta.</p>
+    <h3>Enlace de registro</h3>
+    <p class="sub">Cualquiera con este enlace puede crear su cuenta y aparecerá aquí.</p>
+    <div class="code" style="margin-bottom:14px" id="enlaceReg">https://alejandromacayab-art.github.io/coach-ale/</div>
+    <button class="btn" id="copiarEnlace">Copiar enlace</button>
+    <p class="sub" style="margin:22px 0 8px">También puedes dejar el nombre puesto de antemano,
+      para que llegue ya identificado.</p>
     <label class="f"><span>Correo</span><input class="inp" id="invMail" type="email" placeholder="deportista@correo.com"></label>
     <label class="f"><span>Nombre (opcional)</span><input class="inp" id="invName" placeholder="Cómo lo llamas"></label>
-    <button class="btn" id="invSave">Añadir a la lista</button>
+    <button class="btn ghost" id="invSave">Reservar nombre</button>
     <button class="btn ghost" style="margin-top:8px" id="invClose">Cerrar</button>
     <div id="invList" style="margin-top:18px"></div>
   </div>

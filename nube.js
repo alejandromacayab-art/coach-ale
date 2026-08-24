@@ -172,8 +172,7 @@ function traduce(m){
   if(/invalid_credentials|Invalid login/i.test(s))  return "Correo o contraseña incorrectos.";
   if(/user_already_exists|already registered/i.test(s)) return "Ese correo ya tiene cuenta. Entra con tu contraseña.";
   if(/weak_password|Password should be/i.test(s))   return "La contraseña debe tener al menos 8 caracteres.";
-  if(/unexpected_failure|Database error/i.test(s))  return "Ese correo no está invitado. Pídele el acceso a tu entrenador.";
-  if(/not invited|no está invitado/i.test(s)) return "Ese correo no está invitado. Pídele el acceso a tu entrenador.";
+  if(/unexpected_failure|Database error/i.test(s))  return "No se pudo crear la cuenta. Inténtalo de nuevo en un momento.";
   if(/over_email_send_rate_limit/i.test(s))   return "Supabase solo permite 2 correos por hora en el plan gratuito. "
                                                    + "Espera un rato o configura un servicio de correo propio.";
   if(/rate limit|too many/i.test(s))          return "Demasiados intentos seguidos. Espera un rato.";

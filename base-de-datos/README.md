@@ -37,9 +37,11 @@
   la base de datos lo impide, aunque alguien manipule la aplicación.
 - El entrenador puede **leer** (nunca escribir) los datos de los deportistas que
   tiene asignados, y de nadie más.
-- **Nadie entra sin invitación**: al registrarse, si el correo no está en la tabla
-  `invitaciones`, la creación de la cuenta falla. La única excepción es la primera
-  cuenta del sistema, que queda como entrenador — esa es la tuya.
+- **El registro está abierto**: cualquiera con el enlace crea su cuenta y queda
+  asignado al entrenador, visible en el panel. La primera cuenta del sistema es la
+  del entrenador — esa es la tuya. La tabla `invitaciones` sigue existiendo, pero
+  ahora es opcional: solo sirve para dejar el nombre puesto de antemano.
+  Para volver a cerrarlo, vuelve a ejecutar el bloque 4 de `esquema.sql`.
 
 ## Borrar los datos de una persona
 

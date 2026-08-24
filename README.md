@@ -137,8 +137,9 @@ un envío de correo, sujeto al límite del plan gratuito de Supabase (2 por hora
 
 **Quién ve qué.** Los permisos no los decide la app, los decide PostgreSQL:
 cada deportista alcanza únicamente sus propias filas, y el entrenador puede *leer*
-—nunca escribir— las de los deportistas que tiene asignados. Nadie entra sin estar
-en la lista de invitaciones; la primera cuenta que se registre queda como entrenador.
+—nunca escribir— las de los deportistas que tiene asignados. El registro está abierto: cualquiera con el enlace
+crea su cuenta y aparece en el panel del entrenador. La primera cuenta que se
+registre queda como entrenador.
 
 **En vivo.** El panel se suscribe a los cambios de la base: cuando un deportista guarda
 algo, su fila se actualiza sola y parpadea, sin recargar la página. El indicador de la
