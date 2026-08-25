@@ -142,6 +142,34 @@
     </section>
   </div>
 
+  <!-- ================= SALUD ================= -->
+  <div id="view-salud" class="hidden">
+    <div id="saludFlags"></div>
+    <section>
+      <div class="stitle">⚖️ Composición corporal</div>
+      <div id="cuerpoResumen"></div>
+      <button class="btn" style="margin-top:12px" id="addMedida">+ Registrar medición</button>
+    </section>
+    <section>
+      <div class="stitle">📉 Peso · últimas mediciones</div>
+      <div class="panel" id="cuerpoGrafico"></div>
+    </section>
+    <section>
+      <div class="stitle">🩺 Ficha médica</div>
+      <div class="panel" id="fichaMedica"></div>
+    </section>
+    <section>
+      <div class="stitle">🥗 Ficha nutricional</div>
+      <div class="panel" id="fichaNutri"></div>
+    </section>
+    <section>
+      <div class="stitle">📎 Documentos</div>
+      <div class="panel" id="docsPanel"></div>
+      <button class="btn" style="margin-top:12px" id="addDoc">+ Subir documento</button>
+      <input type="file" id="docFile" accept="application/pdf,image/png,image/jpeg,image/webp" class="hidden">
+    </section>
+  </div>
+
   <!-- ================= AJUSTES ================= -->
   <div id="view-set" class="hidden">
     <section>
@@ -189,6 +217,7 @@
   <button data-v="hoy" class="on"><i>◎</i>Hoy</button>
   <button data-v="hist"><i>▤</i>Historial</button>
   <button data-v="stats"><i>◑</i>Progreso</button>
+  <button data-v="salud"><i>♡</i>Salud</button>
   <button data-v="set"><i>⚙</i>Ajustes</button>
 </nav>
 
@@ -273,6 +302,63 @@
       <textarea class="inp" id="wkNote" rows="2" placeholder="Sensaciones, dolores, PRs…" style="resize:vertical"></textarea></label>
     <button class="btn" id="wkSave">Guardar entrenamiento</button>
     <button class="btn ghost" style="margin-top:8px" id="wkClose">Cerrar</button>
+  </div>
+</div>
+
+<!-- ===== Modal medición corporal ===== -->
+<div class="modal" id="medModal">
+  <div class="sheet">
+    <h3>⚖️ Medición corporal</h3>
+    <p class="sub">Deja en blanco lo que no midieron. El peso solo ya sirve.</p>
+    <label class="f"><span>Fecha</span><input class="inp" id="mdDate" type="date"></label>
+    <label class="f"><span>Peso (kg)</span>
+      <input class="inp" id="mdPeso" type="number" step="0.1" min="0" inputmode="decimal" placeholder="Ej: 74.5"></label>
+    <div class="two">
+      <label class="f"><span>% de grasa</span>
+        <input class="inp" id="mdGrasa" type="number" step="0.1" min="0" max="70" inputmode="decimal" placeholder="Ej: 14.2"></label>
+      <label class="f"><span>% de músculo</span>
+        <input class="inp" id="mdMusculo" type="number" step="0.1" min="0" max="80" inputmode="decimal" placeholder="Ej: 42.0"></label>
+    </div>
+    <div id="mdCalc" class="panel" style="padding:12px;margin-bottom:14px"></div>
+    <label class="f"><span>Notas</span>
+      <input class="inp" id="mdNota" placeholder="Quién midió, con qué báscula…"></label>
+    <button class="btn" id="mdSave">Guardar medición</button>
+    <button class="btn ghost" style="margin-top:8px" id="mdCancel">Cancelar</button>
+    <button class="btn danger hidden" style="margin-top:8px" id="mdDel">Borrar esta medición</button>
+  </div>
+</div>
+
+<!-- ===== Modal ficha de salud ===== -->
+<div class="modal" id="fichaModal">
+  <div class="sheet">
+    <h3 id="fcTitle">Ficha médica</h3>
+    <p class="sub" id="fcSub">Lo que tu entrenador necesita saber antes de exigirte.</p>
+    <div id="fcCampos"></div>
+    <button class="btn" id="fcSave">Guardar</button>
+    <button class="btn ghost" style="margin-top:8px" id="fcCancel">Cancelar</button>
+  </div>
+</div>
+
+<!-- ===== Modal documento ===== -->
+<div class="modal" id="docModal">
+  <div class="sheet">
+    <h3>📎 Subir documento</h3>
+    <p class="sub">PDF o imagen, hasta 15 MB. Lo verá tu entrenador.</p>
+    <div class="panel" id="dcArchivo" style="padding:13px;margin-bottom:14px"></div>
+    <label class="f"><span>Título</span>
+      <input class="inp" id="dcTitulo" placeholder="Ej: Perfil bioquímico agosto"></label>
+    <label class="f"><span>Tipo</span>
+      <div class="tags" id="dcTipo">
+        <button class="tag" data-tp="medico">🩺 Médico</button>
+        <button class="tag" data-tp="nutricional">🥗 Nutricional</button>
+        <button class="tag" data-tp="otro">📄 Otro</button>
+      </div></label>
+    <label class="f"><span>Fecha del documento</span>
+      <input class="inp" id="dcFecha" type="date"></label>
+    <label class="f"><span>Notas</span>
+      <textarea class="inp" id="dcNotas" rows="2" placeholder="Qué contiene, quién lo emitió…" style="resize:vertical"></textarea></label>
+    <button class="btn" id="dcSave">Subir</button>
+    <button class="btn ghost" style="margin-top:8px" id="dcCancel">Cancelar</button>
   </div>
 </div>
 
@@ -380,7 +466,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.24-16";
+const APP_VERSION = "2026.08.25-1";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -395,6 +481,19 @@ const DEF_HABITS = [
 ];
 const MEALS = ["Desayuno","Almuerzo","Cena","Snacks"];
 const EMOJIS = ["💧","🏋️","🏃","🚶","🥗","😴","🧘","🤸","🚴","🏊","📖","☀️","💊","🧴","🚭","🍎","☕️","🥦","⚖️","🧠","📵","✍️","🎯","❤️"];
+/* Ficha médica y nutricional. Vive en la configuración del usuario, así que
+   viaja con la misma sincronización que los hábitos y los ajustes. */
+const DEF_SALUD = {
+  nacimiento:"", grupo:"", estatura:"", prevision:"", contacto:"", contacto2:"", tratante:"",
+  alergiaMed:"", alergiaAlim:"", alergias:"",
+  condiciones:"", cirugias:"", conmociones:"", respiratorio:"",
+  cvDolor:"", cvDesmayo:"", cvAhogo:"", cvSoplo:"", cvFamiliar:"",
+  medicacion:"", medicacionOcas:"", tue:"", habitos:"",
+  lesiones:"", lesionActual:"", limitaciones:"",
+  ultimoControl:"", ecg:"", sangre:"", certificaVence:"", vacunas:"",
+  restricciones:"", suplementos:"", objetivoNutri:"", notasNutri:""
+};
+
 const DEF_SETTINGS = {
   rem:{on:false, from:"08:00", to:"22:00", every:120, lastAt:0},
   wake:{on:true, goalHours:8, lastAsked:""},
@@ -484,6 +583,7 @@ function load(){
       d.settings.wake = Object.assign({}, DEF_SETTINGS.wake, d.settings.wake||{});
       d.settings.screens = Object.assign({}, DEF_SETTINGS.screens, d.settings.screens||{});
       d.settings.junk = Object.assign({}, DEF_SETTINGS.junk, d.settings.junk||{});
+      d.salud = Object.assign({}, DEF_SALUD, d.salud||{});
       d.habits.forEach((h,i)=> h.color ||= COLORS[i % COLORS.length]);
       /* Si acabamos de migrar, la lista nueva tiene que ganarle a la que está en
          la nube. Sin esto, al sincronizar volvían los hábitos viejos. */
@@ -508,6 +608,7 @@ function load(){
     }catch(e2){}
   }
   return {v:4, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"dark",
+          salud: {...DEF_SALUD},
           settings: JSON.parse(JSON.stringify(DEF_SETTINGS))};
 }
 /* Firmas para detectar qué cambió de verdad: solo entonces movemos la marca de
@@ -516,7 +617,7 @@ const _sig = {};
 const sigOf = o => { const {mt, ...r} = o||{}; return JSON.stringify(r); };
 function touch(){
   const now = Date.now();
-  const meta = JSON.stringify({h:S.habits, s:S.settings, t:S.theme});
+  const meta = JSON.stringify({h:S.habits, s:S.settings, t:S.theme, sa:S.salud});
   if(_sig.meta !== undefined && _sig.meta !== meta) S.metaMt = now;
   _sig.meta = meta;
   const l = S.logs[cur];
@@ -547,6 +648,10 @@ function dayLog(k){
   return l;
 }
 
+/* Días desde hoy hasta una fecha: negativo si ya pasó. */
+function diasHasta(k){
+  return Math.round((parseKey(k) - parseKey(todayKey())) / 86400000);
+}
 const fmt = n => Number.isInteger(n) ? String(n) : String(Math.round(n*10)/10);
 const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
 function progress(h,v){ const g=Number(h.goal)||1; return clamp((Number(v)||0)/g,0,1); }
@@ -1867,7 +1972,7 @@ function aFilas(){
     dias.push({fecha:f, datos, mt: mt||0});
   }
   return {
-    config: {datos:{habits:S.habits, settings:S.settings, theme:S.theme, v:S.v}, mt: S.metaMt||0},
+    config: {datos:{habits:S.habits, settings:S.settings, theme:S.theme, salud:S.salud, v:S.v}, mt: S.metaMt||0},
     dias
   };
 }
@@ -1906,6 +2011,7 @@ async function syncNow(manual){
     if(rc && (rc.mt||0) > (S.metaMt||0)){
       S.habits = rc.datos.habits || S.habits;
       S.settings = Object.assign({}, S.settings, rc.datos.settings || {});
+      if(rc.datos.salud) S.salud = Object.assign({}, DEF_SALUD, rc.datos.salud);
       if(rc.datos.theme) S.theme = rc.datos.theme;
       S.metaMt = rc.mt; cambio = true;
       if(rc.corregida) subirConfig = aFilas().config;
@@ -2033,15 +2139,473 @@ $$("lgOlvide").onclick = async ()=>{
 });
 
 /* ============================================================
+   SALUD · COMPOSICIÓN CORPORAL, FICHA Y DOCUMENTOS
+   ============================================================ */
+const un1 = n => Math.round(Number(n)*10)/10;
+
+/* Una medición vive dentro del día, como el sueño: así viaja sola a la nube. */
+function medicion(k){ return S.logs[k]?.cuerpo || null; }
+function mediciones(){
+  return Object.keys(S.logs)
+    .filter(k => S.logs[k]?.cuerpo && num(S.logs[k].cuerpo.peso))
+    .sort((a,b)=> b.localeCompare(a))
+    .map(k => ({fecha:k, ...S.logs[k].cuerpo}));
+}
+const ultimaMedicion = () => mediciones()[0] || null;
+function medicionHace(n){
+  const limite = shift(todayKey(), -n);
+  return mediciones().find(m => m.fecha <= limite) || null;
+}
+/* Kg de grasa y de músculo a partir de los porcentajes. Guardamos porcentajes,
+   no kilos: si guardas kilos y cambia el peso, los porcentajes mienten. */
+function desglose(m){
+  const p = num(m?.peso);
+  if(!p) return null;
+  const g = num(m.grasa), mu = num(m.musculo);
+  return {peso:p, grasaKg: g?un1(p*g/100):0, musculoKg: mu?un1(p*mu/100):0,
+          magraKg: g?un1(p*(100-g)/100):0};
+}
+const flecha = d => d > 0 ? "▲" : d < 0 ? "▼" : "•";
+/* En peso no hay dirección "buena" universal; en grasa bajar es mejor y en
+   músculo subir. */
+function delta(actual, antes, mejorSube){
+  if(!antes || !num(antes)) return {txt:"—", c:"var(--tx3)"};
+  const d = un1(actual - antes);
+  if(d === 0) return {txt:"sin cambio", c:"var(--tx3)"};
+  const bueno = mejorSube === null ? null : (mejorSube ? d > 0 : d < 0);
+  return {txt:`${flecha(d)} ${fmt(Math.abs(d))}`,
+          c: bueno === null ? "var(--tx2)" : bueno ? "#22e07a" : "#fb7185"};
+}
+
+function renderSalud(){ renderCuerpo(); renderCuerpoGrafico(); renderFichas(); renderDocs(); }
+
+function renderCuerpo(){
+  const box = document.getElementById("cuerpoResumen"), m = ultimaMedicion();
+  if(!m){
+    box.innerHTML = `<div class="panel"><div class="empty">
+      Sin mediciones todavía.<br>Registra tu peso y la app arma el seguimiento.</div></div>`;
+    return;
+  }
+  const d = desglose(m), antes = medicionHace(30);
+  const dPeso = delta(m.peso, antes?.peso, null);
+  const dGra  = delta(num(m.grasa), antes && num(antes.grasa), false);
+  const dMus  = delta(num(m.musculo), antes && num(antes.musculo), true);
+  const dias  = -diasHasta(m.fecha);
+  box.innerHTML = `<div class="panel">
+    <div class="sl-top">
+      <div class="sl-score" style="color:#2dd4bf;border-color:#2dd4bf55;background:#2dd4bf18;font-size:26px">⚖️</div>
+      <div class="sl-t"><b>${fmt(m.peso)} kg</b>
+        <span>Medido ${dias===0?"hoy":dias===1?"ayer":`hace ${dias} días`}${dias>30?" · conviene actualizar":""}</span></div>
+    </div>
+    <div class="sl-meta libre">
+      <div><b style="color:${dPeso.c}">${dPeso.txt}</b><span>Peso vs 30 d</span></div>
+      ${num(m.grasa)?`<div><b>${fmt(m.grasa)}%</b><span>Grasa · ${d.grasaKg} kg</span></div>`:""}
+      ${num(m.musculo)?`<div><b>${fmt(m.musculo)}%</b><span>Músculo · ${d.musculoKg} kg</span></div>`:""}
+    </div>
+    ${num(m.grasa)||num(m.musculo)?`<div class="sl-meta libre" style="margin-top:6px">
+      ${num(m.grasa)?`<div><b style="color:${dGra.c}">${dGra.txt}</b><span>Grasa vs 30 d</span></div>`:""}
+      ${num(m.musculo)?`<div><b style="color:${dMus.c}">${dMus.txt}</b><span>Músculo vs 30 d</span></div>`:""}
+      ${num(m.grasa)?`<div><b>${d.magraKg} kg</b><span>Masa magra</span></div>`:""}
+    </div>`:""}
+    ${m.nota?`<p style="margin:13px 0 0;font-size:12.5px;color:var(--tx3)">${esc(m.nota)}</p>`:""}
+    <button class="cardbtn" id="editMed">Editar esta medición</button>
+  </div>`;
+  document.getElementById("editMed").onclick = ()=> openMedida(m.fecha);
+}
+
+function renderCuerpoGrafico(){
+  const box = document.getElementById("cuerpoGrafico");
+  const ms = mediciones().slice(0, 14).reverse();
+  if(ms.length < 2){
+    box.innerHTML = `<div class="empty">Con dos mediciones o más aparece la curva.</div>`;
+    return;
+  }
+  const pesos = ms.map(m=>m.peso), min = Math.min(...pesos), max = Math.max(...pesos);
+  const rango = (max - min) || 1;
+  /* Si el suelo fuera cero, una variación de un kilo no se vería. */
+  const suelo = min - rango*0.35;
+  box.innerHTML = `
+    <div class="wbars">${ms.map(m=>{
+      const d = parseKey(m.fecha), alt = (m.peso - suelo) / (max - suelo) * 100;
+      return `<div class="wb peso" title="${m.fecha} · ${fmt(m.peso)} kg">
+        <i style="height:${clamp(alt,6,100)}%"></i>
+        <span>${d.getDate()}/${d.getMonth()+1}</span></div>`;
+    }).join("")}</div>
+    <div class="sl-meta libre" style="margin-top:14px">
+      <div><b>${fmt(un1(pesos[pesos.length-1]-pesos[0]))} kg</b><span>Cambio total</span></div>
+      <div><b>${fmt(min)} – ${fmt(max)}</b><span>Rango (kg)</span></div>
+      <div><b>${ms.length}</b><span>Mediciones</span></div>
+    </div>`;
+}
+
+/* ---------- fichas médica y nutricional ----------
+   La médica sigue el orden de una anamnesis deportiva: quién eres y a quién
+   llamar, qué te puede matar rápido, qué arrastras, qué tomas y qué te duele. */
+const GRUPOS_SANGRE = ["O+","O−","A+","A−","B+","B−","AB+","AB−","No lo sé"];
+const FICHA_MED = [
+  {g:"Identificación y contacto", c:[
+    {k:"nacimiento", l:"Fecha de nacimiento", t:"date"},
+    {k:"grupo", l:"Grupo sanguíneo", t:"sel", o:GRUPOS_SANGRE},
+    {k:"estatura", l:"Estatura (cm)", t:"num", ph:"Ej: 178"},
+    {k:"prevision", l:"Previsión o seguro", ph:"Isapre, Fonasa, seguro deportivo"},
+    {k:"contacto", l:"Contacto de emergencia", ph:"Nombre, parentesco y teléfono"},
+    {k:"contacto2", l:"Segundo contacto", ph:"Por si el primero no responde"},
+    {k:"tratante", l:"Médico o kinesiólogo tratante", ph:"Nombre y teléfono"}
+  ]},
+  {g:"Alergias", n:"Escribe también qué reacción produce: no es lo mismo un sarpullido que un shock.", c:[
+    {k:"alergiaMed", l:"A medicamentos", ph:"Cuál y qué reacción produce", area:true, alerta:true},
+    {k:"alergiaAlim", l:"Alimentarias", ph:"Cuál y qué reacción produce", area:true, alerta:true},
+    {k:"alergias", l:"Otras alergias", ph:"Polen, picaduras, látex…", area:true}
+  ]},
+  {g:"Antecedentes médicos", c:[
+    {k:"condiciones", l:"Condiciones diagnosticadas", ph:"Asma, diabetes, hipertensión, tiroides, epilepsia…", area:true},
+    {k:"cirugias", l:"Cirugías y hospitalizaciones", ph:"Qué, cuándo y cómo quedó", area:true},
+    {k:"conmociones", l:"Golpes en la cabeza o conmociones", ph:"Cuántas, cuándo y si quedaron secuelas", area:true},
+    {k:"respiratorio", l:"Problemas respiratorios con el ejercicio", ph:"Broncoespasmo, asma inducida por esfuerzo…", area:true}
+  ]},
+  {g:"Tamizaje cardiovascular",
+   n:"Las preguntas del examen previo a la competencia. Un «sí» no te impide entrenar: significa que hay que verlo con un médico antes de exigirte a fondo.", c:[
+    {k:"cvDolor", l:"¿Dolor u opresión en el pecho al esforzarte?", t:"sn"},
+    {k:"cvDesmayo", l:"¿Desmayos o mareos durante o después del ejercicio?", t:"sn"},
+    {k:"cvAhogo", l:"¿Te falta el aire o te cansas antes que tus pares?", t:"sn"},
+    {k:"cvSoplo", l:"¿Te han detectado un soplo o la presión alta?", t:"sn"},
+    {k:"cvFamiliar", l:"¿Alguien de tu familia murió de forma súbita antes de los 50?", t:"sn"}
+  ]},
+  {g:"Medicación y sustancias", c:[
+    {k:"medicacion", l:"Medicación habitual", ph:"Qué, dosis y horario", area:true},
+    {k:"medicacionOcas", l:"Medicación ocasional", ph:"Analgésicos, antiinflamatorios…", area:true},
+    {k:"tue", l:"Autorización de uso terapéutico (TUE)", ph:"Sustancia, número y vigencia"},
+    {k:"habitos", l:"Tabaco y alcohol", ph:"Frecuencia, si corresponde"}
+  ]},
+  {g:"Lesiones", c:[
+    {k:"lesiones", l:"Lesiones previas", ph:"Qué, cuándo, tratamiento y si hubo alta", area:true},
+    {k:"lesionActual", l:"Molestia o lesión activa", ph:"Qué te duele hoy y desde cuándo", area:true, alerta:true},
+    {k:"limitaciones", l:"Movimientos o cargas a evitar", ph:"Lo que el entrenador no debe programar", area:true}
+  ]},
+  {g:"Controles y certificados", c:[
+    {k:"ultimoControl", l:"Último control médico deportivo", t:"date"},
+    {k:"ecg", l:"Electrocardiograma", ph:"Fecha y resultado"},
+    {k:"sangre", l:"Último examen de sangre", ph:"Fecha y hallazgos"},
+    {k:"certificaVence", l:"Vence el certificado de aptitud", t:"date"},
+    {k:"vacunas", l:"Vacunas relevantes", ph:"Tétanos, hepatitis…"}
+  ]}
+];
+const FICHA_NUT = [
+  {g:"Alimentación", c:[
+    {k:"restricciones", l:"Restricciones e intolerancias", ph:"Celiaquía, lactosa, vegetariano…", area:true, alerta:true},
+    {k:"suplementos", l:"Suplementos", ph:"Cuáles, dosis y horario", area:true},
+    {k:"objetivoNutri", l:"Objetivo nutricional", ph:"Ej: bajar 3 kg antes de octubre"},
+    {k:"notasNutri", l:"Indicaciones del nutricionista", ph:"Pauta, horarios, hidratación", area:true}
+  ]}
+];
+const planos = secs => secs.flatMap(s => s.c);
+const SN = {si:"Sí", no:"No", nose:"No lo sé"};
+/* Años cumplidos: restar años no basta, hay que ver si ya pasó el cumpleaños. */
+function edad(fecha){
+  const n = parseKey(fecha), h = parseKey(todayKey());
+  let a = h.getFullYear() - n.getFullYear();
+  const m = h.getMonth() - n.getMonth();
+  if(m < 0 || (m === 0 && h.getDate() < n.getDate())) a--;
+  return a;
+}
+const lleno = v => String(v ?? "").trim() !== "";
+function valorFicha(c){
+  const v = S.salud?.[c.k];
+  if(!lleno(v)) return "";
+  if(c.t === "sn") return SN[v] || v;
+  if(c.t === "date"){
+    const d = parseKey(v), corta = `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
+    return c.k === "nacimiento" ? `${corta} · ${edad(v)} años` : corta;
+  }
+  if(c.t === "num") return v + " cm";
+  return v;
+}
+
+/* Lo que el entrenador tiene que ver sin leer la ficha entera. */
+function banderas(){
+  const f = S.salud || {}, out = [];
+  planos(FICHA_MED).filter(c => c.t === "sn" && f[c.k] === "si")
+    .forEach(c => out.push({t:"alta", txt: c.l.replace(/^¿|\?$/g, "")}));
+  if(lleno(f.alergiaMed))   out.push({t:"alta",  txt:"Alergia a medicamentos: " + f.alergiaMed});
+  if(lleno(f.alergiaAlim))  out.push({t:"media", txt:"Alergia alimentaria: " + f.alergiaAlim});
+  if(lleno(f.lesionActual)) out.push({t:"media", txt:"Lesión activa: " + f.lesionActual});
+  if(lleno(f.limitaciones)) out.push({t:"media", txt:"Evitar: " + f.limitaciones});
+  if(lleno(f.certificaVence)){
+    const n = diasHasta(f.certificaVence);
+    if(n < 0)        out.push({t:"alta",  txt:`Certificado de aptitud vencido hace ${-n} días`});
+    else if(n <= 30) out.push({t:"media", txt:`El certificado de aptitud vence en ${n} días`});
+  }
+  return out;
+}
+
+function pintaFicha(id, secs, vacio){
+  const box = document.getElementById(id);
+  const total = planos(secs).length;
+  const puestos = planos(secs).filter(c => lleno(S.salud?.[c.k])).length;
+  const cuerpo = secs.map(sec=>{
+    const llenos = sec.c.filter(c => lleno(S.salud?.[c.k]));
+    if(!llenos.length) return "";
+    return `<div class="fcgrupo">${sec.g}</div>` + llenos.map(c=>{
+      const rojo = c.t === "sn" ? S.salud[c.k] === "si" : c.alerta;
+      return `<div class="fcrow"><span>${c.l}</span>
+        <b${rojo ? ' style="color:#fb7185"' : ""}>${esc(valorFicha(c))}</b></div>`;
+    }).join("");
+  }).join("");
+  box.innerHTML = (puestos
+    ? cuerpo + `<div class="fcprog">
+        <div class="meter"><i style="width:${Math.round(puestos/total*100)}%;background:var(--accent)"></i></div>
+        <div class="mini-lbl"><span>${puestos} de ${total} campos</span>
+          <span>${Math.round(puestos/total*100)}% completa</span></div></div>`
+    : `<div class="empty">${vacio}</div>`)
+    + `<button class="cardbtn" data-ficha="${id}">${puestos ? "Editar ficha" : "Completar ficha"}</button>`;
+  box.querySelector("[data-ficha]").onclick = ()=> openFicha(id);
+}
+
+function renderBanderas(){
+  const box = document.getElementById("saludFlags"), bs = banderas();
+  box.innerHTML = bs.length ? `<div class="flags">${bs.map(b=>
+    `<div class="flag ${b.t}"><span>${b.t === "alta" ? "🚨" : "⚠️"}</span>${esc(b.txt)}</div>`).join("")}</div>` : "";
+}
+function renderFichas(){
+  renderBanderas();
+  pintaFicha("fichaMedica", FICHA_MED,
+    "Sin datos médicos todavía. Esto es lo que tu entrenador necesita saber antes de exigirte, y a quién llamar si algo pasa.");
+  pintaFicha("fichaNutri", FICHA_NUT, "Sin datos nutricionales todavía.");
+}
+
+function campoHTML(c){
+  const v = S.salud?.[c.k] ?? "";
+  if(c.t === "sn") return `<label class="f"><span>${c.l}</span>
+    <select class="inp" data-fc="${c.k}">
+      <option value=""${v===""?" selected":""}>Sin responder</option>
+      <option value="no"${v==="no"?" selected":""}>No</option>
+      <option value="si"${v==="si"?" selected":""}>Sí</option>
+      <option value="nose"${v==="nose"?" selected":""}>No lo sé</option>
+    </select></label>`;
+  if(c.t === "sel") return `<label class="f"><span>${c.l}</span>
+    <select class="inp" data-fc="${c.k}"><option value="">Sin indicar</option>
+      ${c.o.map(o=>`<option${v===o?" selected":""}>${o}</option>`).join("")}</select></label>`;
+  if(c.t === "date") return `<label class="f"><span>${c.l}</span>
+    <input class="inp" type="date" data-fc="${c.k}" value="${esc(v)}"></label>`;
+  if(c.t === "num") return `<label class="f"><span>${c.l}</span>
+    <input class="inp" type="number" inputmode="decimal" step="0.1" min="0" data-fc="${c.k}"
+      placeholder="${c.ph||""}" value="${esc(v)}"></label>`;
+  if(c.area) return `<label class="f"><span>${c.l}</span>
+    <textarea class="inp" data-fc="${c.k}" rows="2" placeholder="${c.ph||""}" style="resize:vertical">${esc(v)}</textarea></label>`;
+  return `<label class="f"><span>${c.l}</span>
+    <input class="inp" data-fc="${c.k}" placeholder="${c.ph||""}" value="${esc(v)}"></label>`;
+}
+
+function openFicha(id){
+  shutModals();
+  const med = id === "fichaMedica", secs = med ? FICHA_MED : FICHA_NUT;
+  document.getElementById("fcTitle").textContent = med ? "Ficha médica" : "Ficha nutricional";
+  document.getElementById("fcSub").textContent = med
+    ? "Rellena lo que sepas y deja el resto en blanco. Se puede completar de a poco."
+    : "Lo que condiciona tu alimentación día a día.";
+  document.getElementById("fcCampos").innerHTML = secs.map(sec=>
+    `<div class="fcgrupo" style="margin-top:18px">${sec.g}</div>
+     ${sec.n ? `<p class="fcnota">${sec.n}</p>` : ""}
+     ${sec.c.map(campoHTML).join("")}`).join("")
+    + (med ? `<p class="fcnota" style="margin-top:6px">Esta ficha organiza información, no
+        la evalúa: no reemplaza un examen médico ni una autorización deportiva.</p>` : "");
+  document.getElementById("fichaModal").classList.add("open");
+}
+document.getElementById("fcCancel").onclick = ()=>
+  document.getElementById("fichaModal").classList.remove("open");
+document.getElementById("fcSave").onclick = ()=>{
+  document.querySelectorAll("#fcCampos [data-fc]").forEach(el=>{
+    S.salud[el.dataset.fc] = el.value.trim();
+  });
+  save();
+  document.getElementById("fichaModal").classList.remove("open");
+  renderFichas();
+  toast("Ficha guardada");
+};
+
+/* ---------- modal de medición ---------- */
+let medEditando = null;
+function calcMed(){
+  const p = num(document.getElementById("mdPeso").value);
+  const g = num(document.getElementById("mdGrasa").value);
+  const m = num(document.getElementById("mdMusculo").value);
+  const box = document.getElementById("mdCalc");
+  if(!p){ box.innerHTML = `<div style="font-size:12.5px;color:var(--tx3)">Escribe el peso para ver el desglose.</div>`; return; }
+  const d = desglose({peso:p, grasa:g, musculo:m});
+  box.innerHTML = `<div class="sl-meta libre" style="margin-top:0">
+    <div><b>${fmt(d.peso)} kg</b><span>Peso</span></div>
+    ${g?`<div><b>${d.grasaKg} kg</b><span>Grasa</span></div>
+         <div><b>${d.magraKg} kg</b><span>Masa magra</span></div>`:""}
+    ${m?`<div><b>${d.musculoKg} kg</b><span>Músculo</span></div>`:""}
+  </div>${g && m && g+m > 100
+    ? `<div style="font-size:12px;color:#fb7185;font-weight:700;margin-top:9px">
+        Grasa y músculo suman más de 100 %. Revisa los números.</div>` : ""}`;
+}
+function openMedida(fecha){
+  shutModals();
+  medEditando = fecha || null;
+  const m = fecha ? medicion(fecha) : null;
+  document.getElementById("mdDate").value    = fecha || todayKey();
+  document.getElementById("mdPeso").value    = m?.peso ?? "";
+  document.getElementById("mdGrasa").value   = m?.grasa ?? "";
+  document.getElementById("mdMusculo").value = m?.musculo ?? "";
+  document.getElementById("mdNota").value    = m?.nota ?? "";
+  document.getElementById("mdDel").classList.toggle("hidden", !m);
+  calcMed();
+  document.getElementById("medModal").classList.add("open");
+}
+["mdPeso","mdGrasa","mdMusculo"].forEach(id=> document.getElementById(id).oninput = calcMed);
+document.getElementById("addMedida").onclick = ()=> openMedida(null);
+document.getElementById("mdCancel").onclick  = ()=> document.getElementById("medModal").classList.remove("open");
+document.getElementById("mdSave").onclick = ()=>{
+  const fecha = document.getElementById("mdDate").value;
+  const peso  = num(document.getElementById("mdPeso").value);
+  const grasa = num(document.getElementById("mdGrasa").value);
+  const musc  = num(document.getElementById("mdMusculo").value);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)){ toast("Elige una fecha válida"); return; }
+  if(!peso){ toast("El peso es obligatorio"); return; }
+  if(grasa && musc && grasa + musc > 100){ toast("Grasa y músculo suman más de 100 %"); return; }
+  /* La marca de tiempo cuelga del día que se está viendo: hay que moverlo y
+     devolverlo, o la medición se subiría al día equivocado. */
+  const antes = cur;
+  cur = fecha;
+  dayLog(fecha).cuerpo = {peso, grasa, musculo:musc, at:Date.now(),
+                          nota: document.getElementById("mdNota").value.trim()};
+  save();
+  cur = antes;
+  document.getElementById("medModal").classList.remove("open");
+  renderSalud();
+  toast(`⚖️ ${fmt(peso)} kg registrados`);
+};
+document.getElementById("mdDel").onclick = ()=>{
+  if(!medEditando) return;
+  if(!confirm("¿Borrar la medición de ese día?")) return;
+  const antes = cur;
+  cur = medEditando;
+  if(S.logs[medEditando]) delete S.logs[medEditando].cuerpo;
+  save();
+  cur = antes;
+  document.getElementById("medModal").classList.remove("open");
+  renderSalud();
+  toast("Medición borrada");
+};
+
+/* ---------- documentos ----------
+   Los archivos viven en la nube: sin cuenta no hay dónde guardarlos ni con
+   quién compartirlos. */
+const TIPOS_DOC = {medico:{e:"🩺", l:"Médico"}, nutricional:{e:"🥗", l:"Nutricional"}, otro:{e:"📄", l:"Otro"}};
+let docsCache = [], docArchivo = null;
+const pesoArchivo = b => b >= 1048576 ? (b/1048576).toFixed(1)+" MB" : Math.max(1, Math.round(b/1024))+" KB";
+const miId = () => sesionUsuario?.user?.id || null;
+
+async function renderDocs(){
+  const box = document.getElementById("docsPanel"), btn = document.getElementById("addDoc");
+  if(!nubeOn() || !sesionUsuario){
+    btn.classList.add("hidden");
+    box.innerHTML = `<div class="empty">Los documentos se guardan en tu cuenta
+      para que tu entrenador pueda verlos.<br>Entra con tu correo para usarlos.</div>`;
+    return;
+  }
+  btn.classList.remove("hidden");
+  box.innerHTML = `<div class="empty">Cargando documentos…</div>`;
+  try{ docsCache = await Nube.docs(); }
+  catch(e){ box.innerHTML = `<div class="empty">${esc(Nube.traduce(e.message))}</div>`; return; }
+  if(!docsCache.length){
+    box.innerHTML = `<div class="empty">Sin documentos todavía.<br>
+      Sube exámenes, informes o pautas en PDF. Tu entrenador también puede subirlos.</div>`;
+    return;
+  }
+  box.innerHTML = docsCache.map(d=>{
+    const t = TIPOS_DOC[d.tipo] || TIPOS_DOC.otro, f = parseKey(d.fecha);
+    /* Sin autor son los que subiste tú antes de que el entrenador pudiera. */
+    const mio = !d.autor_id || d.autor_id === miId();
+    const quien = mio ? "" : ` · ${esc(String(d.autor?.nombre || "tu entrenador").split(" ")[0])}`;
+    return `<div class="hrow">
+      <div class="m">${t.e}</div>
+      <div class="t"><b>${esc(d.titulo)}</b>
+        <span>${t.l} · ${f.getDate()} ${MESES[f.getMonth()]} ${f.getFullYear()}${
+          d.tam ? " · "+pesoArchivo(d.tam) : ""}${quien}</span></div>
+      <button class="mini" data-abrir="${d.id}">Abrir</button>
+      ${mio ? `<button class="mini" data-borrar="${d.id}" style="color:#fb7185">✕</button>` : ""}
+    </div>${d.notas ? `<p style="font-size:12px;color:var(--tx3);margin:0 0 10px 45px">${esc(d.notas)}</p>` : ""}`;
+  }).join("");
+
+  box.querySelectorAll("[data-abrir]").forEach(b=> b.onclick = async ()=>{
+    const d = docsCache.find(x=>x.id === b.dataset.abrir);
+    b.disabled = true; b.textContent = "…";
+    try{ window.open(await Nube.urlDoc(d.ruta), "_blank", "noopener"); }
+    catch(e){ toast(Nube.traduce(e.message)); }
+    finally{ b.disabled = false; b.textContent = "Abrir"; }
+  });
+  box.querySelectorAll("[data-borrar]").forEach(b=> b.onclick = async ()=>{
+    const d = docsCache.find(x=>x.id === b.dataset.borrar);
+    if(!confirm(`¿Eliminar "${d.titulo}"? Tu entrenador dejará de verlo.`)) return;
+    try{ await Nube.borrarDoc(d); toast("Documento eliminado"); renderDocs(); }
+    catch(e){ toast(Nube.traduce(e.message)); }
+  });
+}
+
+document.getElementById("addDoc").onclick = ()=> document.getElementById("docFile").click();
+document.getElementById("docFile").onchange = e=>{
+  const f = e.target.files?.[0];
+  e.target.value = "";
+  if(!f) return;
+  if(f.size > 15*1024*1024){ toast("El archivo pesa más de 15 MB"); return; }
+  docArchivo = f;
+  shutModals();
+  document.getElementById("dcArchivo").innerHTML =
+    `<div style="display:flex;align-items:center;gap:10px">
+       <div style="font-size:22px">${f.type.includes("pdf") ? "📄" : "🖼"}</div>
+       <div style="min-width:0"><b style="display:block;font-size:13.5px;word-break:break-all">${esc(f.name)}</b>
+         <span style="font-size:12px;color:var(--tx3)">${pesoArchivo(f.size)}</span></div>
+     </div>`;
+  document.getElementById("dcTitulo").value = f.name.replace(/\.[^.]+$/, "").slice(0, 80);
+  document.getElementById("dcFecha").value  = todayKey();
+  document.getElementById("dcNotas").value  = "";
+  document.querySelectorAll("#dcTipo [data-tp]").forEach(b=>
+    b.classList.toggle("on", b.dataset.tp === "medico"));
+  document.getElementById("docModal").classList.add("open");
+};
+document.querySelectorAll("#dcTipo [data-tp]").forEach(b=> b.onclick = ()=>{
+  document.querySelectorAll("#dcTipo [data-tp]").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+});
+document.getElementById("dcCancel").onclick = ()=>{
+  docArchivo = null;
+  document.getElementById("docModal").classList.remove("open");
+};
+document.getElementById("dcSave").onclick = async ()=>{
+  const titulo = document.getElementById("dcTitulo").value.trim();
+  if(!docArchivo){ toast("Elige un archivo"); return; }
+  if(!titulo){ toast("Ponle un título al documento"); return; }
+  const btn = document.getElementById("dcSave");
+  btn.disabled = true; btn.textContent = "Subiendo…";
+  try{
+    await Nube.subirDoc(docArchivo, {
+      titulo,
+      tipo:  document.querySelector("#dcTipo [data-tp].on")?.dataset.tp || "otro",
+      fecha: document.getElementById("dcFecha").value || todayKey(),
+      notas: document.getElementById("dcNotas").value.trim()
+    });
+    docArchivo = null;
+    document.getElementById("docModal").classList.remove("open");
+    toast("Documento subido");
+    renderDocs();
+  }catch(e){ toast(Nube.traduce(e.message)); }
+  finally{ btn.disabled = false; btn.textContent = "Subir"; }
+};
+
+/* ============================================================
    NAVEGACIÓN Y EVENTOS
    ============================================================ */
 function go(v){
-  ["hoy","hist","stats","set"].forEach(x=>
+  ["hoy","hist","stats","salud","set"].forEach(x=>
     document.getElementById("view-"+x).classList.toggle("hidden", x!==v));
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
   document.getElementById("datebar").classList.toggle("hidden", v!=="hoy");
   if(v==="hist") renderHist();
   if(v==="stats") renderStats();
+  if(v==="salud") renderSalud();
   if(v==="set") renderSettings();
 }
 function renderAll(){ renderToday(); renderMeals(); renderMood(); renderBanner(); }

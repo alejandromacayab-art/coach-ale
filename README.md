@@ -147,6 +147,16 @@ cabecera muestra si la conexión está viva. Por su parte, la app del deportista
 datos unos segundos después de cada cambio y también al cerrarse o pasar a segundo plano,
 para que nada se quede esperando en el teléfono.
 
+**Salud.** Una pestaña más en la app: composición corporal (peso, grasa y músculo
+con variaciones contra los 30 días anteriores y curva de peso), ficha médica de 31
+campos con tamizaje cardiovascular, ficha nutricional y documentos en PDF o imagen.
+Arriba aparece una banda de avisos con lo que hay que saber sin leer la ficha entera:
+alergias a medicamentos, respuestas afirmativas del tamizaje, lesión activa y
+certificado de aptitud vencido. El entrenador ve todo eso en la ficha del deportista.
+
+La ficha organiza información, no la evalúa: no reemplaza un examen médico ni una
+autorización deportiva, y la app lo dice donde corresponde.
+
 **El panel** (`panel.html`) muestra el resumen del grupo, la tabla de deportistas con
 cargas, sueño y semáforo de chatarra, y la ficha individual con el detalle día a día
 de cada sesión: ejercicios, series y kilos.

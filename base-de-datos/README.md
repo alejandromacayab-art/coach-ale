@@ -5,6 +5,8 @@
 | Archivo | Qué es |
 |---|---|
 | `esquema.sql` | Todo el modelo de datos y los permisos. Se ejecuta una vez. |
+| `registro-abierto.sql` | Deja que cualquiera con el enlace cree su cuenta. |
+| `salud.sql` | El apartado médico y nutricional: documentos y almacén privado. |
 
 ## Cómo se monta (una sola vez, ~5 minutos)
 
@@ -47,3 +49,27 @@
 
 Si un deportista te lo pide, en **Authentication → Users** eliminas su usuario.
 Sus días, su configuración y su perfil se borran en cascada automáticamente.
+
+
+## Apartado médico y nutricional
+
+Después de `esquema.sql`, ejecuta `salud.sql`. Crea la tabla `documentos` y un
+almacén **privado** para los archivos.
+
+**Cómo se reparten los permisos de los documentos.** El archivo se guarda en una
+ruta que dice quién puede borrarlo:
+
+| Quién sube | Ruta | Quién puede borrarlo |
+|---|---|---|
+| El deportista | `documentos/<atleta>/<archivo>` | Él |
+| El entrenador | `documentos/<atleta>/<entrenador>/<archivo>` | Solo ese entrenador |
+
+Nadie borra lo que subió otro, y la comprobación no necesita consultar ninguna
+tabla: está en la propia ruta.
+
+**Los archivos nunca tienen dirección pública.** Cada apertura pide un enlace
+firmado que caduca a los cinco minutos.
+
+**Las mediciones y las fichas no necesitan tabla.** El peso vive dentro del día,
+junto al sueño, y la ficha dentro de la configuración del usuario. Viajan con la
+sincronización que ya existía.

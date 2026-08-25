@@ -110,6 +110,120 @@ async function verLista(){
 }
 
 /* ============================================================
+   SALUD · lo que ve el entrenador
+   Los mismos grupos y el mismo orden que la app: entrenador y deportista
+   leen la ficha igual. Si cambia allá, cambia aquí.
+   ============================================================ */
+const TIPOS_DOC = {medico:{e:"🩺", l:"Médico"}, nutricional:{e:"🥗", l:"Nutricional"}, otro:{e:"📄", l:"Otro"}};
+const FICHA_MED = [
+  {g:"Identificación y contacto", c:[
+    ["nacimiento","Fecha de nacimiento","date"], ["grupo","Grupo sanguíneo"],
+    ["estatura","Estatura","cm"], ["prevision","Previsión o seguro"],
+    ["contacto","Contacto de emergencia"], ["contacto2","Segundo contacto"],
+    ["tratante","Médico o kinesiólogo tratante"]]},
+  {g:"Alergias", c:[
+    ["alergiaMed","A medicamentos","!"], ["alergiaAlim","Alimentarias","!"], ["alergias","Otras alergias"]]},
+  {g:"Antecedentes médicos", c:[
+    ["condiciones","Condiciones diagnosticadas"], ["cirugias","Cirugías y hospitalizaciones"],
+    ["conmociones","Golpes en la cabeza o conmociones"], ["respiratorio","Problemas respiratorios con el ejercicio"]]},
+  {g:"Tamizaje cardiovascular", c:[
+    ["cvDolor","Dolor u opresión en el pecho al esforzarse","sn"],
+    ["cvDesmayo","Desmayos o mareos con el ejercicio","sn"],
+    ["cvAhogo","Falta de aire o fatiga antes que sus pares","sn"],
+    ["cvSoplo","Soplo o presión alta detectados","sn"],
+    ["cvFamiliar","Muerte súbita familiar antes de los 50","sn"]]},
+  {g:"Medicación y sustancias", c:[
+    ["medicacion","Medicación habitual"], ["medicacionOcas","Medicación ocasional"],
+    ["tue","Autorización de uso terapéutico"], ["habitos","Tabaco y alcohol"]]},
+  {g:"Lesiones", c:[
+    ["lesiones","Lesiones previas"], ["lesionActual","Molestia o lesión activa","!"],
+    ["limitaciones","Movimientos o cargas a evitar","!"]]},
+  {g:"Controles y certificados", c:[
+    ["ultimoControl","Último control médico deportivo","date"], ["ecg","Electrocardiograma"],
+    ["sangre","Último examen de sangre"], ["certificaVence","Vence el certificado de aptitud","date"],
+    ["vacunas","Vacunas relevantes"]]}
+];
+const FICHA_NUT = [
+  {g:"Alimentación", c:[
+    ["restricciones","Restricciones e intolerancias","!"], ["suplementos","Suplementos"],
+    ["objetivoNutri","Objetivo nutricional"], ["notasNutri","Indicaciones del nutricionista"]]}
+];
+const SN = {si:"Sí", no:"No", nose:"No lo sé"};
+const lleno = v => String(v ?? "").trim() !== "";
+const un1 = n => Math.round(Number(n)*10)/10;
+const pesoArchivo = b => !b ? "" : b >= 1048576 ? (b/1048576).toFixed(1)+" MB" : Math.max(1, Math.round(b/1024))+" KB";
+const faltan = f => Math.round((new Date(f+"T00:00:00") - new Date(hoyKey()+"T00:00:00")) / 86400000);
+const fechaLargaP = f => {
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(f))) return f;
+  const [y,m,d] = f.split("-").map(Number);
+  return `${d} ${MESES[m-1]} ${y}`;
+};
+function edadP(f){
+  const [y,m,d] = f.split("-").map(Number), h = new Date();
+  let a = h.getFullYear() - y, dm = (h.getMonth()+1) - m;
+  if(dm < 0 || (dm === 0 && h.getDate() < d)) a--;
+  return a;
+}
+function valorFichaP(v, tipo, k){
+  if(tipo === "sn")   return SN[v] || v;
+  if(tipo === "date") return k === "nacimiento" ? `${fechaLargaP(v)} · ${edadP(v)} años` : fechaLargaP(v);
+  if(tipo === "cm")   return v + " cm";
+  return v;
+}
+/* Lo que hay que saber sin abrir la ficha entera. */
+function banderasP(salud){
+  const f = salud || {}, out = [];
+  FICHA_MED.flatMap(s=>s.c).filter(([k,,t]) => t === "sn" && f[k] === "si")
+    .forEach(([,l]) => out.push({t:"alta", txt:l}));
+  if(lleno(f.alergiaMed))   out.push({t:"alta",  txt:"Alergia a medicamentos: " + f.alergiaMed});
+  if(lleno(f.alergiaAlim))  out.push({t:"media", txt:"Alergia alimentaria: " + f.alergiaAlim});
+  if(lleno(f.lesionActual)) out.push({t:"media", txt:"Lesión activa: " + f.lesionActual});
+  if(lleno(f.limitaciones)) out.push({t:"media", txt:"Evitar: " + f.limitaciones});
+  if(lleno(f.contacto))     out.push({t:"info",  txt:"Emergencia: " + f.contacto});
+  if(lleno(f.certificaVence)){
+    const n = faltan(f.certificaVence);
+    if(n < 0)        out.push({t:"alta",  txt:`Certificado de aptitud vencido hace ${-n} días`});
+    else if(n <= 30) out.push({t:"media", txt:`El certificado de aptitud vence en ${n} días`});
+  }
+  return out;
+}
+function banderasHTML(salud){
+  const bs = banderasP(salud);
+  if(!bs.length) return "";
+  return `<div class="flags">${bs.map(b=>
+    `<div class="flag ${b.t}"><span>${b.t === "alta" ? "🚨" : b.t === "media" ? "⚠️" : "📞"}</span>${esc(b.txt)}</div>`
+  ).join("")}</div>`;
+}
+function fichaHTML(salud, secs){
+  const cuerpo = secs.map(sec=>{
+    const llenos = sec.c.filter(([k]) => lleno(salud?.[k]));
+    if(!llenos.length) return "";
+    return `<div class="fcgrupo">${sec.g}</div>` + llenos.map(([k,l,t])=>{
+      const rojo = t === "sn" ? salud[k] === "si" : t === "!";
+      return `<div class="fcrow"><span>${l}</span>
+        <b${rojo ? ' style="color:#fb7185"' : ""}>${esc(valorFichaP(salud[k], t, k))}</b></div>`;
+    }).join("");
+  }).join("");
+  return cuerpo ? `<div class="panel">${cuerpo}</div>` : "";
+}
+/* La medición más reciente y la más cercana a 30 días atrás, para el delta. */
+function medicionesDe(dias){
+  const ms = dias.filter(r=>Number(r.datos?.cuerpo?.peso) > 0)
+                 .map(r=>({fecha:r.fecha, ...r.datos.cuerpo}))
+                 .sort((a,b)=> b.fecha.localeCompare(a.fecha));
+  const limite = hoyKey(new Date(Date.now() - 30*86400000));
+  return {ultima: ms[0] || null, antes: ms.find(m=>m.fecha <= limite) || null, todas: ms};
+}
+function deltaTxt(actual, antes, mejorSube){
+  if(!antes || !Number(antes)) return {t:"—", c:"#6f7887"};
+  const d = un1(actual - antes);
+  if(d === 0) return {t:"sin cambio", c:"#6f7887"};
+  const bueno = mejorSube === null ? null : (mejorSube ? d > 0 : d < 0);
+  return {t:`${d>0?"▲":"▼"} ${Math.abs(d)}`,
+          c: bueno === null ? "#a7b2c2" : bueno ? "#22e07a" : "#fb7185"};
+}
+
+/* ============================================================
    FICHA DE UN DEPORTISTA
    ============================================================ */
 async function verAtleta(id){
@@ -117,11 +231,17 @@ async function verAtleta(id){
   const mismaFicha = vista.tipo === "ficha" && vista.id === id;
   vista = {tipo:"ficha", id};
   if(!mismaFicha) $("main").innerHTML = `<div class="empty">Cargando ficha…</div>`;
-  let dias = [];
+  let dias = [], salud = null, documentos = [], docsError = "";
   try{
     const desde = new Date(); desde.setDate(desde.getDate()-45);
     dias = await Nube.diasDe(id, hoyKey(desde));
+    const cfg = await Nube.configDe(id);
+    salud = cfg?.salud || null;
   }catch(e){ $("main").innerHTML = `<div class="empty">${esc(Nube.traduce(e.message))}</div>`; return; }
+  try{ documentos = await Nube.docs(id); }
+  catch(e){ docsError = Nube.traduce(e.message); }
+  const med = medicionesDe(dias);
+  const fMed = fichaHTML(salud, FICHA_MED), fNut = fichaHTML(salud, FICHA_NUT);
 
   const vol = d => Number(d?.workout?.volume || 0);
   const mn  = v => (v && typeof v === "object") ? (Number(v.min)||0) : (Number(v)||0);
@@ -158,6 +278,26 @@ async function verAtleta(id){
       </div>
     </div>
 
+    ${banderasHTML(salud)}
+
+    ${med.ultima ? `<section>
+      <div class="stitle">⚖️ Composición corporal</div>
+      <div class="stats">
+        <div class="stat"><b style="color:#2dd4bf">${un1(med.ultima.peso)}</b><span>Peso (kg) · ${fechaCorta(med.ultima.fecha)}</span></div>
+        <div class="stat"><b style="color:${deltaTxt(med.ultima.peso, med.antes?.peso, null).c}">${
+          deltaTxt(med.ultima.peso, med.antes?.peso, null).t}</b><span>Peso vs 30 d</span></div>
+        ${Number(med.ultima.grasa) ? `<div class="stat"><b>${un1(med.ultima.grasa)}%</b><span>Grasa · ${
+          un1(med.ultima.peso*med.ultima.grasa/100)} kg</span></div>
+        <div class="stat"><b style="color:${deltaTxt(Number(med.ultima.grasa), Number(med.antes?.grasa), false).c}">${
+          deltaTxt(Number(med.ultima.grasa), Number(med.antes?.grasa), false).t}</b><span>Grasa vs 30 d</span></div>` : ""}
+        ${Number(med.ultima.musculo) ? `<div class="stat"><b>${un1(med.ultima.musculo)}%</b><span>Músculo · ${
+          un1(med.ultima.peso*med.ultima.musculo/100)} kg</span></div>
+        <div class="stat"><b style="color:${deltaTxt(Number(med.ultima.musculo), Number(med.antes?.musculo), true).c}">${
+          deltaTxt(Number(med.ultima.musculo), Number(med.antes?.musculo), true).t}</b><span>Músculo vs 30 d</span></div>` : ""}
+      </div>
+      ${med.ultima.nota ? `<p style="font-size:12.5px;color:#6f7887;margin:10px 0 0">${esc(med.ultima.nota)}</p>` : ""}
+    </section>` : ""}
+
     <section>
       <div class="stitle">Cargas · últimos 45 días</div>
       <div class="stats">
@@ -180,6 +320,32 @@ async function verAtleta(id){
         </div>
         <div class="hlbl"><span>Volumen por día · últimos 14 días</span></div>
       </div>
+    </section>
+
+    ${fMed ? `<section><div class="stitle">🩺 Ficha médica</div>${fMed}</section>` : ""}
+    ${fNut ? `<section><div class="stitle">🥗 Ficha nutricional</div>${fNut}</section>` : ""}
+
+    <section>
+      <div class="stitle">📎 Documentos</div>
+      <div class="panel">${
+        docsError ? `<div class="empty">${esc(docsError)}</div>`
+        : !documentos.length ? `<div class="empty">Sin documentos cargados.</div>`
+        : documentos.map(d=>{
+            const t = TIPOS_DOC[d.tipo] || TIPOS_DOC.otro;
+            const mio = d.autor_id && d.autor_id === perfil?.id;
+            const quien = !d.autor_id ? "lo subió el deportista"
+                        : mio ? "lo subiste tú"
+                        : esc(String(d.autor?.nombre || "el deportista").split(" ")[0]);
+            return `<div class="hrow">
+              <div class="m">${t.e}</div>
+              <div class="t"><b>${esc(d.titulo)}</b>
+                <span>${t.l} · ${fechaCorta(d.fecha)}${d.tam ? " · "+pesoArchivo(d.tam) : ""} · ${quien}</span></div>
+              <button class="mini" data-doc="${esc(d.ruta)}">Abrir</button>
+              ${mio ? `<button class="mini" data-borrar-doc="${d.id}" style="color:#fb7185">✕</button>` : ""}
+            </div>${d.notas ? `<p style="font-size:12px;color:#6f7887;margin:0 0 10px 45px">${esc(d.notas)}</p>` : ""}`;
+          }).join("")}</div>
+      ${docsError ? "" : `<button class="mini" style="margin-top:12px" id="subirDoc">+ Subir documento para ${esc(String(a?.nombre||"").split(" ")[0])}</button>
+        <input type="file" id="docFile" accept="application/pdf,image/png,image/jpeg,image/webp" style="display:none">`}
     </section>
 
     <section>
@@ -210,6 +376,36 @@ async function verAtleta(id){
       }).join("") : `<div class="empty">Sin registros todavía.</div>`}
     </section>`;
 
+  document.querySelectorAll("[data-doc]").forEach(b => b.onclick = async ()=>{
+    b.disabled = true; b.textContent = "…";
+    try{ window.open(await Nube.urlDoc(b.dataset.doc), "_blank", "noopener"); }
+    catch(e){ toast(Nube.traduce(e.message)); }
+    finally{ b.disabled = false; b.textContent = "Abrir"; }
+  });
+  document.querySelectorAll("[data-borrar-doc]").forEach(b => b.onclick = async ()=>{
+    const d = documentos.find(x=>x.id === b.dataset.borrarDoc);
+    if(!confirm(`¿Eliminar "${d.titulo}"? El deportista dejará de verlo.`)) return;
+    try{ await Nube.borrarDoc(d); toast("Documento eliminado"); verAtleta(id); }
+    catch(e){ toast(Nube.traduce(e.message)); }
+  });
+  const sub = $("subirDoc");
+  if(sub){
+    sub.onclick = ()=> $("docFile").click();
+    $("docFile").onchange = async e=>{
+      const f = e.target.files?.[0]; e.target.value = "";
+      if(!f) return;
+      if(f.size > 15*1024*1024){ toast("El archivo pesa más de 15 MB"); return; }
+      const titulo = prompt("Título del documento:", f.name.replace(/\.[^.]+$/, "").slice(0,80));
+      if(!titulo) return;
+      sub.disabled = true; sub.textContent = "Subiendo…";
+      try{
+        await Nube.subirDoc(f, {titulo, tipo:"medico", atletaId:id});
+        toast("Documento subido");
+        verAtleta(id);
+      }catch(err){ toast(Nube.traduce(err.message)); }
+      finally{ sub.disabled = false; sub.textContent = "+ Subir documento"; }
+    };
+  }
   $("volver").onclick = verLista;
   if(!mismaFicha) window.scrollTo({top:0});
 }

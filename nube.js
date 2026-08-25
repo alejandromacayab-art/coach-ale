@@ -151,6 +151,74 @@ async function quitarInvitacion(correo){
   if(error) throw new Error(traduce(error.message));
 }
 
+/* ---------------- documentos médicos y nutricionales ----------------
+   El archivo va al almacén, en una carpeta con el id de su dueño. La ficha
+   (título, tipo, fecha) va a la tabla `documentos`. Para abrirlo se pide un
+   enlace firmado que caduca: nunca hay una dirección pública. */
+const BUCKET = "documentos";
+
+async function nombresDe(ids){
+  const unicos = [...new Set(ids.filter(Boolean))];
+  if(!sb || !unicos.length) return {};
+  const {data} = await sb.from("perfiles").select("id,nombre,rol").in("id", unicos);
+  return Object.fromEntries((data||[]).map(p=>[p.id, p]));
+}
+
+async function docs(uid){
+  if(!sb) return [];
+  const id = uid || (await usuario())?.id;
+  if(!id) return [];
+  const {data, error} = await sb.from("documentos").select("*")
+    .eq("user_id", id).order("fecha", {ascending:false});
+  if(error) throw new Error(traduce(error.message));
+  const lista = data || [];
+  const autores = await nombresDe(lista.map(d=>d.autor_id));
+  return lista.map(d => ({...d, autor: autores[d.autor_id] || null}));
+}
+
+/* `atletaId` solo hace falta cuando sube el entrenador: si se omite, el
+   documento es para uno mismo. La ruta cambia según el caso, porque es la
+   propia ruta la que decide después quién puede borrar el archivo. */
+async function subirDoc(archivo, {titulo, tipo, fecha, notas, atletaId}){
+  if(!sb) throw new Error("Sin conexión con la base de datos.");
+  const u = await usuario(); if(!u) throw new Error("Sin sesión");
+  const dueño = atletaId || u.id;
+  const ext = (archivo.name.split(".").pop() || "pdf").toLowerCase();
+  const nombre = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const ruta = dueño === u.id ? `${dueño}/${nombre}` : `${dueño}/${u.id}/${nombre}`;
+
+  const sub = await sb.storage.from(BUCKET).upload(ruta, archivo, {
+    contentType: archivo.type || "application/pdf", upsert:false});
+  if(sub.error) throw new Error(traduce(sub.error.message));
+
+  const {data, error} = await sb.from("documentos").insert({
+    user_id:dueño, autor_id:u.id, tipo: tipo||"medico", titulo, ruta,
+    tam: archivo.size, fecha: fecha || new Date().toISOString().slice(0,10),
+    notas: notas || null
+  }).select().single();
+  /* Si la ficha no se pudo guardar, el archivo quedaría huérfano. */
+  if(error){
+    await sb.storage.from(BUCKET).remove([ruta]).catch(()=>{});
+    throw new Error(traduce(error.message));
+  }
+  return data;
+}
+
+/* Enlace temporal para abrir o descargar el archivo. */
+async function urlDoc(ruta, segundos = 300){
+  if(!sb) return null;
+  const {data, error} = await sb.storage.from(BUCKET).createSignedUrl(ruta, segundos);
+  if(error) throw new Error(traduce(error.message));
+  return data.signedUrl;
+}
+
+async function borrarDoc(doc){
+  if(!sb) return;
+  const {error} = await sb.from("documentos").delete().eq("id", doc.id);
+  if(error) throw new Error(traduce(error.message));
+  await sb.storage.from(BUCKET).remove([doc.ruta]).catch(()=>{});
+}
+
 /* ---------------- cambios en vivo ----------------
    La base avisa al panel en cuanto un deportista guarda algo.
    Solo llegan los cambios que los permisos por fila te dejan ver. */
@@ -179,6 +247,11 @@ function traduce(m){
   if(/invalid.*email|email.*invalid/i.test(s))return "Ese correo no parece válido.";
   if(/row-level security|permission denied/i.test(s)) return "No tienes permiso para ver eso.";
   if(/Failed to fetch|NetworkError/i.test(s)) return "Sin conexión a internet.";
+  if(/Bucket not found/i.test(s))             return "Falta crear el almacén de documentos. Ejecuta salud.sql en Supabase.";
+  if(/relation .*documentos.* does not exist|Could not find the table/i.test(s))
+                                              return "Falta la tabla de documentos. Ejecuta salud.sql en Supabase.";
+  if(/exceeded the maximum allowed size|Payload too large/i.test(s)) return "El archivo pesa más de 15 MB.";
+  if(/mime type.*not supported|invalid_mime_type/i.test(s)) return "Solo se aceptan PDF e imágenes.";
   if(/signup.*disabled/i.test(s))             return "El registro está cerrado. Pide una invitación.";
   return s;
 }
@@ -188,6 +261,7 @@ global.Nube = {
   entrar, registrarse, recuperar, cambiarClave,
   miPerfil, ponerNombre, bajar, subir,
   misAtletas, diasDe, configDe, invitaciones, invitar, quitarInvitacion,
+  docs, subirDoc, urlDoc, borrarDoc, nombresDe,
   escuchar, dejarDeEscuchar, traduce
 };
 })(window);
