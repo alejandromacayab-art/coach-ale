@@ -65,6 +65,7 @@
         <p id="heroSub">0 de 0 hábitos completados</p>
         <div class="chips" id="heroChips"></div>
       </div>
+      <div class="puntaje" id="heroBreak"></div>
     </div>
 
     <section>
@@ -117,7 +118,7 @@
       <div class="panel" id="foodBox"></div>
     </section>
     <section>
-      <div class="stitle">Cumplimiento · últimos 14 días</div>
+      <div class="stitle">Puntaje · últimos 14 días</div>
       <div class="panel"><div class="chart" id="chart14"></div></div>
     </section>
     <section>
@@ -466,7 +467,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.25-2";
+const APP_VERSION = "2026.08.25-3";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -662,6 +663,64 @@ function dayPct(k){
   let s=0; S.habits.forEach(h=> s += progress(h, l.values?.[h.id]||0));
   return s / S.habits.length;
 }
+/* ============================================================
+   PUNTAJE DEL DÍA · un solo número, siempre el mismo
+   Se reparte en tres partes para que se vea de dónde sale y qué
+   falta por ganar. Sin check-in de sueño no se resta nada: esos
+   puntos quedan disponibles, que motiva más que castigar.
+   ============================================================ */
+const PUNTOS = {habitos:60, sueno:25, comida:15};
+
+function puntajeDia(k){
+  const l = S.logs[k];
+  const hab = Math.round(dayPct(k) * PUNTOS.habitos);
+  const haySueno = !!(l?.sleep && Number(l.sleep.score));
+  const sue = haySueno ? Math.round(Number(l.sleep.score)/100 * PUNTOS.sueno) : 0;
+  const hf = S.habits.find(h=>h.type === "food");
+  const meta = Math.max(1, Number(hf?.goal) || 3);
+  const grupos = (l?.food?.groups || []).length;
+  const base = PUNTOS.comida * Math.min(1, grupos/meta);
+  const chatarra = junkCount(k);
+  const com = Math.max(0, Math.round(base - chatarra*5));
+  return {total: hab + sue + com, hab, sue, com, haySueno, grupos, meta, chatarra,
+          perdidosChatarra: Math.min(Math.round(base), chatarra*5)};
+}
+const NIVELES = [
+  {min:90, t:"Día impecable",   e:"🏆", c:"#22e07a"},
+  {min:75, t:"Gran día",        e:"🔥", c:"#4ade80"},
+  {min:60, t:"Buen día",        e:"💪", c:"#38bdf8"},
+  {min:40, t:"Vas encaminado",  e:"🌱", c:"#fbbf24"},
+  {min:1,  t:"Día flojo",       e:"🌥",  c:"#fb7185"},
+  {min:0,  t:"Sin registrar",   e:"·",  c:"#6f7b8c"}
+];
+const nivelDe = p => NIVELES.find(n => p >= n.min);
+/* Un día cuenta como bueno a partir de 60. */
+const DIA_BUENO = 60;
+function rachaBuenos(){
+  let n = 0, k = todayKey();
+  if(puntajeDia(k).total < DIA_BUENO) k = shift(k,-1);
+  while(puntajeDia(k).total >= DIA_BUENO){ n++; k = shift(k,-1); }
+  return n;
+}
+/* Días seguidos sin comida chatarra, contando solo los que tienen registro. */
+function rachaLimpia(){
+  let n = 0, k = todayKey();
+  for(let i = 0; i < 400; i++){
+    const l = S.logs[k];
+    if(l && (l.food?.groups?.length || l.food?.junk?.length || Object.keys(l.values||{}).length)){
+      if(junkCount(k) > 0) break;
+      n++;
+    }
+    k = shift(k,-1);
+  }
+  return n;
+}
+const promedioPuntaje = dias => {
+  const ks = []; let k = todayKey();
+  for(let i=0;i<dias;i++){ ks.push(k); k = shift(k,-1); }
+  return Math.round(ks.reduce((a,x)=>a+puntajeDia(x).total,0)/dias);
+};
+
 function streak(h){
   let n=0, k=todayKey();
   if(!isDone(h, S.logs[k]?.values?.[h.id]||0)) k = shift(k,-1);
@@ -900,22 +959,39 @@ function renderDate(){
 }
 
 function renderHero(){
-  const l = dayLog(cur);
-  const done = S.habits.filter(h=>isDone(h,l.values[h.id]||0)).length;
-  const pct = Math.round(dayPct(cur)*100);
+  const l = dayLog(cur), p = puntajeDia(cur), nv = nivelDe(p.total);
   const C = 2*Math.PI*38;
-  document.getElementById("ringFg").style.strokeDashoffset = C*(1-pct/100);
-  document.getElementById("ringVal").textContent = pct+"%";
-  const msg = pct===0?"Empecemos el día":pct<40?"Buen arranque":pct<75?"Vas muy bien":pct<100?"Casi lo logras":"¡Día completo! 🎉";
-  document.getElementById("heroTitle").textContent = msg;
-  document.getElementById("heroSub").textContent = `${done} de ${S.habits.length} hábitos completados`;
+  const ring = document.getElementById("ringFg");
+  ring.style.strokeDashoffset = C*(1 - p.total/100);
+  ring.style.stroke = p.total >= 60 ? "url(#g1)" : nv.c;
+  document.getElementById("ringVal").textContent = p.total;
+  document.getElementById("heroTitle").textContent = `${nv.e} ${nv.t}`;
 
+  const done = S.habits.filter(h=>isDone(h, l.values[h.id]||0)).length;
+  document.getElementById("heroSub").innerHTML =
+    `<b style="color:var(--tx)">${p.total}</b> de 100 puntos hoy · ${done}/${S.habits.length} hábitos`;
+
+  /* Qué falta por ganar: eso empuja más que señalar lo que va mal. */
   const chips = [];
-  if(l.sleep) chips.push(`<span class="chip sleep">😴 Sueño ${l.sleep.score}</span>`);
-  S.habits.map(h=>({h,n:streak(h)})).filter(x=>x.n>1).sort((a,b)=>b.n-a.n).slice(0,2)
-    .forEach(x=>chips.push(`<span class="chip hot">${x.h.emoji} ${x.n} días 🔥</span>`));
-  if(!chips.length) chips.push(`<span class="chip">Completa un hábito 2 días seguidos para iniciar una racha</span>`);
+  if(!p.haySueno) chips.push(`<span class="chip sleep">😴 +${PUNTOS.sueno} con tu check-in</span>`);
+  else chips.push(`<span class="chip sleep">😴 ${l.sleep.score} · ${p.sue} pts</span>`);
+  if(p.perdidosChatarra) chips.push(`<span class="chip" style="border-color:#fb718555;color:#fda4af">🍔 −${p.perdidosChatarra} pts</span>`);
+  const rb = rachaBuenos();
+  if(rb > 1) chips.push(`<span class="chip hot">🔥 ${rb} días buenos</span>`);
+  const rl = rachaLimpia();
+  if(rl > 2) chips.push(`<span class="chip" style="border-color:#22e07a55;color:#4ade80">🧼 ${rl} días sin chatarra</span>`);
+  if(!chips.length) chips.push(`<span class="chip">Completa tus hábitos para sumar puntos</span>`);
   document.getElementById("heroChips").innerHTML = chips.join("");
+
+  const barra = (v, max, color, txt) => `
+    <div class="pz">
+      <div class="pzb"><i style="width:${Math.round(v/max*100)}%;background:${color}"></i></div>
+      <div class="pzl"><span>${txt}</span><b>${v}<small>/${max}</small></b></div>
+    </div>`;
+  document.getElementById("heroBreak").innerHTML =
+    barra(p.hab, PUNTOS.habitos, "var(--accent)", "Hábitos") +
+    barra(p.sue, PUNTOS.sueno, "#a78bfa", "Sueño") +
+    barra(p.com, PUNTOS.comida, "#2dd4bf", "Alimentación");
 }
 
 function renderSleepCard(){
@@ -1180,7 +1256,7 @@ function renderHist(){
   const rows=[]; let k=todayKey();
   for(let i=0;i<30;i++){ rows.push(k); k=shift(k,-1); }
   document.getElementById("histList").innerHTML = rows.map(d=>{
-    const p = Math.round(dayPct(d)*100), dt = parseKey(d), l = S.logs[d];
+    const p = puntajeDia(d).total, dt = parseKey(d), l = S.logs[d];
     const mood = l?.mood ? " "+["","😞","😕","😐","🙂","😄"][l.mood] : "";
     const slp  = l?.sleep ? ` <span style="color:#a5b4fc;font-weight:700">😴${l.sleep.score}</span>` : "";
     const vol  = wkVolume(l?.workout);
@@ -1201,8 +1277,8 @@ function renderHist(){
 function renderStats(){
   const days=[]; let k=todayKey();
   for(let i=0;i<30;i++){ days.push(k); k=shift(k,-1); }
-  const avg30 = Math.round(days.reduce((s,d)=>s+dayPct(d),0)/30*100);
-  const perfect = days.filter(d=>dayPct(d)>=0.999).length;
+  const avg30 = promedioPuntaje(30);
+  const perfect = days.filter(d=>puntajeDia(d).total >= 90).length;
   const sleeps = days.map(d=>S.logs[d]?.sleep).filter(Boolean);
   const avgSleep = sleeps.length ? Math.round(sleeps.reduce((a,s)=>a+s.score,0)/sleeps.length) : 0;
   const avgHrs = sleeps.length ? Math.round(sleeps.reduce((a,s)=>a+s.hours,0)/sleeps.length*10)/10 : 0;
@@ -1213,9 +1289,9 @@ function renderStats(){
   while(dayPct(kk)>0){ gstreak++; kk=shift(kk,-1); }
 
   document.getElementById("statBoxes").innerHTML = `
-    <div class="stat"><b>${avg30}%</b><span>Promedio 30 días</span></div>
-    <div class="stat"><b>${gstreak}</b><span>Días seguidos activo</span></div>
-    <div class="stat"><b>${perfect}</b><span>Días perfectos</span></div>
+    <div class="stat"><b style="color:${nivelDe(avg30).c}">${avg30}</b><span>Puntaje medio · 30 días</span></div>
+    <div class="stat"><b>${rachaBuenos()}</b><span>Días buenos seguidos</span></div>
+    <div class="stat"><b>${perfect}</b><span>Días impecables (90+)</span></div>
     <div class="stat"><b style="color:#a5b4fc">${avgSleep||"–"}</b><span>Sueño promedio</span></div>
     <div class="stat"><b>${kg(totKg)}</b><span>Kg movidos · 30 días</span></div>
     <div class="stat"><b style="color:${RISK[riskLevel(junkCount(todayKey()), jw)].c}">${jw}</b><span>Chatarra · 7 días</span></div>`;
@@ -1255,8 +1331,8 @@ function renderStats(){
 
   const last14 = days.slice(0,14).reverse();
   document.getElementById("chart14").innerHTML = last14.map(d=>{
-    const p = dayPct(d), dt = parseKey(d);
-    return `<div class="cb" title="${d} · ${Math.round(p*100)}%">
+    const p = puntajeDia(d).total/100, dt = parseKey(d);
+    return `<div class="cb" title="${d} · ${Math.round(p*100)} pts">
       <div class="cbar ${p===0?'empty':''}" style="height:${Math.max(3,p*100)}%"></div>
       <div class="cbl">${dt.getDate()}</div></div>`;
   }).join("");
@@ -1276,9 +1352,9 @@ function renderStats(){
   const start=new Date(end); start.setDate(end.getDate()-off-7*11);
   for(let i=0;i<84;i++){
     const d=new Date(start); d.setDate(start.getDate()+i);
-    const key=todayKey(d), p=dayPct(key);
-    const lvl = d>end ? "" : p===0?0 : p<.35?1 : p<.7?2 : p<.999?3 : 4;
-    cells.push(`<div class="hcell" data-l="${lvl}" title="${key} · ${Math.round(p*100)}%" style="${d>end?'opacity:.2':''}"></div>`);
+    const key=todayKey(d), p=puntajeDia(key).total/100;
+    const lvl = d>end ? "" : p===0?0 : p<.4?1 : p<.6?2 : p<.9?3 : 4;
+    cells.push(`<div class="hcell" data-l="${lvl}" title="${key} · ${Math.round(p*100)} pts" style="${d>end?'opacity:.2':''}"></div>`);
   }
   document.getElementById("heat").innerHTML = cells.join("");
 
@@ -1859,7 +1935,16 @@ function drawFood(){
 
   if(!gBox.children.length){
     gBox.innerHTML = FOOD_GROUPS.map(g=>`<button class="tag" data-g="${g.k}">${g.e} ${g.l}</button>`).join("");
-    jBox.innerHTML = JUNK_ITEMS.map(j=>`<button class="tag junk" data-j="${esc(j.l)}" data-je="${j.e}">${j.e} ${j.l}</button>`).join("");
+    jBox.innerHTML = JUNK_ITEMS.map(j=>`<button class="tag junk" data-j="${esc(j.l)}" data-je="${j.e}">${j.e} ${j.l}</button>`).join("")
+      + `<button class="tag" id="junkOtro" style="border-style:dashed">＋ Otro</button>`;
+    jBox.querySelector("#junkOtro").onclick = ()=>{
+      const nombre = prompt("¿Qué comiste?");
+      if(!nombre || !nombre.trim()) return;
+      const l0 = nombre.trim().slice(0,40);
+      const it = f.junk.find(x=>x.l.toLowerCase() === l0.toLowerCase());
+      it ? it.n++ : f.junk.push({l:l0, e:"🍽", n:1});
+      syncFood(); listaChatarra(); drawRisk();
+    };
     gBox.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{
       const k = b.dataset.g, i = f.groups.indexOf(k);
       i < 0 ? f.groups.push(k) : f.groups.splice(i,1);
@@ -1907,27 +1992,43 @@ function listaChatarra(){
 function drawRisk(){
   const j = S.settings.junk;
   const d = junkCount(cur), w = junkWeek(cur), lv = riskLevel(d,w), R = RISK[lv];
-  const pctD = Math.min(100, d/j.dayRisk*100), pctW = Math.min(100, w/j.weekRisk*100);
-  const msg = lv===2
-      ? "Estás comiendo chatarra por sobre tu límite. Vale la pena frenar y planificar las comidas de los próximos días."
-      : lv===1 ? "Vas justo en el límite. Cuida los próximos días para no pasarte."
-               : "Vas bien: la chatarra está dentro de lo que te propusiste.";
+  const quedan = Math.max(0, j.weekRisk - w);
+  const limpia = rachaLimpia();
+  const p = puntajeDia(cur);
+
+  const msg = lv === 2
+      ? "Estás por sobre tu límite. Vale la pena frenar y planificar las comidas de los próximos días."
+      : lv === 1 ? "Vas justo en el límite. Cuida los próximos días para no pasarte."
+                 : quedan >= j.weekRisk ? "Semana limpia hasta ahora. Así se ve un buen mes."
+                                        : `Vas bien: te quedan ${quedan} porcion${quedan===1?"":"es"} de margen esta semana.`;
+
   document.getElementById("fdRisk").innerHTML = `
     <div class="risk ${R.cls}">
       <div class="lv" style="background:${R.c}1f">${R.e}</div>
       <div><b style="color:${R.c}">${R.t}</b><span>${msg}</span></div>
     </div>
-    <div style="margin-bottom:14px">
-      <div class="meter"><i style="width:${pctD}%;background:${R.c}"></i></div>
-      <div class="mini-lbl"><span>Hoy: ${d} ${d===1?"porción":"porciones"}</span><span>límite ${j.dayRisk}</span></div>
-      <div class="meter" style="margin-top:11px"><i style="width:${pctW}%;background:${R.c}"></i></div>
-      <div class="mini-lbl"><span>Últimos 7 días: ${w}</span><span>límite ${j.weekRisk}</span></div>
+
+    <div class="presu">
+      <div class="pcab"><span>Presupuesto de la semana</span>
+        <b style="color:${R.c}">${w} de ${j.weekRisk}</b></div>
+      <div class="pfichas">${Array.from({length:j.weekRisk}, (_,i)=>
+        `<i class="${i < w ? "usada" : ""}" style="${i < w ? `background:${R.c}` : ""}"></i>`).join("")}</div>
+      <div class="mini-lbl"><span>Hoy: ${d} ${d===1?"porción":"porciones"}</span>
+        <span>${quedan ? `quedan ${quedan}` : "sin margen"}</span></div>
+    </div>
+
+    <div class="sl-meta libre" style="margin:12px 0 14px">
+      <div><b style="color:${limpia > 0 ? "#4ade80" : "var(--tx3)"}">${limpia}</b><span>Días seguidos limpios</span></div>
+      <div><b style="color:${p.com === PUNTOS.comida ? "#4ade80" : "var(--tx2)"}">${p.com}/${PUNTOS.comida}</b><span>Puntos de hoy</span></div>
+      ${p.perdidosChatarra ? `<div><b style="color:#fb7185">−${p.perdidosChatarra}</b><span>Perdidos por chatarra</span></div>` : ""}
     </div>`;
 }
+
 function syncFood(){
   const l = dayLog(cur), hf = S.habits.find(h=>h.type==="food");
   if(hf) l.values[hf.id] = l.food.groups.length;
   save();
+  renderHero();                 // el puntaje del día cambia al instante
 }
 
 /* ============================================================

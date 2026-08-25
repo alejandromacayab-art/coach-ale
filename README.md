@@ -147,6 +147,16 @@ cabecera muestra si la conexión está viva. Por su parte, la app del deportista
 datos unos segundos después de cada cambio y también al cerrarse o pasar a segundo plano,
 para que nada se quede esperando en el teléfono.
 
+**Puntaje del día.** Un solo número de 0 a 100, el mismo en toda la app: en el
+anillo de Hoy, en el historial, en el mapa de constancia y en las estadísticas. Se
+reparte en hábitos (60), sueño (25) y alimentación (15), y el desglose se muestra
+bajo el anillo para que se vea de dónde sale. Sin check-in de sueño no se resta
+nada: esos 25 puntos aparecen como disponibles, que motiva más que castigar. Cada
+porción de comida chatarra descuenta 5 puntos de los 15 de alimentación.
+
+Los días se nombran por tramos —impecable a partir de 90, gran día desde 75, buen
+día desde 60— y se cuentan rachas de días buenos y de días sin chatarra.
+
 **Salud.** Una pestaña más en la app: composición corporal (peso, grasa y músculo
 con variaciones contra los 30 días anteriores y curva de peso), ficha médica de 31
 campos con tamizaje cardiovascular, ficha nutricional y documentos en PDF o imagen.

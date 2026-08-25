@@ -63,14 +63,14 @@ header{position:sticky;top:0;z-index:50;padding-top:env(safe-area-inset-top);
 .today-btn{font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:10px;background:var(--accent2);color:var(--accent)}
 
 /* ---------- Hero ---------- */
-.hero{display:flex;align-items:center;gap:18px;background:var(--card);border:1px solid var(--line);
+.hero{display:flex;align-items:center;flex-wrap:wrap;gap:18px;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r);padding:18px;box-shadow:var(--glow);margin:14px 0;position:relative;overflow:hidden}
 :root[data-theme="dark"] .hero:before{content:"";position:absolute;inset:0;
   background:linear-gradient(135deg,rgba(34,224,122,.08),transparent 55%);pointer-events:none}
 .ring{position:relative;width:92px;height:92px;flex:none}
 .ring svg{transform:rotate(-90deg)}
 .ring .val{position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:20px;letter-spacing:-.04em}
-.hero-info{position:relative;z-index:1;min-width:0}
+.hero-info{flex:1 1 0;min-width:0;position:relative;z-index:1}
 .hero-info h2{margin:0 0 3px;font-size:16.5px;letter-spacing:-.03em}
 .hero-info p{margin:0;color:var(--tx2);font-size:13px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
@@ -355,3 +355,23 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .wb i{display:block;width:100%;border-radius:6px 6px 3px 3px;min-height:4px}
 .wb.peso i{background:linear-gradient(180deg,#2dd4bf,#2dd4bf55)}
 .wb span{font-size:9.5px;color:var(--tx3);white-space:nowrap}
+
+
+/* ---------- Puntaje del día ---------- */
+.puntaje{flex:1 0 100%;display:flex;flex-direction:column;gap:9px;margin-top:2px;
+  padding-top:15px;border-top:1px solid var(--line);position:relative;z-index:1;min-width:0}
+.pz{display:flex;flex-direction:column;gap:4px}
+.pzb{height:6px;border-radius:4px;background:var(--line);overflow:hidden}
+.pzb i{display:block;height:100%;border-radius:4px;transition:width .45s cubic-bezier(.4,0,.2,1)}
+.pzl{display:flex;justify-content:space-between;align-items:baseline;font-size:11px}
+.pzl span{color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.pzl b{font-size:12.5px;font-weight:800;color:var(--tx2)}
+.pzl b small{font-weight:600;color:var(--tx3);font-size:10.5px}
+
+/* ---------- Presupuesto de chatarra ---------- */
+.presu{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:12px}
+.pcab{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.pcab span{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3)}
+.pcab b{font-size:14px;font-weight:800}
+.pfichas{display:flex;gap:5px;margin-bottom:8px}
+.pfichas i{flex:1;height:9px;border-radius:5px;background:var(--line);transition:background .3s}
