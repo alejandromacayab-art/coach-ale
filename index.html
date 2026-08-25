@@ -467,7 +467,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.25-4";
+const APP_VERSION = "2026.08.25-5";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -685,6 +685,12 @@ function puntajeDia(k){
   return {total: hab + sue + com, hab, sue, com, haySueno, grupos, meta, chatarra,
           perdidosChatarra: Math.min(Math.round(base), chatarra*5)};
 }
+/* Los 60 puntos de hábitos se reparten en partes iguales, así que el valor
+   de cada uno cambia solo si añades o quitas hábitos. */
+const puntosHabito  = () => S.habits.length ? PUNTOS.habitos / S.habits.length : 0;
+const puntosGanados = (h, v) => progress(h, v) * puntosHabito();
+const pts1 = n => Math.round(n*10)/10;
+
 const NIVELES = [
   {min:90, t:"Día impecable",   e:"🏆", c:"#22e07a"},
   {min:75, t:"Gran día",        e:"🔥", c:"#4ade80"},
@@ -1049,7 +1055,8 @@ function renderCards(){
       <div class="hh">
         <div class="emoji">${h.emoji}</div>
         <div style="min-width:0"><div class="hname">${esc(h.name)}</div>
-             <div class="hgoal">${h.type==="check"?"Meta: hacerlo":h.type==="workout"?"Sesión de fuerza":"Meta: "+fmt(h.goal)+" "+esc(h.unit||"")}</div></div>
+             <div class="hgoal">${h.type==="check"?"Meta: hacerlo":h.type==="workout"?"Sesión de fuerza":"Meta: "+fmt(h.goal)+" "+esc(h.unit||"")}
+               <span class="pts" data-pts="${h.id}">${pts1(puntosGanados(h,v))}<i>/${pts1(puntosHabito())} pts</i></span></div></div>
         <div class="streak ${st>1?'on':''}">${st>1?"🔥 "+st:""}</div>
       </div>
       ${body}
@@ -1103,6 +1110,8 @@ function refrescarTarjeta(id){
       d.className = "dot" + (v >= i+1 ? " f" : (v > i ? " p" : ""));
     });
   }
+  const pEl = card.querySelector(`[data-pts="${id}"]`);
+  if(pEl) pEl.innerHTML = `${pts1(puntosGanados(h,v))}<i>/${pts1(puntosHabito())} pts</i>`;
   const st = streak(h), sEl = card.querySelector(".streak");
   if(sEl){ sEl.className = "streak" + (st>1 ? " on" : ""); sEl.textContent = st>1 ? "🔥 "+st : ""; }
   renderHero();
@@ -1451,10 +1460,14 @@ function renderHabits(){
     <div class="hrow">
       <div class="m" style="border-color:${h.color}55;background:${h.color}18">${h.emoji}</div>
       <div class="t"><b>${esc(h.name)}</b>
-        <span>${h.type==="check"?"Sí / No":h.type==="workout"?"Entrenamiento con series y kg":"Meta "+fmt(h.goal)+" "+esc(h.unit||"")}</span></div>
+        <span>${h.type==="check"?"Sí / No":h.type==="workout"?"Entrenamiento con series y kg":"Meta "+fmt(h.goal)+" "+esc(h.unit||"")}
+          · vale ${pts1(puntosHabito())} pts</span></div>
       <button class="mini" data-up="${i}" ${i===0?"disabled style=opacity:.3":""}>↑</button>
       <button class="mini" data-ed="${h.id}">Editar</button>
-    </div>`).join("") : `<div class="empty">Aún no hay hábitos.</div>`;
+    </div>`).join("") + `<p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
+      Los ${PUNTOS.habitos} puntos de hábitos se reparten en partes iguales entre los
+      ${S.habits.length} que tengas. Si añades uno, todos valen un poco menos.</p>`
+    : `<div class="empty">Aún no hay hábitos.</div>`;
   box.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>openModal(b.dataset.ed));
   box.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{
     const i=+b.dataset.up; [S.habits[i-1],S.habits[i]]=[S.habits[i],S.habits[i-1]]; save(); renderHabits();
