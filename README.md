@@ -157,6 +157,11 @@ porción de comida chatarra descuenta 5 puntos de los 15 de alimentación.
 Los días se nombran por tramos —impecable a partir de 90, gran día desde 75, buen
 día desde 60— y se cuentan rachas de días buenos y de días sin chatarra.
 
+**Calendario.** El mes completo en una cuadrícula, con cada día coloreado según su
+puntaje y el número dentro. Tocando un día se abre su agenda: una nota general y una
+línea por cada hora del día, de 06:00 a 23:00, con la madrugada plegada. Las notas
+viven dentro del día, así que se sincronizan como todo lo demás.
+
 **Salud.** Una pestaña más en la app: composición corporal (peso, grasa y músculo
 con variaciones contra los 30 días anteriores y curva de peso), ficha médica de 31
 campos con tamizaje cardiovascular, ficha nutricional y documentos en PDF o imagen.

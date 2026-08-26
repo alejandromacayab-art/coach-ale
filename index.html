@@ -98,8 +98,22 @@
   <!-- ================= HISTORIAL ================= -->
   <div id="view-hist" class="hidden">
     <section>
-      <div class="stitle">Últimos 30 días</div>
-      <div class="panel" id="histList"></div>
+      <div class="mescab">
+        <button class="nav" id="mesPrev">‹</button>
+        <div class="mestit"><b id="mesNombre"></b><span id="mesResumen"></span></div>
+        <button class="nav" id="mesNext">›</button>
+        <button class="today-btn" id="mesHoy">Hoy</button>
+      </div>
+      <div class="panel">
+        <div class="dow"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+        <div class="mes" id="mesGrid"></div>
+        <div class="hlbl" style="margin-top:12px"><span>Toca un día para ver o anotar</span>
+          <span style="flex:1"></span><span>menos</span>
+          <b style="background:var(--line)"></b>
+          <b style="background:color-mix(in srgb,var(--accent) 35%,var(--line))"></b>
+          <b style="background:color-mix(in srgb,var(--accent) 65%,var(--line))"></b>
+          <b style="background:var(--accent)"></b><span>más</span></div>
+      </div>
     </section>
   </div>
 
@@ -216,7 +230,7 @@
 
 <nav class="tabs">
   <button data-v="hoy" class="on"><i>◎</i>Hoy</button>
-  <button data-v="hist"><i>▤</i>Historial</button>
+  <button data-v="hist"><i>▦</i>Calendario</button>
   <button data-v="stats"><i>◑</i>Progreso</button>
   <button data-v="salud"><i>♡</i>Salud</button>
   <button data-v="set"><i>⚙</i>Ajustes</button>
@@ -307,6 +321,22 @@
       <textarea class="inp" id="wkNote" rows="2" placeholder="Sensaciones, dolores, PRs…" style="resize:vertical"></textarea></label>
     <button class="btn" id="wkSave">Guardar entrenamiento</button>
     <button class="btn ghost" style="margin-top:8px" id="wkClose">Cerrar</button>
+  </div>
+</div>
+
+<!-- ===== Modal agenda del día ===== -->
+<div class="modal" id="agModal">
+  <div class="sheet">
+    <h3 id="agTitle">Agenda</h3>
+    <p class="sub" id="agSub">Anota lo que quieras a la hora que corresponda.</p>
+    <div class="panel" id="agResumen" style="padding:13px;margin-bottom:14px"></div>
+    <label class="f"><span>Nota general del día</span>
+      <textarea class="inp" id="agNota" rows="2" placeholder="Lo que quieras recordar de este día" style="resize:vertical"></textarea></label>
+    <div class="stitle" style="margin:18px 0 8px">Por horas</div>
+    <button class="btn ghost" id="agMadrugada" style="margin-bottom:10px">Mostrar madrugada (00:00 – 05:00)</button>
+    <div id="agHoras"></div>
+    <button class="btn" id="agSave">Listo</button>
+    <button class="btn ghost" style="margin-top:8px" id="agIr">Ver este día en Hoy</button>
   </div>
 </div>
 
@@ -471,7 +501,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.25-6";
+const APP_VERSION = "2026.08.26-1";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -656,6 +686,7 @@ function dayLog(k){
   l.workout ||= {ex:[]};
   l.food ||= {groups:[], junk:[], note:""};
   l.actividad ||= {items:{}};
+  l.agenda ||= {};
   return l;
 }
 
@@ -1283,26 +1314,151 @@ function maybeAskSleep(){
 }
 
 /* ============================================================
-   HISTORIAL
+   CALENDARIO · el mes de un vistazo y la agenda de cada día
    ============================================================ */
+const MESES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio",
+                     "agosto","septiembre","octubre","noviembre","diciembre"];
+let mesVista = null;                       // {y, m} — null = mes de hoy
+
+function mesActual(){
+  if(mesVista) return mesVista;
+  const d = parseKey(todayKey());
+  return {y:d.getFullYear(), m:d.getMonth()};
+}
+function moverMes(n){
+  const {y,m} = mesActual();
+  const d = new Date(y, m + n, 1);
+  mesVista = {y:d.getFullYear(), m:d.getMonth()};
+  renderHist();
+}
+const notasDe = k => Object.values(S.logs[k]?.agenda || {}).filter(v => String(v).trim()).length;
+const tieneAlgo = k => {
+  const l = S.logs[k];
+  if(!l) return false;
+  return !!(notasDe(k) || String(l.note||"").trim() || l.sleep || l.cuerpo ||
+            Object.keys(l.values||{}).some(x => Number(l.values[x])));
+};
+
 function renderHist(){
-  const rows=[]; let k=todayKey();
-  for(let i=0;i<30;i++){ rows.push(k); k=shift(k,-1); }
-  document.getElementById("histList").innerHTML = rows.map(d=>{
-    const p = puntajeDia(d).total, dt = parseKey(d), l = S.logs[d];
-    const mood = l?.mood ? " "+["","😞","😕","😐","🙂","😄"][l.mood] : "";
-    const slp  = l?.sleep ? ` <span style="color:#a5b4fc;font-weight:700">😴${l.sleep.score}</span>` : "";
-    const vol  = wkVolume(l?.workout);
-    const trn  = vol ? ` <span style="color:#4ade80;font-weight:700">🏋️${kg(vol)}</span>` : "";
-    const jk   = junkCount(d) ? ` <span style="color:#fb7185;font-weight:700">🍔${junkCount(d)}</span>` : "";
-    return `<div class="hist" data-go="${d}">
-      <div class="hd">${cap(DIAS[dt.getDay()].slice(0,3))} ${dt.getDate()} ${MESES[dt.getMonth()]}${mood}${slp}${trn}${jk}</div>
-      <div class="hp"><i style="width:${p}%"></i></div><div class="hn">${p}%</div></div>`;
-  }).join("");
-  document.querySelectorAll("[data-go]").forEach(el=>el.onclick=()=>{
-    cur = el.dataset.go; go("hoy"); renderAll(); window.scrollTo({top:0,behavior:"smooth"});
+  const {y,m} = mesActual();
+  document.getElementById("mesNombre").textContent = `${MESES_LARGO[m]} ${y}`;
+
+  const primero = new Date(y, m, 1);
+  const dias = new Date(y, m+1, 0).getDate();
+  const off = (primero.getDay()+6) % 7;                 // lunes = 0
+  const hoy = todayKey();
+  const celdas = [];
+
+  for(let i=0;i<off;i++) celdas.push(`<div class="dia fuera"></div>`);
+  const delMes = [];
+  for(let d=1; d<=dias; d++){
+    const k = todayKey(new Date(y, m, d));
+    const futuro = k > hoy;
+    const p = futuro ? 0 : puntajeDia(k).total;
+    const lvl = !tieneAlgo(k) ? 0 : p===0 ? 0 : p<40 ? 1 : p<60 ? 2 : p<90 ? 3 : 4;
+    const n = notasDe(k);
+    if(!futuro) delMes.push(k);
+    celdas.push(`<button class="dia ${k===hoy?"hoy":""} ${futuro?"futuro":""}" data-dia="${k}" data-l="${lvl}">
+      ${n ? `<span class="marca">📝</span>` : ""}
+      ${d}${!futuro && p ? `<small>${p}</small>` : ""}
+    </button>`);
+  }
+  document.getElementById("mesGrid").innerHTML = celdas.join("");
+
+  const conRegistro = delMes.filter(tieneAlgo);
+  const media = conRegistro.length
+    ? Math.round(conRegistro.reduce((a,k)=>a+puntajeDia(k).total,0)/conRegistro.length) : 0;
+  const notas = delMes.reduce((a,k)=>a+notasDe(k),0);
+  document.getElementById("mesResumen").textContent = conRegistro.length
+    ? `${conRegistro.length} días registrados · media ${media}${notas?` · ${notas} notas`:""}`
+    : "Sin registros este mes";
+
+  document.querySelectorAll("[data-dia]").forEach(b=> b.onclick = ()=> openAgenda(b.dataset.dia));
+  document.getElementById("mesHoy").style.visibility =
+    (mesActual().y === parseKey(hoy).getFullYear() && mesActual().m === parseKey(hoy).getMonth())
+      ? "hidden" : "visible";
+
+}
+
+document.getElementById("mesPrev").onclick = ()=> moverMes(-1);
+document.getElementById("mesNext").onclick = ()=> moverMes(+1);
+document.getElementById("mesHoy").onclick  = ()=>{ mesVista = null; renderHist(); };
+
+/* ---------- agenda de un día ---------- */
+let agDia = null, agMadrugada = false;
+
+function openAgenda(k){
+  shutModals();
+  agDia = k; agMadrugada = false;
+  const d = parseKey(k), esHoy = k === todayKey();
+  document.getElementById("agTitle").textContent =
+    `${cap(DIAS[d.getDay()])} ${d.getDate()} de ${MESES_LARGO[d.getMonth()]}`;
+  document.getElementById("agSub").textContent = esHoy
+    ? "Hoy. Anota lo que quieras a la hora que corresponda."
+    : "Anota lo que quieras a la hora que corresponda.";
+  document.getElementById("agNota").value = S.logs[k]?.note || "";
+  pintaResumenDia(k);
+  pintaHoras();
+  document.getElementById("agModal").classList.add("open");
+}
+
+function pintaResumenDia(k){
+  const p = puntajeDia(k), nv = nivelDe(p.total), l = S.logs[k];
+  const vol = wkVolume(l?.workout), act = acTotal(l||{});
+  document.getElementById("agResumen").innerHTML = `
+    <div class="sl-top">
+      <div class="sl-score" style="color:${nv.c};border-color:${nv.c}55;background:${nv.c}18">${p.total}</div>
+      <div class="sl-t"><b>${nv.e} ${nv.t}</b><span>${p.hab} de hábitos · ${p.sue} de sueño · ${p.com} de alimentación</span></div>
+    </div>
+    ${(vol || act || l?.sleep) ? `<div class="sl-meta libre">
+      ${l?.sleep ? `<div><b>${l.sleep.score}</b><span>Sueño</span></div>` : ""}
+      ${vol ? `<div><b>${kg(vol)} kg</b><span>Entrenamiento</span></div>` : ""}
+      ${act ? `<div><b>${act} min</b><span>Actividad</span></div>` : ""}
+    </div>` : ""}`;
+}
+
+function pintaHoras(){
+  const ag = dayLog(agDia).agenda || {};
+  const desde = agMadrugada ? 0 : 6;
+  let html = "";
+  for(let h = desde; h <= 23; h++){
+    const v = ag[h] || "";
+    html += `<div class="hora ${v.trim() ? "llena" : ""}">
+      <b>${String(h).padStart(2,"0")}:00</b>
+      <input data-h="${h}" value="${esc(v)}" placeholder="—">
+    </div>`;
+  }
+  document.getElementById("agHoras").innerHTML = html;
+  document.getElementById("agMadrugada").classList.toggle("hidden", agMadrugada);
+
+  document.querySelectorAll("#agHoras [data-h]").forEach(inp=> inp.oninput = ()=>{
+    const l = dayLog(agDia), t = inp.value;
+    /* Guardar en un día que no es el que estás viendo exige mover `cur`, o la
+       marca de tiempo se le pondría al día equivocado y no subiría. */
+    const antes = cur; cur = agDia;
+    if(t.trim()) l.agenda[inp.dataset.h] = t; else delete l.agenda[inp.dataset.h];
+    save(); cur = antes;
+    inp.closest(".hora").classList.toggle("llena", !!t.trim());
   });
 }
+
+document.getElementById("agMadrugada").onclick = ()=>{ agMadrugada = true; pintaHoras(); };
+document.getElementById("agNota").oninput = ()=>{
+  const antes = cur; cur = agDia;
+  dayLog(agDia).note = document.getElementById("agNota").value;
+  save(); cur = antes;
+};
+document.getElementById("agSave").onclick = ()=>{
+  document.getElementById("agModal").classList.remove("open");
+  renderHist();
+};
+document.getElementById("agIr").onclick = ()=>{
+  document.getElementById("agModal").classList.remove("open");
+  cur = agDia; renderAll(); go("hoy"); window.scrollTo({top:0});
+};
+document.getElementById("agModal").onclick = e=>{
+  if(e.target.id === "agModal"){ e.currentTarget.classList.remove("open"); renderHist(); }
+};
 
 /* ============================================================
    PROGRESO
