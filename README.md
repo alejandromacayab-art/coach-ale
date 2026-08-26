@@ -157,8 +157,10 @@ porción de comida chatarra descuenta 5 puntos de los 15 de alimentación.
 Los días se nombran por tramos —impecable a partir de 90, gran día desde 75, buen
 día desde 60— y se cuentan rachas de días buenos y de días sin chatarra.
 
-**Calendario.** El mes completo en una cuadrícula, con cada día coloreado según su
-puntaje y el número dentro. Tocando un día se abre su agenda: una nota general y una
+**Calendario.** El mes completo en una cuadrícula. Los días van en neutro y el color
+se reserva para las etiquetas de dentro: el turno de trabajo y las notas de ese día,
+como en una agenda. Quien trabaja por turnos puede activarlos en Ajustes, ponerles
+nombre y color, y marcarlos tocando el día; no afectan al puntaje, solo ordenan el mes. Tocando un día se abre su agenda: una nota general y una
 línea por cada hora del día, de 06:00 a 23:00, con la madrugada plegada. Las notas
 viven dentro del día, así que se sincronizan como todo lo demás.
 

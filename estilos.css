@@ -394,18 +394,26 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-bottom:6px}
 .dow span{text-align:center;font-size:10px;font-weight:800;color:var(--tx3);letter-spacing:.05em}
 .mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
-.dia{aspect-ratio:1;border-radius:11px;background:var(--line);border:1px solid transparent;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-  position:relative;font-size:12.5px;font-weight:700;color:var(--tx2);padding:0;min-width:0}
-.dia.fuera{opacity:.22;pointer-events:none}
-.dia[data-l="1"]{background:color-mix(in srgb,var(--accent) 22%,var(--line));color:var(--tx)}
-.dia[data-l="2"]{background:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--tx)}
-.dia[data-l="3"]{background:color-mix(in srgb,var(--accent) 70%,var(--line));color:#05070a}
-.dia[data-l="4"]{background:var(--accent);color:#05070a}
-.dia.hoy{border-color:var(--tx);box-shadow:0 0 0 1px var(--tx)}
-.dia .marca{position:absolute;top:4px;right:5px;font-size:8px;line-height:1;opacity:.9}
-.dia small{font-size:8.5px;font-weight:800;opacity:.75;line-height:1}
-.dia:active{transform:scale(.94)}
+/* Días en blanco y el color solo en las etiquetas, para que el mes se lea
+   por lo que hay dentro y no por un degradado de fondo. */
+.mes{gap:3px}
+.dia{min-height:64px;border-radius:8px;background:var(--card2);border:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:stretch;gap:2px;
+  position:relative;padding:3px;min-width:0;overflow:hidden;text-align:left}
+.dia .num{font-size:11px;font-weight:800;color:var(--tx);line-height:1.2;padding:1px 2px;
+  display:flex;align-items:center;gap:3px}
+.dia .num small{font-size:8px;font-weight:700;color:var(--tx3);margin-left:auto}
+.dia.vacio{background:transparent}
+.dia.vacio .num{color:var(--tx3)}
+.dia.fuera{opacity:0;pointer-events:none}
+.dia.hoy{border-color:var(--tx);box-shadow:inset 0 0 0 1px var(--tx)}
+.dia:active{opacity:.7}
+.et{font-size:8.5px;font-weight:800;line-height:1.35;border-radius:3px;padding:1px 3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+.et.turno{background:var(--t);color:#0a0d12}
+.et.nota{background:var(--line);color:var(--tx2)}
+.et.mas{background:transparent;color:var(--tx3);padding-left:2px}
+@media(max-width:400px){ .dia{min-height:58px} .et{font-size:8px} }
 
 /* ---------- Agenda por horas ---------- */
 .hora{display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid var(--line)}
@@ -417,3 +425,18 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
   background:var(--card2);outline:none;font-size:14px}
 .hora input:focus{border-color:var(--accent)}
 .hora input::placeholder{color:var(--tx3);opacity:.5}
+
+
+/* ---------- Turnos ---------- */
+.turnos{display:flex;flex-wrap:wrap;gap:7px}
+.tchip{display:flex;align-items:center;gap:7px;padding:9px 12px;border-radius:12px;
+  border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:700}
+.tchip .pt{width:11px;height:11px;border-radius:50%;flex:none;background:var(--t)}
+.tchip.on{border-color:var(--t);background:color-mix(in srgb,var(--t) 16%,transparent);color:var(--t)}
+.tedit{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--line)}
+.tedit:last-of-type{border-bottom:none}
+.tedit input[type=text]{flex:1;min-width:0;padding:9px 11px;border-radius:11px;
+  border:1px solid var(--line);background:var(--card2);outline:none;font-size:14px;font-weight:600}
+.tedit input[type=color]{width:38px;height:38px;flex:none;padding:0;border:1px solid var(--line);
+  border-radius:11px;background:var(--card2);cursor:pointer}
+.tedit input[type=text]:focus{border-color:var(--accent)}

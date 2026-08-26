@@ -107,12 +107,7 @@
       <div class="panel">
         <div class="dow"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
         <div class="mes" id="mesGrid"></div>
-        <div class="hlbl" style="margin-top:12px"><span>Toca un día para ver o anotar</span>
-          <span style="flex:1"></span><span>menos</span>
-          <b style="background:var(--line)"></b>
-          <b style="background:color-mix(in srgb,var(--accent) 35%,var(--line))"></b>
-          <b style="background:color-mix(in srgb,var(--accent) 65%,var(--line))"></b>
-          <b style="background:var(--accent)"></b><span>más</span></div>
+        <div class="hlbl" id="mesLeyenda" style="margin-top:12px"></div>
       </div>
     </section>
   </div>
@@ -202,6 +197,10 @@
     <section>
       <div class="stitle">😴 Check-in al despertar</div>
       <div class="panel" id="wakePanel"></div>
+    </section>
+    <section>
+      <div class="stitle">🗓 Turnos de trabajo</div>
+      <div class="panel" id="turnoPanel"></div>
     </section>
     <section>
       <div class="stitle">🍔 Límites de comida chatarra</div>
@@ -330,6 +329,8 @@
     <h3 id="agTitle">Agenda</h3>
     <p class="sub" id="agSub">Anota lo que quieras a la hora que corresponda.</p>
     <div class="panel" id="agResumen" style="padding:13px;margin-bottom:14px"></div>
+    <label class="f hidden" id="agTurnoBox"><span>Turno del día</span>
+      <div class="turnos" id="agTurnos"></div></label>
     <label class="f"><span>Nota general del día</span>
       <textarea class="inp" id="agNota" rows="2" placeholder="Lo que quieras recordar de este día" style="resize:vertical"></textarea></label>
     <div class="stitle" style="margin:18px 0 8px">Por horas</div>
@@ -501,7 +502,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-1";
+const APP_VERSION = "2026.08.26-2";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -533,6 +534,12 @@ const DEF_SETTINGS = {
   rem:{on:false, from:"08:00", to:"22:00", every:120, lastAt:0},
   wake:{on:true, goalHours:8, lastAsked:""},
   screens:{on:true, at:"21:00", lastFired:""},
+  turnos:{on:false, tipos:[
+    {id:"m", nombre:"Mañana", color:"#38bdf8"},
+    {id:"t", nombre:"Tarde",  color:"#fbbf24"},
+    {id:"n", nombre:"Noche",  color:"#a78bfa"},
+    {id:"l", nombre:"Libre",  color:"#22e07a"}
+  ]},
   junk:{dayWarn:2, dayRisk:3, weekWarn:3, weekRisk:5}
 };
 
@@ -624,6 +631,9 @@ function load(){
       d.settings.wake = Object.assign({}, DEF_SETTINGS.wake, d.settings.wake||{});
       d.settings.screens = Object.assign({}, DEF_SETTINGS.screens, d.settings.screens||{});
       d.settings.junk = Object.assign({}, DEF_SETTINGS.junk, d.settings.junk||{});
+      d.settings.turnos = Object.assign({}, DEF_SETTINGS.turnos, d.settings.turnos||{});
+      if(!Array.isArray(d.settings.turnos.tipos) || !d.settings.turnos.tipos.length)
+        d.settings.turnos.tipos = DEF_SETTINGS.turnos.tipos.map(t=>({...t}));
       d.salud = Object.assign({}, DEF_SALUD, d.salud||{});
       d.habits.forEach((h,i)=> h.color ||= COLORS[i % COLORS.length]);
       /* Si acabamos de migrar, la lista nueva tiene que ganarle a la que está en
@@ -687,6 +697,7 @@ function dayLog(k){
   l.food ||= {groups:[], junk:[], note:""};
   l.actividad ||= {items:{}};
   l.agenda ||= {};
+  if(!("turno" in l)) l.turno = "";
   return l;
 }
 
@@ -1350,17 +1361,31 @@ function renderHist(){
   const celdas = [];
 
   for(let i=0;i<off;i++) celdas.push(`<div class="dia fuera"></div>`);
+  /* Los días futuros se pueden abrir: un turno se planifica antes de que llegue. */
   const delMes = [];
   for(let d=1; d<=dias; d++){
     const k = todayKey(new Date(y, m, d));
     const futuro = k > hoy;
     const p = futuro ? 0 : puntajeDia(k).total;
-    const lvl = !tieneAlgo(k) ? 0 : p===0 ? 0 : p<40 ? 1 : p<60 ? 2 : p<90 ? 3 : 4;
-    const n = notasDe(k);
+    const tur = turnoDe(k);
+    const ag = S.logs[k]?.agenda || {};
+    /* Las notas, en orden de reloj, como en una agenda. */
+    const notas = Object.keys(ag).map(Number).sort((a,b)=>a-b)
+      .filter(h => String(ag[h]).trim()).map(h => ag[h]);
     if(!futuro) delMes.push(k);
-    celdas.push(`<button class="dia ${k===hoy?"hoy":""} ${futuro?"futuro":""}" data-dia="${k}" data-l="${lvl}">
-      ${n ? `<span class="marca">📝</span>` : ""}
-      ${d}${!futuro && p ? `<small>${p}</small>` : ""}
+
+    const etiquetas = [];
+    if(tur) etiquetas.push(`<span class="et turno" style="--t:${esc(tur.color)}">${esc(tur.nombre)}</span>`);
+    const hueco = 2 - etiquetas.length + (notas.length === 1 ? 1 : 0);
+    notas.slice(0, Math.max(1, hueco)).forEach(t=>
+      etiquetas.push(`<span class="et nota">${esc(t)}</span>`));
+    const resto = notas.length - Math.max(0, Math.max(1, hueco));
+    if(resto > 0) etiquetas.push(`<span class="et mas">+${resto}</span>`);
+
+    celdas.push(`<button class="dia ${k===hoy?"hoy":""} ${!tieneAlgo(k)&&!tur?"vacio":""}"
+      data-dia="${k}" ${tur?`title="${esc(tur.nombre)}"`:""}>
+      <span class="num">${d}${!futuro && p ? `<small>${p}</small>` : ""}</span>
+      ${etiquetas.join("")}
     </button>`);
   }
   document.getElementById("mesGrid").innerHTML = celdas.join("");
@@ -1373,6 +1398,13 @@ function renderHist(){
     ? `${conRegistro.length} días registrados · media ${media}${notas?` · ${notas} notas`:""}`
     : "Sin registros este mes";
 
+  /* La leyenda solo tiene sentido si hay turnos que explicar. */
+  document.getElementById("mesLeyenda").innerHTML = turnosOn()
+    ? `<span>Toca un día para anotar o marcar turno</span><span style="flex:1"></span>` +
+      tiposTurno().map(t=>`<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">
+         <b style="background:${esc(t.color)}"></b>${esc(t.nombre)}</span>`).join("")
+    : `<span>Toca un día para ver o anotar</span>`;
+
   document.querySelectorAll("[data-dia]").forEach(b=> b.onclick = ()=> openAgenda(b.dataset.dia));
   document.getElementById("mesHoy").style.visibility =
     (mesActual().y === parseKey(hoy).getFullYear() && mesActual().m === parseKey(hoy).getMonth())
@@ -1383,6 +1415,24 @@ function renderHist(){
 document.getElementById("mesPrev").onclick = ()=> moverMes(-1);
 document.getElementById("mesNext").onclick = ()=> moverMes(+1);
 document.getElementById("mesHoy").onclick  = ()=>{ mesVista = null; renderHist(); };
+
+/* ---------- turnos ----------
+   Pensado para quien trabaja por turnos: pinta el día de su color y así el mes
+   se lee de un vistazo. Es opcional y se activa en Ajustes. */
+const turnosOn  = () => !!S.settings.turnos?.on;
+const tiposTurno = () => S.settings.turnos?.tipos || [];
+function turnoDe(k){
+  if(!turnosOn()) return null;
+  const id = S.logs[k]?.turno;
+  return id ? tiposTurno().find(t=>t.id === id) || null : null;
+}
+function ponerTurno(k, id){
+  const antes = cur; cur = k;
+  const l = dayLog(k);
+  l.turno = (l.turno === id) ? "" : id;      // volver a tocarlo lo quita
+  save(); cur = antes;
+  return l.turno;
+}
 
 /* ---------- agenda de un día ---------- */
 let agDia = null, agMadrugada = false;
@@ -1398,6 +1448,7 @@ function openAgenda(k){
     : "Anota lo que quieras a la hora que corresponda.";
   document.getElementById("agNota").value = S.logs[k]?.note || "";
   pintaResumenDia(k);
+  pintaTurnos();
   pintaHoras();
   document.getElementById("agModal").classList.add("open");
 }
@@ -1415,6 +1466,21 @@ function pintaResumenDia(k){
       ${vol ? `<div><b>${kg(vol)} kg</b><span>Entrenamiento</span></div>` : ""}
       ${act ? `<div><b>${act} min</b><span>Actividad</span></div>` : ""}
     </div>` : ""}`;
+}
+
+function pintaTurnos(){
+  const caja = document.getElementById("agTurnoBox");
+  caja.classList.toggle("hidden", !turnosOn());
+  if(!turnosOn()) return;
+  const actual = S.logs[agDia]?.turno || "";
+  document.getElementById("agTurnos").innerHTML = tiposTurno().map(t=>
+    `<button class="tchip ${t.id === actual ? "on" : ""}" data-t="${t.id}" style="--t:${t.color}">
+      <span class="pt"></span>${esc(t.nombre)}</button>`).join("");
+  document.querySelectorAll("#agTurnos [data-t]").forEach(b=> b.onclick = ()=>{
+    const puesto = ponerTurno(agDia, b.dataset.t);
+    document.querySelectorAll("#agTurnos [data-t]").forEach(x=>
+      x.classList.toggle("on", x.dataset.t === puesto));
+  });
 }
 
 function pintaHoras(){
@@ -1836,7 +1902,49 @@ function renderSyncPanel(){
     mostrarLogin(true);
   };
 }
-function renderSettings(){ renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderJunk(); renderHabits(); }
+function renderTurnos(){
+  const t = S.settings.turnos;
+  document.getElementById("turnoPanel").innerHTML = `
+    <div class="sw">
+      <div class="t"><b>Pintar mis turnos</b><span>Marca cada día del calendario con el color de tu turno</span></div>
+      <div class="knob ${t.on?"on":""}" id="turnoToggle"></div>
+    </div>
+    <div id="turnoLista" class="${t.on?"":"hidden"}" style="margin-top:12px">
+      ${t.tipos.map((x,i)=>`
+        <div class="tedit">
+          <input type="color" value="${esc(x.color)}" data-tc="${i}" aria-label="Color de ${esc(x.nombre)}">
+          <input type="text" value="${esc(x.nombre)}" data-tn="${i}" placeholder="Nombre del turno" maxlength="18">
+          <button class="mini" data-tdel="${i}" style="color:#fb7185">✕</button>
+        </div>`).join("")}
+      <button class="btn ghost" style="margin-top:10px" id="turnoAdd">+ Añadir turno</button>
+      <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
+        En el calendario, toca un día y elige su turno. Volver a tocarlo lo quita.
+        Los turnos no afectan a tu puntaje: solo ordenan el mes.</p>
+    </div>`;
+
+  document.getElementById("turnoToggle").onclick = ()=>{
+    t.on = !t.on; save(); renderTurnos();
+  };
+  if(!t.on) return;
+  document.querySelectorAll("[data-tc]").forEach(i=> i.oninput = ()=>{
+    t.tipos[+i.dataset.tc].color = i.value; save(); });
+  document.querySelectorAll("[data-tn]").forEach(i=> i.oninput = ()=>{
+    t.tipos[+i.dataset.tn].nombre = i.value; save(); });
+  document.querySelectorAll("[data-tdel]").forEach(b=> b.onclick = ()=>{
+    const i = +b.dataset.tdel, x = t.tipos[i];
+    if(!confirm(`¿Quitar el turno "${x.nombre}"? Los días que lo tuvieran quedarán sin turno.`)) return;
+    Object.values(S.logs).forEach(l=>{ if(l.turno === x.id) l.turno = ""; });
+    t.tipos.splice(i,1); save(); renderTurnos();
+  });
+  document.getElementById("turnoAdd").onclick = ()=>{
+    if(t.tipos.length >= 8){ toast("Ocho turnos son suficientes"); return; }
+    const usados = new Set(t.tipos.map(x=>x.id));
+    let id = "a"; while(usados.has(id)) id = String.fromCharCode(id.charCodeAt(0)+1);
+    t.tipos.push({id, nombre:"Nuevo turno", color: COLORS[t.tipos.length % COLORS.length]});
+    save(); renderTurnos();
+  };
+}
+function renderSettings(){ renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderJunk(); renderHabits(); }
 
 /* ============================================================
    MODAL HÁBITO
