@@ -465,13 +465,15 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 
 /* ---------- Calendario a pantalla completa ---------- */
 @media(max-width:700px){
-  #view-hist{margin-top:-6px}
+  /* Sin margen negativo: con el titulo grande, subirlo lo metia debajo de la
+     cabecera pegajosa y le cortaba el borde de arriba. */
+  #view-hist{margin-top:0;padding-top:10px}
   #view-hist section{margin:0}
   /* El encabezado se alinea con la primera columna del calendario y el
      nombre del mes manda: grande y a la izquierda, la navegacion al lado. */
-  #view-hist .mescab{margin:0 -8px 8px;padding:0;gap:4px}
+  #view-hist .mescab{margin:0 -8px;padding:0;gap:4px}
   #view-hist .mestit{order:0;text-align:left;padding-left:1px}
-  #view-hist .mestit b{font-size:26px;letter-spacing:-.035em}
+  #view-hist .mestit b{font-size:26px;letter-spacing:-.035em;line-height:1.2}
   #view-hist .mestit span{font-size:11px}
   #view-hist .mescab #mesPrev{order:1}
   #view-hist .mescab #mesNext{order:2}
