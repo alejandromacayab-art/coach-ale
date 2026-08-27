@@ -354,17 +354,6 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .wb span{font-size:9.5px;color:var(--tx3);white-space:nowrap}
 
 
-/* ---------- Puntaje del día ---------- */
-.puntaje{flex:1 0 100%;display:flex;flex-direction:column;gap:9px;margin-top:2px;
-  padding-top:15px;border-top:1px solid var(--line);position:relative;z-index:1;min-width:0}
-.pz{display:flex;flex-direction:column;gap:4px}
-.pzb{height:6px;border-radius:4px;background:var(--line);overflow:hidden}
-.pzb i{display:block;height:100%;border-radius:4px;transition:width .45s cubic-bezier(.4,0,.2,1)}
-.pzl{display:flex;justify-content:space-between;align-items:baseline;font-size:11px}
-.pzl span{color:var(--tx3);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-.pzl b{font-size:12.5px;font-weight:800;color:var(--tx2)}
-.pzl b small{font-weight:600;color:var(--tx3);font-size:10.5px}
-
 /* ---------- Presupuesto de chatarra ---------- */
 .presu{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:13px;margin-bottom:12px}
 .pcab{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
