@@ -2,12 +2,12 @@
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "coachale-v37";
+const CACHE = "coachale-v38";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
   "./assets/symbol-dark.png", "./assets/symbol-light.png", "./assets/logo-dark.png",
-  "./estilos.css", "./config.js", "./nube.js", "./vendor/supabase.js",
+  "./estilos.css", "./zoom.js", "./config.js", "./nube.js", "./vendor/supabase.js",
   "./panel.html", "./panel.js"
 ];
 
