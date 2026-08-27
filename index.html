@@ -68,11 +68,6 @@
     </section>
 
     <section>
-      <div class="stitle">Hábitos del día</div>
-      <div class="grid" id="cards"></div>
-    </section>
-
-    <section>
       <div class="stitle">📝 Notas del día</div>
       <div class="panel">
         <textarea id="note" class="inp" rows="3" placeholder="¿Cómo te sentiste hoy? Energía, ánimo, entrenamiento…" style="resize:vertical"></textarea>
@@ -219,10 +214,11 @@
 <!-- ===== Modal registro rápido ===== -->
 <div class="modal" id="raModal">
   <div class="sheet">
-    <h3>⚡ Registro rápido</h3>
-    <p class="sub">Lo que te falta hoy, sin bajar por la pantalla.</p>
-    <div id="raLista"></div>
-    <button class="btn ghost" style="margin-top:10px" id="raClose">Cerrar</button>
+    <h3>Hábitos del día</h3>
+    <p class="sub" id="raSub">Marca aquí todo lo que hagas hoy.</p>
+    <div id="raSueno"></div>
+    <div class="grid" id="cards"></div>
+    <button class="btn ghost" style="margin-top:12px" id="raClose">Cerrar</button>
   </div>
 </div>
 
@@ -468,7 +464,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-15";
+const APP_VERSION = "2026.08.26-16";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1190,6 +1186,14 @@ function refrescarTarjeta(id){
   const st = streak(h), sEl = card.querySelector(".streak");
   if(sEl){ sEl.className = "streak" + (st>1 ? " on" : ""); sEl.textContent = st>1 ? "🔥 "+st : ""; }
   renderSpot(); renderRail();
+
+  /* Si estás dentro de la ventana, el contador de arriba también avanza. */
+  const sub = document.getElementById("raSub");
+  if(sub && document.getElementById("raModal").classList.contains("open")){
+    const q = S.habits.filter(x=>!isDone(x, dayLog(cur).values[x.id]||0)).length;
+    sub.textContent = q ? `Te quedan ${q} de ${S.habits.length} por cerrar.`
+                        : "Cerraste todos los círculos de hoy 🏆";
+  }
 }
 function celebrate(h){
   toast(`${h.emoji} ${h.name} · meta cumplida`);
@@ -2896,97 +2900,39 @@ document.getElementById("fechaBtn").onclick = ()=>{
   if(!bar.classList.contains("hidden")) renderDate();
 };
 
-/* ---------------- registro rápido ---------------- */
+/* ---------------- hábitos del día ----------------
+   Las tarjetas viven dentro de esta ventana: la pantalla de inicio se
+   queda para leer y esta para registrar. `renderCards` sigue pintándolas
+   igual, solo que en otro sitio. */
 function abrirRapido(){
   shutModals();
   const l = dayLog(cur);
-  const filas = [];
+  const pend = S.habits.filter(h=>!isDone(h, l.values[h.id]||0)).length;
 
-  /* `abre:true` = lleva a otra ventana, así que esta se cierra en vez de recargarse. */
-  if(!l.sleep) filas.push({em:"😴", c:"#a78bfa", t:"Check-in de sueño",
-                           s:`Vale hasta ${PUNTOS.sueno} puntos`, abre:true, go:openSleep});
+  document.getElementById("raSub").textContent = !S.habits.length
+    ? "Todavía no tienes hábitos. Créalos en Ajustes."
+    : pend ? `Te quedan ${pend} de ${S.habits.length} por cerrar.`
+           : "Cerraste todos los círculos de hoy 🏆";
 
-  S.habits.forEach(h=>{
-    const v = Number(l.values[h.id]) || 0;
-    if(isDone(h, v)) return;
-    const falta = h.type === "check" ? "Sin marcar"
-                : h.type === "workout" ? "Sin sesión registrada"
-                : h.type === "activity" ? `${fmt(v)} de ${fmt(h.goal)} min`
-                : `${fmt(v)} de ${fmt(h.goal)} ${h.unit||""}`.trim();
-    const abre = h.type === "workout" || h.type === "activity";
-    filas.push({em:h.emoji, c:h.color, t:h.name, s:falta, abre, go:()=>{
-      if(h.type === "workout")  return openWorkout();
-      if(h.type === "activity") return openActividad();
-      if(h.type === "check"){ l.values[h.id] = 1; save(); renderToday(); celebrate(h); return; }
-      bump(h.id, +1);
-    }});
-  });
+  /* El sueño no es un hábito de la lista, pero es lo primero del día. */
+  document.getElementById("raSueno").innerHTML = l.sleep ? "" : `
+    <button class="rap" id="raSleep">
+      <span class="em" style="background:#a78bfa22;color:#a78bfa">😴</span>
+      <span class="tx"><b>Check-in de sueño</b><span>Vale hasta ${PUNTOS.sueno} puntos</span></span>
+      <span class="go">›</span></button>`;
+  const bs = document.getElementById("raSleep");
+  if(bs) bs.onclick = ()=>{ cerrarRapido(); openSleep(); };
 
-  document.getElementById("raLista").innerHTML = filas.length
-    ? filas.map((f,i)=>`<button class="rap" data-ra="${i}">
-        <span class="em" style="background:${esc(f.c)}22;color:${esc(f.c)}">${esc(f.em)}</span>
-        <span class="tx"><b>${esc(f.t)}</b><span>${esc(f.s)}</span></span>
-        <span class="go">›</span></button>`).join("")
-    : `<div class="empty" style="padding:20px">Ya está todo hecho por hoy 🏆</div>`;
-
-  document.querySelectorAll("[data-ra]").forEach(b=>
-    b.onclick = ()=>{
-      const f = filas[+b.dataset.ra];
-      if(f.abre){ cerrarRapido(); f.go(); return; }   // la otra ventana toma el relevo
-      f.go();
-      abrirRapido();                                   // sigue abierta, con la lista al día
-    });
-
+  renderCards();
   document.getElementById("raModal").classList.add("open");
 }
-function cerrarRapido(){ document.getElementById("raModal").classList.remove("open"); }
+function cerrarRapido(){
+  document.getElementById("raModal").classList.remove("open");
+  renderToday();
+}
 document.getElementById("fabBtn").onclick  = ()=>{ go("hoy"); abrirRapido(); };
 document.getElementById("raClose").onclick = cerrarRapido;
 document.getElementById("raModal").onclick = e=>{ if(e.target.id === "raModal") cerrarRapido(); };
-
-document.querySelectorAll("nav.tabs button[data-v]").forEach(b=>b.onclick=()=>go(b.dataset.v));
-document.getElementById("prevD").onclick=()=>{ cur=shift(cur,-1); renderAll(); };
-document.getElementById("nextD").onclick=()=>{ if(cur<todayKey()){ cur=shift(cur,1); renderAll(); } };
-document.getElementById("todayBtn").onclick=()=>{ cur=todayKey(); renderAll(); };
-document.getElementById("addHabit").onclick=()=>openModal(null);
-document.getElementById("fCancel").onclick=closeModal;
-document.getElementById("modal").onclick=e=>{ if(e.target.id==="modal") closeModal(); };
-document.getElementById("sleepModal").onclick=e=>{ if(e.target.id==="sleepModal"){
-  S.settings.wake.lastAsked=todayKey(); save(); e.currentTarget.classList.remove("open"); } };
-fType.onchange = typeUI;
-
-function cerrarActividad(){
-  syncActividad();
-  document.getElementById("acModal").classList.remove("open");
-  renderToday();
-}
-document.getElementById("acSave").onclick  = ()=>{ cerrarActividad(); toast("🏃 Actividad guardada"); };
-document.getElementById("acClose").onclick = cerrarActividad;
-document.getElementById("acModal").onclick = e=>{ if(e.target.id==="acModal") cerrarActividad(); };
-
-document.getElementById("wkAdd").onclick   = ()=>addExercise(false);
-document.getElementById("wkSave").onclick  = saveWorkout;
-document.getElementById("wkClose").onclick = saveWorkout;
-document.getElementById("wkModal").onclick = e=>{ if(e.target.id==="wkModal") saveWorkout(); };
-document.getElementById("wkNote").oninput  = e=>{ dayLog(cur).workout.note = e.target.value; save(); };
-
-/* Tocar fuera de la tarjeta cierra y vuelve atrás, igual que su botón de
-   cancelar. Las fichas, las mediciones y los documentos no lo tenían y había
-   que buscar el botón para salir. */
-[["fichaModal","fcCancel"], ["medModal","mdCancel"], ["docModal","dcCancel"]]
-  .forEach(([modal, boton])=>{
-    document.getElementById(modal).onclick = e=>{
-      if(e.target.id === modal) document.getElementById(boton).click();
-    };
-  });
-
-/* Y la tecla Escape cierra la que esté abierta arriba del todo. */
-addEventListener("keydown", e=>{
-  if(e.key !== "Escape") return;
-  const abiertos = document.querySelectorAll(".modal.open");
-  const ultimo = abiertos[abiertos.length - 1];
-  if(ultimo) ultimo.dispatchEvent(new MouseEvent("click", {bubbles:false}));
-});
 
 document.getElementById("fSave").onclick=()=>{
   const name = fName.value.trim();

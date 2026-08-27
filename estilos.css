@@ -33,7 +33,9 @@ body{
 /* La pantalla solo se mueve hacia arriba y hacia abajo: `pan-y` descarta el
    arrastre lateral, y al no ser `auto` ni `manipulation` tampoco hay zoom por
    doble o triple toque. `pinch-zoom` mantiene vivo el pellizco. */
-html,body{touch-action:pan-y pinch-zoom;overflow-x:hidden;overscroll-behavior-x:none}
+/* `overscroll-behavior:none` quita el rebote elástico en los dos ejes: era
+   lo que hacía que la barra inferior pareciera despegarse del contenido. */
+html,body{touch-action:pan-y pinch-zoom;overflow-x:hidden;overscroll-behavior:none}
 button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;
   touch-action:pan-y pinch-zoom;-webkit-user-select:none;user-select:none}
 input,select,textarea{font:inherit;color:inherit}
@@ -210,6 +212,7 @@ section{margin:22px 0}
 
 /* ---------- Tabs ---------- */
 nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:60;
+  transform:translateZ(0);backface-visibility:hidden;
   background:color-mix(in srgb,var(--bg2) 88%,transparent);backdrop-filter:blur(16px);
   border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
 nav.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;
