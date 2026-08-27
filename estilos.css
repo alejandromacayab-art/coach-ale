@@ -30,12 +30,12 @@ body{
     var(--bg);
   background-attachment:fixed;
 }
-/* `manipulation` deja pasar el desplazamiento y el pellizco, pero anula el
-   zoom por doble o triple toque, que se disparaba sin querer al tocar rapido
-   un habito o un dia del calendario. */
-html,body{touch-action:manipulation}
+/* La pantalla solo se mueve hacia arriba y hacia abajo: `pan-y` descarta el
+   arrastre lateral, y al no ser `auto` ni `manipulation` tampoco hay zoom por
+   doble o triple toque. `pinch-zoom` mantiene vivo el pellizco. */
+html,body{touch-action:pan-y pinch-zoom;overflow-x:hidden;overscroll-behavior-x:none}
 button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;
-  touch-action:manipulation;-webkit-user-select:none;user-select:none}
+  touch-action:pan-y pinch-zoom;-webkit-user-select:none;user-select:none}
 input,select,textarea{font:inherit;color:inherit}
 .wrap{max-width:760px;margin:0 auto;padding:0 16px}
 .hidden{display:none !important}
