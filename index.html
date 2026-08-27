@@ -79,11 +79,6 @@
     </section>
 
     <section>
-      <div class="stitle">🍽️ Comidas</div>
-      <div class="panel" id="meals"></div>
-    </section>
-
-    <section>
       <div class="stitle">📝 Notas del día</div>
       <div class="panel">
         <textarea id="note" class="inp" rows="3" placeholder="¿Cómo te sentiste hoy? Energía, ánimo, entrenamiento…" style="resize:vertical"></textarea>
@@ -503,7 +498,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-8";
+const APP_VERSION = "2026.08.26-9";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -516,7 +511,6 @@ const DEF_HABITS = [
   {id:"personal",name:"Trabajo personal", emoji:"🚀", type:"amount", goal:60, unit:"min", step:15, color:"#fb7185"},
   {id:"pantall",name:"Sin pantallas de noche", emoji:"📵", type:"check", goal:1, unit:"", step:1, color:"#e879f9"}
 ];
-const MEALS = ["Desayuno","Almuerzo","Cena","Snacks"];
 const EMOJIS = ["💧","🏋️","🏃","🚶","🥗","😴","🧘","🤸","🚴","🏊","📖","☀️","💊","🧴","🚭","🍎","☕️","🥦","⚖️","🧠","📵","✍️","🎯","❤️"];
 /* Ficha médica y nutricional. Vive en la configuración del usuario, así que
    viaja con la misma sincronización que los hábitos y los ajustes. */
@@ -693,7 +687,7 @@ function todayKey(d=new Date()){
 function parseKey(k){ const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d); }
 function shift(k,n){ const d=parseKey(k); d.setDate(d.getDate()+n); return todayKey(d); }
 function dayLog(k){
-  const l = (S.logs[k] ||= {values:{}, meals:{}, note:"", mood:0, sleep:null});
+  const l = (S.logs[k] ||= {values:{}, note:"", mood:0, sleep:null});
   l.workout ||= {ex:[]};
   l.food ||= {groups:[], junk:[], note:""};
   l.actividad ||= {items:{}};
@@ -1193,18 +1187,6 @@ function celebrate(h){
     }, 1900);
   }
 }
-
-function renderMeals(){
-  const l = dayLog(cur);
-  document.getElementById("meals").innerHTML = MEALS.map(m=>
-    `<div class="meal"><div class="mtag">${m}</div>
-      <textarea data-meal="${m}" placeholder="¿Qué comiste?">${esc(l.meals[m]||"")}</textarea></div>`).join("");
-  document.querySelectorAll("[data-meal]").forEach(t=>{
-    autosize(t);
-    t.oninput = ()=>{ autosize(t); dayLog(cur).meals[t.dataset.meal]=t.value; save(); };
-  });
-}
-function autosize(t){ t.style.height="auto"; t.style.height=Math.max(38,t.scrollHeight)+"px"; }
 
 function renderMood(){
   const l = dayLog(cur), faces=["😞","😕","😐","🙂","😄"], box = document.getElementById("mood");
@@ -3050,7 +3032,7 @@ function go(v){
   if(v==="salud") renderSalud();
   if(v==="set") renderSettings();
 }
-function renderAll(){ renderToday(); renderMeals(); renderMood(); renderBanner(); }
+function renderAll(){ renderToday(); renderMood(); renderBanner(); }
 
 function renderBanner(){
   const show = notifSupported() && Notification.permission==="default"
