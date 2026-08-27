@@ -498,7 +498,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-9";
+const APP_VERSION = "2026.08.26-10";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -3085,6 +3085,24 @@ function closeFood(){
 document.getElementById("fdSave").onclick  = ()=>{ closeFood(); toast("🥗 Alimentación guardada"); };
 document.getElementById("fdClose").onclick = closeFood;
 document.getElementById("fdModal").onclick = e=>{ if(e.target.id==="fdModal") closeFood(); };
+
+/* Tocar fuera de la tarjeta cierra y vuelve atrás, igual que su botón de
+   cancelar. Las fichas, las mediciones y los documentos no lo tenían y había
+   que buscar el botón para salir. */
+[["fichaModal","fcCancel"], ["medModal","mdCancel"], ["docModal","dcCancel"]]
+  .forEach(([modal, boton])=>{
+    document.getElementById(modal).onclick = e=>{
+      if(e.target.id === modal) document.getElementById(boton).click();
+    };
+  });
+
+/* Y la tecla Escape cierra la que esté abierta arriba del todo. */
+addEventListener("keydown", e=>{
+  if(e.key !== "Escape") return;
+  const abiertos = document.querySelectorAll(".modal.open");
+  const ultimo = abiertos[abiertos.length - 1];
+  if(ultimo) ultimo.dispatchEvent(new MouseEvent("click", {bubbles:false}));
+});
 
 document.getElementById("fSave").onclick=()=>{
   const name = fName.value.trim();
