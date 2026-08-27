@@ -123,17 +123,6 @@
         <div class="hlbl" id="sleepAvg"></div></div>
     </section>
     <section>
-      <div class="stitle">Mapa de constancia · 12 semanas</div>
-      <div class="panel">
-        <div class="heat" id="heat"></div>
-        <div class="hlbl"><span>Cada columna = 1 semana</span><span style="flex:1"></span><span>menos</span>
-          <b style="background:var(--line)"></b>
-          <b style="background:color-mix(in srgb,var(--accent) 30%,var(--line))"></b>
-          <b style="background:color-mix(in srgb,var(--accent) 60%,var(--line))"></b>
-          <b style="background:var(--accent)"></b><span>más</span></div>
-      </div>
-    </section>
-    <section>
       <div class="stitle">Por hábito · últimos 30 días</div>
       <div class="panel" id="perHabit"></div>
     </section>
@@ -475,7 +464,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-19";
+const APP_VERSION = "2026.08.26-20";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1762,17 +1751,6 @@ function renderStats(){
   document.getElementById("sleepAvg").innerHTML = sleeps.length
     ? `<span>Promedio: <b style="width:auto;color:#a5b4fc;background:none">${avgSleep}/100</b> · ${fmt(avgHrs)} h por noche · ${sleeps.length} registros</span>`
     : `<span>Aún sin check-ins de sueño registrados.</span>`;
-
-  const cells=[]; const end=parseKey(todayKey());
-  const off=(end.getDay()+6)%7;
-  const start=new Date(end); start.setDate(end.getDate()-off-7*11);
-  for(let i=0;i<84;i++){
-    const d=new Date(start); d.setDate(start.getDate()+i);
-    const key=todayKey(d), p=puntajeDia(key).total/100;
-    const lvl = d>end ? "" : p===0?0 : p<.4?1 : p<.6?2 : p<.9?3 : 4;
-    cells.push(`<div class="hcell" data-l="${lvl}" title="${key} · ${Math.round(p*100)} pts" style="${d>end?'opacity:.2':''}"></div>`);
-  }
-  document.getElementById("heat").innerHTML = cells.join("");
 
   document.getElementById("perHabit").innerHTML = S.habits.length ? S.habits.map(h=>{
     const s = days.reduce((a,d)=>a+progress(h,S.logs[d]?.values?.[h.id]||0),0);
