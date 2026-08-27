@@ -68,13 +68,20 @@
     </section>
 
     <section>
-      <div class="stitle">📝 Notas del día</div>
+      <div class="stitle">⏰ Recordatorios importantes</div>
       <div class="panel">
-        <textarea id="note" class="inp" rows="3" placeholder="¿Cómo te sentiste hoy? Energía, ánimo, entrenamiento…" style="resize:vertical"></textarea>
-        <div class="row" style="margin-top:11px">
-          <span style="font-size:12px;color:var(--tx3);font-weight:700">Ánimo del día</span>
-          <div class="stepper" id="mood" style="gap:6px"></div>
+        <div id="recorLista"></div>
+        <div class="two" style="margin-top:12px">
+          <label class="f" style="grid-column:1/-1"><span>¿Qué no se te puede olvidar?</span>
+            <input class="inp" id="recorTxt" maxlength="80" placeholder="Control con el kinesiólogo"></label>
         </div>
+        <div class="two">
+          <label class="f"><span>¿A qué hora?</span>
+            <input class="inp" id="recorHora" type="time"></label>
+          <label class="f"><span>&nbsp;</span>
+            <button class="btn" id="recorAdd">Agregar</button></label>
+        </div>
+        <p id="recorPie" style="font-size:12px;color:var(--tx3);margin:2px 0 0"></p>
       </div>
     </section>
   </div>
@@ -319,6 +326,10 @@
       <div class="turnos" id="agTurnos"></div></label>
     <label class="f"><span>Nota general del día</span>
       <textarea class="inp" id="agNota" rows="2" placeholder="Lo que quieras recordar de este día" style="resize:vertical"></textarea></label>
+    <div class="row" style="margin:-6px 0 14px">
+      <span style="font-size:12px;color:var(--tx3);font-weight:700">Ánimo del día</span>
+      <div class="stepper" id="mood" style="gap:6px"></div>
+    </div>
     <div class="stitle" style="margin:18px 0 8px">Por horas</div>
     <button class="btn ghost" id="agMadrugada" style="margin-bottom:10px">Mostrar madrugada (00:00 – 05:00)</button>
     <div id="agHoras"></div>
@@ -464,7 +475,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-18";
+const APP_VERSION = "2026.08.26-19";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -887,7 +898,8 @@ async function mirrorState(){
       pct: Math.round(dayPct(t)*100),
       pending: p ? p.n : 0,
       detail: p ? p.detalle : "",
-      screensDone: hp ? isDone(hp, l.values[hp.id]||0) : false
+      screensDone: hp ? isDone(hp, l.values[hp.id]||0) : false,
+      recor: (l.recor || []).map(r=>({txt:r.txt, hora:r.hora}))
     };
     const db = await idb();
     db.transaction("kv","readwrite").objectStore("kv").put(data, "today");
@@ -986,7 +998,7 @@ function remTick(){
   if(fireReminder(false)){ r.lastAt = Date.now(); save(); }
   else { r.lastAt = Date.now(); save(); }   // día completo: no insistir hasta el próximo tramo
 }
-setInterval(()=>{ remTick(); screensTick(); }, 60000);
+setInterval(()=>{ remTick(); screensTick(); recorTick(); }, 60000);
 
 /* ============================================================
    VISTA · HOY
@@ -1256,22 +1268,23 @@ function celebrate(h){
   }
 }
 
+/* El ánimo se registra desde la ficha del día, en el calendario, así que
+   siempre se refiere al día que estás mirando ahí. */
 function renderMood(){
-  const l = dayLog(cur), faces=["😞","😕","😐","🙂","😄"], box = document.getElementById("mood");
+  const faces=["😞","😕","😐","🙂","😄"], box = document.getElementById("mood");
   if(!box.children.length){
     box.innerHTML = faces.map((f,i)=>`<button class="sbtn" data-mood="${i+1}">${f}</button>`).join("");
     box.querySelectorAll("[data-mood]").forEach(b=>b.onclick=()=>{
+      const antes = cur; cur = agDia || cur;
       const lg = dayLog(cur), n = +b.dataset.mood;
-      lg.mood = lg.mood === n ? 0 : n; save(); marcarAnimo();
+      lg.mood = lg.mood === n ? 0 : n; save();
+      cur = antes; marcarAnimo();
     });
   }
   marcarAnimo();
-  const n = document.getElementById("note");
-  n.value = l.note||"";
-  n.oninput = ()=>{ dayLog(cur).note = n.value; save(); };
 }
 function marcarAnimo(){
-  const m = dayLog(cur).mood;
+  const m = S.logs[agDia || cur]?.mood || 0;
   document.querySelectorAll("[data-mood]").forEach(b=>{
     const on = +b.dataset.mood === m;
     b.style.background = on ? "var(--accent2)" : "";
@@ -1279,7 +1292,105 @@ function marcarAnimo(){
   });
 }
 
-function renderToday(){ renderDate(); renderSaludo(); renderSpot(); renderRail(); renderSleepCard(); renderCards(); }
+/* ============================================================
+   RECORDATORIOS IMPORTANTES
+   Cada uno vive en su día y avisa dos veces: una hora antes y
+   media hora antes. Los avisos ya dados quedan marcados para
+   que no se repitan aunque abras la app veinte veces.
+   ============================================================ */
+const AVISOS = [60, 30];                 // minutos de antelación
+const GRACIA = 15;                       // margen para avisar si abriste tarde
+
+const recorDe = k => (S.logs[k]?.recor || []);
+
+function agregarRecor(){
+  const txt  = document.getElementById("recorTxt").value.trim();
+  const hora = document.getElementById("recorHora").value;
+  if(!txt){ toast("Escribe qué quieres recordar"); return; }
+  if(!/^\d{2}:\d{2}$/.test(hora)){ toast("Elige una hora"); return; }
+
+  const l = dayLog(cur);
+  l.recor = l.recor || [];
+  l.recor.push({id:"r"+Date.now(), txt, hora, av:{}});
+  l.recor.sort((a,b)=> a.hora.localeCompare(b.hora));
+  save();
+  document.getElementById("recorTxt").value = "";
+  document.getElementById("recorHora").value = "";
+  renderRecor();
+  pedirPermisoRecor();
+  toast("⏰ Te aviso 60 y 30 minutos antes");
+}
+
+function borrarRecor(id){
+  const l = dayLog(cur);
+  l.recor = recorDe(cur).filter(r=>r.id !== id);
+  save(); renderRecor();
+}
+
+function renderRecor(){
+  const box = document.getElementById("recorLista");
+  if(!box) return;
+  const lista = recorDe(cur), ahora = nowMin(), esHoy = cur === todayKey();
+
+  box.innerHTML = lista.length ? lista.map(r=>{
+    const faltan = hm(r.hora) - ahora;
+    const estado = !esHoy ? ""
+      : faltan < 0 ? "ya pasó"
+      : faltan < 60 ? `en ${faltan} min`
+      : `en ${Math.floor(faltan/60)} h ${faltan%60} min`;
+    const avisado = [60,30].filter(m=>r.av?.[m]);
+    return `<div class="rap" style="cursor:default">
+      <span class="em" style="background:var(--accent2);color:var(--accent)">${esc(r.hora)}</span>
+      <span class="tx"><b>${esc(r.txt)}</b><span>${estado}${
+        avisado.length ? ` · avisado ${avisado.join(" y ")} min antes` : ""}</span></span>
+      <button class="go" data-rdel="${r.id}" title="Quitar" style="font-size:17px">✕</button>
+    </div>`;
+  }).join("")
+   : `<div class="empty" style="padding:18px">Sin recordatorios para este día.</div>`;
+
+  box.querySelectorAll("[data-rdel]").forEach(b=> b.onclick = ()=> borrarRecor(b.dataset.rdel));
+
+  const pie = document.getElementById("recorPie");
+  if(pie) pie.textContent = notifState() === "granted"
+    ? "Te aviso 60 y 30 minutos antes de cada uno."
+    : "Activa las notificaciones para que te avise 60 y 30 minutos antes.";
+}
+
+async function pedirPermisoRecor(){
+  if(!notifSupported() || Notification.permission !== "default") return;
+  try{ await Notification.requestPermission(); renderRecor(); renderBanner(); }catch(e){}
+}
+
+/* Se revisa junto al resto de avisos, cada minuto. */
+function recorTick(){
+  const t = todayKey(), lista = recorDe(t);
+  if(!lista.length) return;
+  const ahora = nowMin();
+  let cambio = false;
+
+  lista.forEach(r=>{
+    const faltan = hm(r.hora) - ahora;
+    AVISOS.forEach(m=>{
+      if(r.av?.[m]) return;
+      /* Se dispara al cruzar el umbral, con margen por si la app estaba cerrada. */
+      if(faltan <= m && faltan > m - GRACIA){
+        r.av = r.av || {}; r.av[m] = Date.now(); cambio = true;
+        const titulo = m === 60 ? "⏰ Falta 1 hora" : "⏰ Faltan 30 minutos";
+        const cuerpo = `${r.txt} · a las ${r.hora}`;
+        if(notifState() === "granted")
+          showNotif(titulo, {body:cuerpo, icon:"icons/icon-192.png", tag:"recor-"+r.id+"-"+m});
+        else toast(`${titulo} · ${r.txt}`);
+      }
+    });
+  });
+
+  if(cambio){
+    const antes = cur; cur = t; save(); cur = antes;
+    if(!document.getElementById("view-hoy").classList.contains("hidden")) renderRecor();
+  }
+}
+
+function renderToday(){ renderDate(); renderSaludo(); renderSpot(); renderRail(); renderSleepCard(); renderCards(); renderRecor(); }
 
 /* ============================================================
    CHECK-IN DE SUEÑO
@@ -1517,6 +1628,7 @@ function openAgenda(k){
     ? "Hoy. Anota lo que quieras a la hora que corresponda."
     : "Anota lo que quieras a la hora que corresponda.";
   document.getElementById("agNota").value = S.logs[k]?.note || "";
+  renderMood();
   pintaResumenDia(k);
   pintaTurnos();
   pintaHoras();
@@ -1529,7 +1641,7 @@ function pintaResumenDia(k){
   document.getElementById("agResumen").innerHTML = `
     <div class="sl-top">
       <div class="sl-score" style="color:${nv.c};border-color:${nv.c}55;background:${nv.c}18">${p.total}</div>
-      <div class="sl-t"><b>${nv.e} ${nv.t}</b><span>${p.hab} de hábitos · ${p.sue} de sueño · ${p.com} de alimentación</span></div>
+      <div class="sl-t"><b>${nv.e} ${nv.t}</b><span>${p.hab} de hábitos · ${p.sue} de sueño</span></div>
     </div>
     ${(vol || act || l?.sleep) ? `<div class="sl-meta libre">
       ${l?.sleep ? `<div><b>${l.sleep.score}</b><span>Sueño</span></div>` : ""}
@@ -2916,7 +3028,7 @@ function go(v){
   if(v==="salud") renderSalud();
   if(v==="set") renderSettings();
 }
-function renderAll(){ renderToday(); renderMood(); renderBanner(); }
+function renderAll(){ renderToday(); renderBanner(); }
 
 function renderBanner(){
   const show = notifSupported() && Notification.permission==="default"
@@ -2981,6 +3093,9 @@ document.getElementById("prevD").onclick=()=>{ cur=shift(cur,-1); renderAll(); }
 document.getElementById("nextD").onclick=()=>{ if(cur<todayKey()){ cur=shift(cur,1); renderAll(); } };
 document.getElementById("todayBtn").onclick=()=>{ cur=todayKey(); renderAll(); };
 document.getElementById("addHabit").onclick=()=>openModal(null);
+document.getElementById("recorAdd").onclick = agregarRecor;
+document.getElementById("recorTxt").onkeydown = e=>{ if(e.key === "Enter") agregarRecor(); };
+document.getElementById("recorHora").onkeydown = e=>{ if(e.key === "Enter") agregarRecor(); };
 document.getElementById("fCancel").onclick=closeModal;
 document.getElementById("modal").onclick=e=>{ if(e.target.id==="modal") closeModal(); };
 document.getElementById("sleepModal").onclick=e=>{ if(e.target.id==="sleepModal"){

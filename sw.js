@@ -2,7 +2,7 @@
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "coachale-v48";
+const CACHE = "coachale-v49";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
@@ -70,6 +70,25 @@ function readState(){
 const hoyKey = ()=>{ const d=new Date();
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
 
+/* Minutos desde medianoche, en la hora del dispositivo. */
+function ahoraMin(){ const d = new Date(); return d.getHours()*60 + d.getMinutes(); }
+
+/* El recordatorio más próximo que esté dentro de las ventanas de aviso. */
+function recordatorioCercano(lista){
+  if(!Array.isArray(lista) || !lista.length) return null;
+  const ahora = ahoraMin();
+  let mejor = null;
+  lista.forEach(r=>{
+    const [h,m] = String(r.hora||"").split(":").map(Number);
+    if(isNaN(h) || isNaN(m)) return;
+    const faltan = h*60 + m - ahora;
+    // una hora antes (60→45) o media hora antes (35→20)
+    const dentro = (faltan <= 62 && faltan > 45) || (faltan <= 35 && faltan > 20);
+    if(dentro && (!mejor || faltan < mejor.faltan)) mejor = {...r, faltan};
+  });
+  return mejor;
+}
+
 self.addEventListener("push", e=>{
   let data = {};
   try{ data = e.data ? e.data.json() : {}; }catch(err){ data = {body: e.data && e.data.text()}; }
@@ -80,6 +99,18 @@ self.addEventListener("push", e=>{
     let body  = data.body  || "";
     const st = await readState();
     const fresh = st && st.date === hoyKey();
+
+    /* Si hay un recordatorio importante cerca, manda ese: pesa más que
+       el resumen de hábitos que tocaba en este horario. */
+    const cerca = fresh ? recordatorioCercano(st.recor) : null;
+    if(cerca){
+      await self.registration.showNotification(
+        cerca.faltan <= 35 ? "⏰ Faltan 30 minutos" : "⏰ Falta 1 hora",
+        {body: `${cerca.txt} · a las ${cerca.hora}`,
+         icon:"./icons/icon-192.png", badge:"./icons/icon-192.png",
+         tag:"recor-"+cerca.hora, renotify:true, data:{url:"./index.html"}});
+      return;
+    }
 
     if(kind === "habits"){
       if(fresh && st.pct >= 100){
