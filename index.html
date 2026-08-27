@@ -26,8 +26,9 @@
       <div class="spacer"></div>
       <button class="iconbtn" id="bellBtn" title="Recordatorios">🔔</button>
       <button class="iconbtn" id="themeBtn" title="Tema">☀️</button>
+      <button class="iconbtn" id="setBtn" title="Ajustes">⚙</button>
     </div>
-    <div class="datebar" id="datebar">
+    <div class="datebar hidden" id="datebar">
       <button class="nav" id="prevD">‹</button>
       <div class="dlabel"><b id="dTitle">Hoy</b><span id="dSub"></span></div>
       <button class="nav" id="nextD">›</button>
@@ -47,25 +48,19 @@
       <button class="x" id="permNo">✕</button>
     </div>
 
-    <div class="hero">
-      <div class="ring">
-        <svg width="92" height="92">
-          <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#22e07a"/><stop offset="100%" stop-color="#38bdf8"/>
-          </linearGradient></defs>
-          <circle cx="46" cy="46" r="38" fill="none" stroke="var(--line)" stroke-width="9"/>
-          <circle id="ringFg" cx="46" cy="46" r="38" fill="none" stroke="url(#g1)" stroke-width="9"
-                  stroke-linecap="round" stroke-dasharray="238.8" stroke-dashoffset="238.8"
-                  style="transition:stroke-dashoffset .55s cubic-bezier(.4,0,.2,1)"/>
-        </svg>
-        <div class="val" id="ringVal">0%</div>
+    <div class="saludo">
+      <div class="ava" id="avaIni">·</div>
+      <div class="who">
+        <small id="saludoTxt">Hola,</small>
+        <b id="saludoNom">Tu registro</b>
       </div>
-      <div class="hero-info">
-        <h2 id="heroTitle">Empecemos el día</h2>
-        <p id="heroSub">0 de 0 hábitos completados</p>
-        <div class="chips" id="heroChips"></div>
-      </div>
+      <button class="icon-btn" id="fechaBtn" title="Cambiar de día">🗓</button>
     </div>
+
+    <div class="spot" id="spot"></div>
+
+    <div class="sec-lbl">💚 Tus mediciones</div>
+    <div class="rail" id="rail"></div>
 
     <section>
       <div class="stitle">😴 Al despertar</div>
@@ -216,10 +211,20 @@
 <nav class="tabs">
   <button data-v="hoy" class="on"><i>◎</i>Hoy</button>
   <button data-v="hist"><i>▦</i>Calendario</button>
+  <button class="fab" id="fabBtn" title="Registro rápido">+</button>
   <button data-v="stats"><i>◑</i>Progreso</button>
   <button data-v="salud"><i>♡</i>Salud</button>
-  <button data-v="set"><i>⚙</i>Ajustes</button>
 </nav>
+
+<!-- ===== Modal registro rápido ===== -->
+<div class="modal" id="raModal">
+  <div class="sheet">
+    <h3>⚡ Registro rápido</h3>
+    <p class="sub">Lo que te falta hoy, sin bajar por la pantalla.</p>
+    <div id="raLista"></div>
+    <button class="btn ghost" style="margin-top:10px" id="raClose">Cerrar</button>
+  </div>
+</div>
 
 <!-- ===== Modal hábito ===== -->
 <div class="modal" id="modal">
@@ -463,7 +468,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-14";
+const APP_VERSION = "2026.08.26-15";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -954,28 +959,122 @@ function renderDate(){
   document.getElementById("todayBtn").style.visibility = cur===t ? "hidden":"visible";
 }
 
-function renderHero(){
+/* Saludo: quién eres y a qué hora del día llegas. */
+function renderSaludo(){
+  const h = new Date().getHours();
+  const parte = h < 6 ? "Buenas noches," : h < 13 ? "Buenos días,"
+              : h < 20 ? "Buenas tardes," : "Buenas noches,";
+  /* Solo el nombre de pila. Si nunca pusiste un nombre, el perfil guarda tu
+     correo: de ahí sacamos algo presentable en vez de mostrarlo entero.
+     Y mientras el perfil no ha llegado de la nube, no inventamos un nombre. */
+  let crudo = (perfil?.nombre || "").trim() || (sesionUsuario?.user?.email || "").trim();
+  if(crudo.includes("@")) crudo = crudo.split("@")[0].split(/[._\-+]/)[0];
+  crudo = (crudo.split(" ")[0] || "").slice(0,18);
+
+  const nombre = crudo ? crudo[0].toUpperCase() + crudo.slice(1) : "Tu registro";
+  document.getElementById("saludoTxt").textContent = parte;
+  document.getElementById("saludoNom").textContent = nombre;
+  document.getElementById("avaIni").textContent = crudo ? crudo[0].toUpperCase() : "·";
+}
+
+/* Los días de una ventana, del más antiguo al más reciente. */
+function ultimos(n, desde){
+  const ks = []; let k = desde || cur;
+  for(let i = 0; i < n; i++){ ks.unshift(k); k = shift(k,-1); }
+  return ks;
+}
+const mediaDe = ks => ks.length ? Math.round(ks.reduce((a,k)=>a+puntajeDia(k).total,0)/ks.length) : 0;
+
+/* Curva de los siete días: dice hacia dónde vas, no solo dónde estás. */
+function renderSpot(){
   const l = dayLog(cur), p = puntajeDia(cur), nv = nivelDe(p.total);
-  const C = 2*Math.PI*38;
-  const ring = document.getElementById("ringFg");
-  ring.style.strokeDashoffset = C*(1 - p.total/100);
-  ring.style.stroke = p.total >= 60 ? "url(#g1)" : nv.c;
-  document.getElementById("ringVal").textContent = p.total;
-  document.getElementById("heroTitle").textContent = `${nv.e} ${nv.t}`;
+  const semana = ultimos(7);
+  const previa = ultimos(7, shift(semana[0], -1));
+  const mAhora = mediaDe(semana), mAntes = mediaDe(previa);
+  const dif = mAhora - mAntes;
 
-  const done = S.habits.filter(h=>isDone(h, l.values[h.id]||0)).length;
-  document.getElementById("heroSub").innerHTML =
-    `<b style="color:var(--tx)">${p.total}</b> de 100 puntos hoy · ${done}/${S.habits.length} hábitos`;
+  const rumbo = dif >= 4 ? {t:"↗ SUBIENDO", c:"#22e07a"}
+              : dif <= -4 ? {t:"↘ BAJANDO",  c:"#fb7185"}
+                          : {t:"→ ESTABLE",  c:"#38bdf8"};
+  const titular = dif >= 4 ? "Vas de menos a más"
+                : dif <= -4 ? "Vienes aflojando"
+                : mAhora >= DIA_BUENO ? "Te mantienes arriba" : "Semana pareja";
+  const frase = mAntes
+    ? `Tu puntaje medio pasó de ${mAntes} a ${mAhora} en siete días.`
+    : `Tu puntaje medio de la semana es ${mAhora}.`;
 
-  /* Qué falta por ganar: eso empuja más que señalar lo que va mal. */
+  /* Curva sobre una caja de 150×46, con el último día marcado. */
+  const puntos = semana.map((k,i)=>{
+    const v = puntajeDia(k).total;
+    return [4 + i*(142/6), 42 - (clamp(v,0,100)/100)*36];
+  });
+  const r1 = n => Math.round(n*10)/10;
+  const linea = puntos.map(([x,y])=>`${r1(x)} ${r1(y)}`).join(" L ");
+  const fin = puntos[puntos.length-1];
+
   const chips = [];
   if(!p.haySueno) chips.push(`<span class="chip sleep">😴 +${PUNTOS.sueno} con tu check-in</span>`);
-  else chips.push(`<span class="chip sleep">😴 ${l.sleep.score} · ${p.sue} pts</span>`);
   const rb = rachaBuenos();
   if(rb > 1) chips.push(`<span class="chip hot">🔥 ${rb} días buenos</span>`);
-  if(!chips.length) chips.push(`<span class="chip">Completa tus hábitos para sumar puntos</span>`);
-  document.getElementById("heroChips").innerHTML = chips.join("");
+  if(!chips.length){
+    const done = S.habits.filter(h=>isDone(h, l.values[h.id]||0)).length;
+    chips.push(`<span class="chip">${done}/${S.habits.length} hábitos hechos</span>`);
+  }
 
+  document.getElementById("spot").innerHTML = `
+    <div class="spot-top">
+      <span class="lapso">7d</span><b>Tu semana</b>
+      <span class="rumbo" style="background:${rumbo.c}24;color:${rumbo.c}">${rumbo.t}</span>
+    </div>
+    <h2>${titular}</h2>
+    <p class="sub">${frase}</p>
+    <div class="spot-grid">
+      <svg viewBox="0 0 150 46" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="spotFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${nv.c}" stop-opacity=".34"/>
+          <stop offset="100%" stop-color="${nv.c}" stop-opacity="0"/>
+        </linearGradient></defs>
+        <path d="M ${linea} L ${r1(fin[0])} 46 L 4 46 Z" fill="url(#spotFill)"/>
+        <path d="M ${linea}" fill="none" stroke="${nv.c}" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${r1(fin[0])}" cy="${r1(fin[1])}" r="4" fill="${nv.c}"/>
+      </svg>
+      <div class="spot-num">
+        <b style="color:${nv.c}">${p.total}</b>
+        <span>de 100 hoy</span>
+      </div>
+    </div>
+    <div class="spot-foot">
+      <div class="chips">${chips.join("")}</div>
+      <button class="chip" id="spotVer" style="color:var(--accent);border-color:var(--accent2);
+        background:var(--accent2);font-weight:700">Ver progreso →</button>
+    </div>`;
+  document.getElementById("spotVer").onclick = ()=> go("stats");
+}
+
+/* Tres cifras del día que hoy hay que ir a buscar entre las tarjetas. */
+function renderRail(){
+  const l = dayLog(cur), sl = l.sleep;
+  const hCam = S.habits.find(h=>h.id === "caminar") || S.habits.find(h=>h.type === "amount");
+  const hAct = S.habits.find(h=>h.type === "activity");
+  const cuando = cur === todayKey() ? "hoy" : "ese día";
+
+  const tarjeta = (color, icono, val, uni, nombre) => `
+    <div class="mini">
+      <div class="mini-top">
+        <span class="mini-ic" style="background:${color}26;color:${color}">${icono}</span>
+        <span>${cuando}</span>
+      </div>
+      <b>${val}${uni ? `<em>${uni}</em>` : ""}</b>
+      <span class="nm">${esc(nombre)}</span>
+    </div>`;
+
+  const cajas = [tarjeta("#a78bfa", "☾", sl ? fmt(sl.hours) : "–", sl ? "h" : "", "Sueño")];
+  if(hCam) cajas.push(tarjeta(hCam.color || "#fbbf24", hCam.emoji || "🚶",
+                              fmt(Number(l.values[hCam.id]) || 0), "", hCam.name));
+  if(hAct) cajas.push(tarjeta(hAct.color || "#f97316", hAct.emoji || "🏃",
+                              fmt(Number(l.values[hAct.id]) || 0), "min", hAct.name));
+  document.getElementById("rail").innerHTML = cajas.join("");
 }
 
 function renderSleepCard(){
@@ -1090,7 +1189,7 @@ function refrescarTarjeta(id){
   if(pEl) pEl.innerHTML = `${pts1(puntosGanados(h,v))}<i>/${pts1(puntosHabito(h))} pts</i>`;
   const st = streak(h), sEl = card.querySelector(".streak");
   if(sEl){ sEl.className = "streak" + (st>1 ? " on" : ""); sEl.textContent = st>1 ? "🔥 "+st : ""; }
-  renderHero();
+  renderSpot(); renderRail();
 }
 function celebrate(h){
   toast(`${h.emoji} ${h.name} · meta cumplida`);
@@ -1126,7 +1225,7 @@ function marcarAnimo(){
   });
 }
 
-function renderToday(){ renderDate(); renderHero(); renderSleepCard(); renderCards(); }
+function renderToday(){ renderDate(); renderSaludo(); renderSpot(); renderRail(); renderSleepCard(); renderCards(); }
 
 /* ============================================================
    CHECK-IN DE SUEÑO
@@ -2186,7 +2285,7 @@ async function syncNow(manual){
     if(cambio){
       localStorage.setItem(KEY, JSON.stringify(S));
       applyTheme(); renderAll();
-      const v = document.querySelector("nav.tabs button.on");
+      const v = document.querySelector("nav.tabs button[data-v].on");
       if(v && !document.querySelector(".modal.open")) go(v.dataset.v);
     }
     ultimaSync = Date.now(); syncErr = "";
@@ -2237,6 +2336,7 @@ async function initSesion(){
 async function trasEntrar(){
   try{
     perfil = await Nube.miPerfil();
+    renderSaludo();                       // ya sabemos cómo llamarte
     // primera vez en la nube: subimos lo que ya había en este dispositivo
     const remoto = await Nube.bajar();
     const vacio = !remoto.config && !Object.keys(remoto.dias||{}).length;
@@ -2763,8 +2863,8 @@ document.getElementById("dcSave").onclick = async ()=>{
 function go(v){
   ["hoy","hist","stats","salud","set"].forEach(x=>
     document.getElementById("view-"+x).classList.toggle("hidden", x!==v));
-  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
-  document.getElementById("datebar").classList.toggle("hidden", v!=="hoy");
+  document.querySelectorAll("nav.tabs button[data-v]").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
+  if(v !== "hoy") document.getElementById("datebar").classList.add("hidden");
   if(v==="hist") renderHist();
   if(v==="stats") renderStats();
   if(v==="salud") renderSalud();
@@ -2787,8 +2887,64 @@ document.getElementById("permYes").onclick = async ()=>{
 };
 document.getElementById("permNo").onclick = ()=>{ sessionStorage.setItem("bannerOff","1"); renderBanner(); };
 document.getElementById("bellBtn").onclick = ()=>{ go("set"); document.getElementById("remPanel").scrollIntoView({behavior:"smooth",block:"center"}); };
+document.getElementById("setBtn").onclick = ()=> go("set");
 
-document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>go(b.dataset.v));
+/* La franja de fechas aparece solo cuando la pides, y se va sola al volver a hoy. */
+document.getElementById("fechaBtn").onclick = ()=>{
+  const bar = document.getElementById("datebar");
+  bar.classList.toggle("hidden");
+  if(!bar.classList.contains("hidden")) renderDate();
+};
+
+/* ---------------- registro rápido ---------------- */
+function abrirRapido(){
+  shutModals();
+  const l = dayLog(cur);
+  const filas = [];
+
+  /* `abre:true` = lleva a otra ventana, así que esta se cierra en vez de recargarse. */
+  if(!l.sleep) filas.push({em:"😴", c:"#a78bfa", t:"Check-in de sueño",
+                           s:`Vale hasta ${PUNTOS.sueno} puntos`, abre:true, go:openSleep});
+
+  S.habits.forEach(h=>{
+    const v = Number(l.values[h.id]) || 0;
+    if(isDone(h, v)) return;
+    const falta = h.type === "check" ? "Sin marcar"
+                : h.type === "workout" ? "Sin sesión registrada"
+                : h.type === "activity" ? `${fmt(v)} de ${fmt(h.goal)} min`
+                : `${fmt(v)} de ${fmt(h.goal)} ${h.unit||""}`.trim();
+    const abre = h.type === "workout" || h.type === "activity";
+    filas.push({em:h.emoji, c:h.color, t:h.name, s:falta, abre, go:()=>{
+      if(h.type === "workout")  return openWorkout();
+      if(h.type === "activity") return openActividad();
+      if(h.type === "check"){ l.values[h.id] = 1; save(); renderToday(); celebrate(h); return; }
+      bump(h.id, +1);
+    }});
+  });
+
+  document.getElementById("raLista").innerHTML = filas.length
+    ? filas.map((f,i)=>`<button class="rap" data-ra="${i}">
+        <span class="em" style="background:${esc(f.c)}22;color:${esc(f.c)}">${esc(f.em)}</span>
+        <span class="tx"><b>${esc(f.t)}</b><span>${esc(f.s)}</span></span>
+        <span class="go">›</span></button>`).join("")
+    : `<div class="empty" style="padding:20px">Ya está todo hecho por hoy 🏆</div>`;
+
+  document.querySelectorAll("[data-ra]").forEach(b=>
+    b.onclick = ()=>{
+      const f = filas[+b.dataset.ra];
+      if(f.abre){ cerrarRapido(); f.go(); return; }   // la otra ventana toma el relevo
+      f.go();
+      abrirRapido();                                   // sigue abierta, con la lista al día
+    });
+
+  document.getElementById("raModal").classList.add("open");
+}
+function cerrarRapido(){ document.getElementById("raModal").classList.remove("open"); }
+document.getElementById("fabBtn").onclick  = ()=>{ go("hoy"); abrirRapido(); };
+document.getElementById("raClose").onclick = cerrarRapido;
+document.getElementById("raModal").onclick = e=>{ if(e.target.id === "raModal") cerrarRapido(); };
+
+document.querySelectorAll("nav.tabs button[data-v]").forEach(b=>b.onclick=()=>go(b.dataset.v));
 document.getElementById("prevD").onclick=()=>{ cur=shift(cur,-1); renderAll(); };
 document.getElementById("nextD").onclick=()=>{ if(cur<todayKey()){ cur=shift(cur,1); renderAll(); } };
 document.getElementById("todayBtn").onclick=()=>{ cur=todayKey(); renderAll(); };
