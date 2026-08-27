@@ -464,7 +464,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-17";
+const APP_VERSION = "2026.08.26-18";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -2975,6 +2975,50 @@ function cerrarRapido(){
 document.getElementById("fabBtn").onclick  = ()=>{ go("hoy"); abrirRapido(); };
 document.getElementById("raClose").onclick = cerrarRapido;
 document.getElementById("raModal").onclick = e=>{ if(e.target.id === "raModal") cerrarRapido(); };
+
+document.querySelectorAll("nav.tabs button[data-v]").forEach(b=>b.onclick=()=>go(b.dataset.v));
+document.getElementById("prevD").onclick=()=>{ cur=shift(cur,-1); renderAll(); };
+document.getElementById("nextD").onclick=()=>{ if(cur<todayKey()){ cur=shift(cur,1); renderAll(); } };
+document.getElementById("todayBtn").onclick=()=>{ cur=todayKey(); renderAll(); };
+document.getElementById("addHabit").onclick=()=>openModal(null);
+document.getElementById("fCancel").onclick=closeModal;
+document.getElementById("modal").onclick=e=>{ if(e.target.id==="modal") closeModal(); };
+document.getElementById("sleepModal").onclick=e=>{ if(e.target.id==="sleepModal"){
+  S.settings.wake.lastAsked=todayKey(); save(); e.currentTarget.classList.remove("open"); } };
+fType.onchange = typeUI;
+
+function cerrarActividad(){
+  syncActividad();
+  document.getElementById("acModal").classList.remove("open");
+  renderToday();
+}
+document.getElementById("acSave").onclick  = ()=>{ cerrarActividad(); toast("🏃 Actividad guardada"); };
+document.getElementById("acClose").onclick = cerrarActividad;
+document.getElementById("acModal").onclick = e=>{ if(e.target.id==="acModal") cerrarActividad(); };
+
+document.getElementById("wkAdd").onclick   = ()=>addExercise(false);
+document.getElementById("wkSave").onclick  = saveWorkout;
+document.getElementById("wkClose").onclick = saveWorkout;
+document.getElementById("wkModal").onclick = e=>{ if(e.target.id==="wkModal") saveWorkout(); };
+document.getElementById("wkNote").oninput  = e=>{ dayLog(cur).workout.note = e.target.value; save(); };
+
+/* Tocar fuera de la tarjeta cierra y vuelve atrás, igual que su botón de
+   cancelar. Las fichas, las mediciones y los documentos no lo tenían y había
+   que buscar el botón para salir. */
+[["fichaModal","fcCancel"], ["medModal","mdCancel"], ["docModal","dcCancel"]]
+  .forEach(([modal, boton])=>{
+    document.getElementById(modal).onclick = e=>{
+      if(e.target.id === modal) document.getElementById(boton).click();
+    };
+  });
+
+/* Y la tecla Escape cierra la que esté abierta arriba del todo. */
+addEventListener("keydown", e=>{
+  if(e.key !== "Escape") return;
+  const abiertos = document.querySelectorAll(".modal.open");
+  const ultimo = abiertos[abiertos.length - 1];
+  if(ultimo) ultimo.dispatchEvent(new MouseEvent("click", {bubbles:false}));
+});
 
 document.getElementById("fSave").onclick=()=>{
   const name = fName.value.trim();
