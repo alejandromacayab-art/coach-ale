@@ -37,7 +37,6 @@ function estadoActividad(dias){
   if(dias <= 7)      return {t:`hace ${dias} días`, c:"#fbbf24"};
   return {t:`hace ${dias} días`, c:"#fb7185"};
 }
-function colorChatarra(n){ return n >= 5 ? "#fb7185" : n >= 3 ? "#fbbf24" : "#22e07a"; }
 function colorSueno(n){ return !n ? "#6f7887" : n >= 70 ? "#22e07a" : n >= 50 ? "#fbbf24" : "#fb7185"; }
 
 /* ============================================================
@@ -55,7 +54,6 @@ async function verLista(){
   const ses     = atletas.reduce((a,x)=>a+Number(x.sesiones_30d||0),0);
   const conSue  = atletas.filter(x=>x.sueno_30d);
   const sueMed  = conSue.length ? Math.round(conSue.reduce((a,x)=>a+Number(x.sueno_30d),0)/conSue.length) : 0;
-  const chat    = atletas.reduce((a,x)=>a+Number(x.chatarra_7d||0),0);
   const activos = atletas.filter(x=>{ const d=diasDesde(x.ultimo_registro); return d!==null && d<=3; }).length;
 
   $("main").innerHTML = `
@@ -67,7 +65,6 @@ async function verLista(){
         <div class="stat"><b>${kg(kgTot)}</b><span>Kg movidos entre todos</span></div>
         <div class="stat"><b>${ses}</b><span>Sesiones de fuerza</span></div>
         <div class="stat"><b style="color:${colorSueno(sueMed)}">${sueMed||"–"}</b><span>Sueño promedio</span></div>
-        <div class="stat"><b style="color:${colorChatarra(chat/Math.max(1,n))}">${chat}</b><span>Chatarra · 7 días</span></div>
       </div>
     </section>
 
@@ -81,7 +78,6 @@ async function verLista(){
             <th class="ocultar-movil">Kg · 30 d</th>
             <th class="ocultar-movil">Sesiones</th>
             <th>Sueño</th>
-            <th>Chatarra 7 d</th>
           </tr></thead>
           <tbody>
             ${atletas.map(a=>{
@@ -96,7 +92,6 @@ async function verLista(){
                 <td class="ocultar-movil"><span class="num">${a.sesiones_30d||0}</span>
                     <div class="sub">${((a.sesiones_30d||0)/30*7).toFixed(1)}/sem</div></td>
                 <td><span class="num" style="color:${colorSueno(a.sueno_30d)}">${a.sueno_30d||"–"}</span></td>
-                <td><span class="num" style="color:${colorChatarra(a.chatarra_7d)}">${a.chatarra_7d||0}</span></td>
               </tr>`;
             }).join("")}
           </tbody></table>`
@@ -248,13 +243,11 @@ async function verAtleta(id){
   const km2 = v => (v && typeof v === "object") ? (Number(v.km)||0)  : 0;
   const act = d => Object.values(d?.actividad?.items || {}).reduce((a,v)=>a+mn(v), 0);
   const actKm = d => Object.values(d?.actividad?.items || {}).reduce((a,v)=>a+km2(v), 0);
-  const junk = d => (d?.food?.junk||[]).reduce((s,j)=>s+(j.n||1),0);
   const sesiones = dias.filter(r=>vol(r.datos)>0);
   const kgTot = dias.reduce((s,r)=>s+vol(r.datos),0);
   const sue = dias.filter(r=>r.datos?.sleep).map(r=>r.datos.sleep);
   const sueMed = sue.length ? Math.round(sue.reduce((s,x)=>s+x.score,0)/sue.length) : 0;
   const hMed = sue.length ? (sue.reduce((s,x)=>s+x.hours,0)/sue.length).toFixed(1) : 0;
-  const chat = dias.reduce((s,r)=>s+junk(r.datos),0);
   const maxVol = Math.max(1, ...dias.map(r=>vol(r.datos)));
 
   const ult14 = [];
@@ -307,7 +300,6 @@ async function verAtleta(id){
         <div class="stat"><b style="color:${colorSueno(sueMed)}">${sueMed||"–"}</b><span>Sueño · ${hMed||"–"} h</span></div>
         <div class="stat"><b style="color:#fb923c">${dias.reduce((s,r)=>s+act(r.datos),0)}</b><span>Min de actividad</span></div>
         <div class="stat"><b style="color:#fb923c">${Math.round(dias.reduce((s,r)=>s+actKm(r.datos),0)*10)/10}</b><span>Km recorridos</span></div>
-        <div class="stat"><b style="color:${colorChatarra(chat/6)}">${chat}</b><span>Chatarra total</span></div>
       </div>
       <div class="panel" style="margin-top:12px">
         <div class="chart">
@@ -351,17 +343,14 @@ async function verAtleta(id){
     <section>
       <div class="stitle">Registro día a día</div>
       ${dias.length ? dias.map(r=>{
-        const d = r.datos||{}, v = vol(d), j = junk(d), s = d.sleep;
+        const d = r.datos||{}, v = vol(d), s = d.sleep;
         const ejercicios = (d.workout?.ex||[]).filter(e=>(e.sets||[]).some(x=>Number(x.w)&&Number(x.r)));
         const acts = Object.entries(d.actividad?.items||{}).filter(([,v])=>mn(v)>0||km2(v)>0);
-        const grupos = (d.food?.groups||[]).length;
-        if(!v && !j && !s && !ejercicios.length && !grupos && !d.note && !acts.length) return "";
+        if(!v && !s && !ejercicios.length && !d.note && !acts.length) return "";
         return `<div class="dcard">
           <div class="dhead">
             <b>${fechaCorta(r.fecha)}</b>
             ${s ? `<span class="pill" style="color:${colorSueno(s.score)}">😴 ${s.score} · ${s.hours} h</span>` : ""}
-            ${grupos ? `<span class="pill">🥗 ${grupos} grupos</span>` : ""}
-            ${j ? `<span class="pill" style="color:${colorChatarra(j)}">🍔 ${j}</span>` : ""}
             ${act(d) ? `<span class="pill" style="color:#fb923c">🏃 ${act(d)} min${actKm(d)?` · ${actKm(d)} km`:""}</span>` : ""}
             ${v ? `<span class="pill" style="color:#4ade80">🏋️ ${kg(v)} kg</span>` : ""}
           </div>

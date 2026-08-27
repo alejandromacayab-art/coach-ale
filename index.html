@@ -117,10 +117,6 @@
       <div class="panel" id="trainBox"></div>
     </section>
     <section>
-      <div class="stitle">🍔 Alimentación · últimos 30 días</div>
-      <div class="panel" id="foodBox"></div>
-    </section>
-    <section>
       <div class="stitle">Puntaje · últimos 14 días</div>
       <div class="panel"><div class="chart" id="chart14"></div></div>
     </section>
@@ -197,10 +193,6 @@
       <div class="panel" id="turnoPanel"></div>
     </section>
     <section>
-      <div class="stitle">🍔 Límites de comida chatarra</div>
-      <div class="panel" id="junkPanel"></div>
-    </section>
-    <section>
       <div class="stitle">Mis hábitos</div>
       <div class="panel" id="habitList"></div>
       <button class="btn" style="margin-top:12px" id="addHabit">+ Nuevo hábito</button>
@@ -247,7 +239,6 @@
         <option value="count">Cantidad — sumar de a poco (vasos, series…)</option>
         <option value="amount">Medida — número libre (km, min, kg…)</option>
         <option value="workout">Entrenamiento — ejercicios, series y kg</option>
-        <option value="food">Alimentación — grupos priorizados y chatarra</option>
         <option value="activity">Actividad física — deportes y minutos</option>
       </select>
     </label>
@@ -410,31 +401,6 @@
   </div>
 </div>
 
-<!-- ===== Modal alimentación ===== -->
-<div class="modal" id="fdModal">
-  <div class="sheet">
-    <h3>🥗 Alimentación del día</h3>
-    <p class="sub">Marca qué priorizaste y registra si comiste chatarra.</p>
-
-    <label class="f"><span>Alimentos que prioricé hoy</span>
-      <div class="tags" id="fdGroups"></div>
-      <div class="mini-lbl"><span id="fdGroupsN">0 grupos</span><span>Meta: 3 grupos</span></div>
-    </label>
-
-    <label class="f"><span>Comida chatarra de hoy</span>
-      <div class="tags" id="fdJunkPick"></div>
-    </label>
-    <div class="panel" id="fdJunkList" style="padding:6px 14px;margin-bottom:14px"></div>
-
-    <div id="fdRisk"></div>
-
-    <label class="f"><span>Notas de alimentación</span>
-      <textarea class="inp" id="fdNote" rows="2" placeholder="Cómo comiste, antojos, horarios…" style="resize:vertical"></textarea></label>
-    <button class="btn" id="fdSave">Guardar</button>
-    <button class="btn ghost" style="margin-top:8px" id="fdClose">Cerrar</button>
-  </div>
-</div>
-
 <!-- ===== Pantalla de acceso ===== -->
 <div id="login" class="hidden" style="position:fixed;inset:0;z-index:300;background:var(--bg);
      display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto">
@@ -497,7 +463,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-13";
+const APP_VERSION = "2026.08.26-14";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -505,7 +471,6 @@ const DEF_HABITS = [
   {id:"entren", name:"Entrenar",    emoji:"🏋️", type:"workout",goal:1,   unit:"",      step:1,    color:"#22e07a"},
   {id:"activi", name:"Actividad física", emoji:"🏃", type:"activity", goal:60, unit:"min", step:5, color:"#f97316", peso:2},
   {id:"caminar",name:"Caminar",     emoji:"🚶", type:"amount", goal:8000,unit:"pasos", step:1000, color:"#fbbf24", peso:2},
-  {id:"comida", name:"Comer sano",  emoji:"🥗", type:"food",   goal:3,   unit:"grupos",step:1,    color:"#2dd4bf"},
   {id:"leer",   name:"Leer",        emoji:"📖", type:"amount", goal:10,  unit:"páginas",step:2,   color:"#a78bfa"},
   {id:"personal",name:"Trabajo personal", emoji:"🚀", type:"amount", goal:60, unit:"min", step:15, color:"#fb7185"},
   {id:"pantall",name:"Sin pantallas de noche", emoji:"📵", type:"check", goal:1, unit:"", step:1, color:"#e879f9"}
@@ -533,28 +498,9 @@ const DEF_SETTINGS = {
     {id:"t", nombre:"Tarde",  color:"#fbbf24"},
     {id:"n", nombre:"Noche",  color:"#a78bfa"},
     {id:"l", nombre:"Libre",  color:"#22e07a"}
-  ]},
-  junk:{dayWarn:2, dayRisk:3, weekWarn:3, weekRisk:5}
+  ]}
 };
 
-/* Grupos de alimentos que se pueden priorizar en el día */
-const FOOD_GROUPS = [
-  {k:"proteina",  e:"🍗", l:"Proteína"},
-  {k:"verduras",  e:"🥦", l:"Verduras"},
-  {k:"frutas",    e:"🍎", l:"Frutas"},
-  {k:"integrales",e:"🌾", l:"Integrales"},
-  {k:"legumbres", e:"🫘", l:"Legumbres"},
-  {k:"grasas",    e:"🥑", l:"Grasas buenas"},
-  {k:"lacteos",   e:"🥛", l:"Lácteos"},
-  {k:"hidrata",   e:"💧", l:"Hidratación"}
-];
-/* Comida chatarra: cada ítem cuenta como 1 porción */
-const JUNK_ITEMS = [
-  {e:"🍔", l:"Comida rápida"}, {e:"🍟", l:"Frituras"},
-  {e:"🍕", l:"Pizza"},         {e:"🥤", l:"Bebida azucarada"},
-  {e:"🍫", l:"Dulces"},        {e:"🍪", l:"Snacks/galletas"},
-  {e:"🍺", l:"Alcohol"},       {e:"🍦", l:"Postre/helado"}
-];
 /* Deportes y actividades para el registro diario */
 const ACTIVIDADES = [
   {k:"correr",   e:"🏃", l:"Correr"},      {k:"caminar",  e:"🚶", l:"Caminar"},
@@ -601,9 +547,8 @@ function load(){
           Object.values(d.logs).forEach(l=>{ if(l.values) delete l.values[oldId]; });
       };
       if(!(d.v >= 2)){ d.theme = "dark"; d.v = 2; }   // migración: la app pasa a fondo negro
-      if(d.v < 3){                                     // migración: entrenamiento, comida y hábitos nuevos
+      if(d.v < 3){                                     // migración: entrenamiento y hábitos nuevos
         mv("entren", {type:"workout", goal:1, unit:""});
-        mv("comida", {type:"food", goal:3, unit:"grupos", step:1});
         mv("medit",  {id:"leer", name:"Leer", emoji:"📖", type:"amount", goal:10, unit:"páginas", step:2, color:"#a78bfa"});
         mv("estirar",{id:"personal", name:"Trabajo personal", emoji:"🚀", type:"amount", goal:60, unit:"min", step:15, color:"#fb7185"});
         d.v = 3;
@@ -619,12 +564,15 @@ function load(){
         d.habits.forEach(h=>{ h.peso = (h.id === "activi" || h.id === "caminar") ? 2 : (h.peso || 1); });
         d.v = 5;
       }
+      if(d.v < 6){                                     // fuera el apartado de alimentación
+        d.habits = (d.habits||[]).filter(h => h && h.type !== "food" && h.id !== "comida");
+        d.v = 6;
+      }
       d.theme ||= "dark";
       d.settings = Object.assign({}, DEF_SETTINGS, d.settings||{});
       d.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  d.settings.rem||{});
       d.settings.wake = Object.assign({}, DEF_SETTINGS.wake, d.settings.wake||{});
       d.settings.screens = Object.assign({}, DEF_SETTINGS.screens, d.settings.screens||{});
-      d.settings.junk = Object.assign({}, DEF_SETTINGS.junk, d.settings.junk||{});
       d.settings.turnos = Object.assign({}, DEF_SETTINGS.turnos, d.settings.turnos||{});
       if(!Array.isArray(d.settings.turnos.tipos) || !d.settings.turnos.tipos.length)
         d.settings.turnos.tipos = DEF_SETTINGS.turnos.tipos.map(t=>({...t}));
@@ -646,7 +594,6 @@ function load(){
         crudo.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  crudo.settings.rem||{});
         crudo.settings.wake = Object.assign({}, DEF_SETTINGS.wake, crudo.settings.wake||{});
         crudo.settings.screens = Object.assign({}, DEF_SETTINGS.screens, crudo.settings.screens||{});
-        crudo.settings.junk = Object.assign({}, DEF_SETTINGS.junk, crudo.settings.junk||{});
         crudo.theme ||= "dark";
         return crudo;
       }
@@ -688,7 +635,6 @@ function shift(k,n){ const d=parseKey(k); d.setDate(d.getDate()+n); return today
 function dayLog(k){
   const l = (S.logs[k] ||= {values:{}, note:"", mood:0, sleep:null});
   l.workout ||= {ex:[]};
-  l.food ||= {groups:[], junk:[], note:""};
   l.actividad ||= {items:{}};
   l.agenda ||= {};
   if(!("turno" in l)) l.turno = "";
@@ -721,23 +667,16 @@ function dayPct(k){
    falta por ganar. Sin check-in de sueño no se resta nada: esos
    puntos quedan disponibles, que motiva más que castigar.
    ============================================================ */
-const PUNTOS = {habitos:60, sueno:25, comida:15};
+const PUNTOS = {habitos:75, sueno:25};
 
 function puntajeDia(k){
   const l = S.logs[k];
   const hab = Math.round(dayPct(k) * PUNTOS.habitos);
   const haySueno = !!(l?.sleep && Number(l.sleep.score));
   const sue = haySueno ? Math.round(Number(l.sleep.score)/100 * PUNTOS.sueno) : 0;
-  const hf = S.habits.find(h=>h.type === "food");
-  const meta = Math.max(1, Number(hf?.goal) || 3);
-  const grupos = (l?.food?.groups || []).length;
-  const base = PUNTOS.comida * Math.min(1, grupos/meta);
-  const chatarra = junkCount(k);
-  const com = Math.max(0, Math.round(base - chatarra*5));
-  return {total: hab + sue + com, hab, sue, com, haySueno, grupos, meta, chatarra,
-          perdidosChatarra: Math.min(Math.round(base), chatarra*5)};
+  return {total: hab + sue, hab, sue, haySueno};
 }
-/* Los 60 puntos de hábitos se reparten según la prioridad de cada uno.
+/* Los 75 puntos de hábitos se reparten según la prioridad de cada uno.
    Con todos en normal el reparto es a partes iguales; subir uno a alta le da
    el doble de peso, y se lo quita al resto. */
 const PRIORIDADES = [
@@ -768,19 +707,6 @@ function rachaBuenos(){
   while(puntajeDia(k).total >= DIA_BUENO){ n++; k = shift(k,-1); }
   return n;
 }
-/* Días seguidos sin comida chatarra, contando solo los que tienen registro. */
-function rachaLimpia(){
-  let n = 0, k = todayKey();
-  for(let i = 0; i < 400; i++){
-    const l = S.logs[k];
-    if(l && (l.food?.groups?.length || l.food?.junk?.length || Object.keys(l.values||{}).length)){
-      if(junkCount(k) > 0) break;
-      n++;
-    }
-    k = shift(k,-1);
-  }
-  return n;
-}
 const promedioPuntaje = dias => {
   const ks = []; let k = todayKey();
   for(let i=0;i<dias;i++){ ks.push(k); k = shift(k,-1); }
@@ -809,7 +735,6 @@ function slug(s){
    o de la nube. Devuelve true si tuvo que cambiar algo. */
 const CAMBIOS_HABITOS = [
   ["entren",  {type:"workout", goal:1, unit:""}],
-  ["comida",  {type:"food", goal:3, unit:"grupos", step:1}],
   ["medit",   {id:"leer", name:"Leer", emoji:"📖", type:"amount", goal:10, unit:"páginas", step:2, color:"#a78bfa"}],
   ["estirar", {id:"personal", name:"Trabajo personal", emoji:"🚀", type:"amount", goal:60, unit:"min", step:15, color:"#fb7185"}],
   ["correr",  {id:"activi", name:"Actividad física", emoji:"🏃", type:"activity", goal:60, unit:"min", step:5, color:"#f97316"}]
@@ -817,6 +742,11 @@ const CAMBIOS_HABITOS = [
 function arreglarHabitos(lista){
   if(!Array.isArray(lista)) return false;
   let cambio = false;
+  /* El hábito de alimentación ya no existe: si viene de la nube, se descarta. */
+  for(let i = lista.length - 1; i >= 0; i--){
+    const h = lista[i];
+    if(h && (h.type === "food" || h.id === "comida")){ lista.splice(i,1); cambio = true; }
+  }
   CAMBIOS_HABITOS.forEach(([id, patch])=>{
     const h = lista.find(x=>x && x.id === id);
     if(!h) return;
@@ -1041,11 +971,8 @@ function renderHero(){
   const chips = [];
   if(!p.haySueno) chips.push(`<span class="chip sleep">😴 +${PUNTOS.sueno} con tu check-in</span>`);
   else chips.push(`<span class="chip sleep">😴 ${l.sleep.score} · ${p.sue} pts</span>`);
-  if(p.perdidosChatarra) chips.push(`<span class="chip" style="border-color:#fb718555;color:#fda4af">🍔 −${p.perdidosChatarra} pts</span>`);
   const rb = rachaBuenos();
   if(rb > 1) chips.push(`<span class="chip hot">🔥 ${rb} días buenos</span>`);
-  const rl = rachaLimpia();
-  if(rl > 2) chips.push(`<span class="chip" style="border-color:#22e07a55;color:#4ade80">🧼 ${rl} días sin chatarra</span>`);
   if(!chips.length) chips.push(`<span class="chip">Completa tus hábitos para sumar puntos</span>`);
   document.getElementById("heroChips").innerHTML = chips.join("");
 
@@ -1086,7 +1013,6 @@ function renderCards(){
     let body;
     if(h.type==="activity"){ body = actividadCardBody(h,l); }
     else if(h.type==="workout"){ body = workoutCardBody(h,l); }
-    else if(h.type==="food"){ body = foodCardBody(h,l); }
     else if(h.type==="check"){
       body = `<div class="row"><div class="hval">${done?"Hecho":"Pendiente"}</div>
         <button class="toggle ${done?'on':''}" data-t="${h.id}">${done?"✓":"○"}</button></div>`;
@@ -1119,7 +1045,6 @@ function renderCards(){
   box.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>bump(b.dataset.m,-1));
   box.querySelectorAll("[data-ac]").forEach(b=>b.onclick=()=>openActividad());
   box.querySelectorAll("[data-wk]").forEach(b=>b.onclick=()=>openWorkout());
-  box.querySelectorAll("[data-fd]").forEach(b=>b.onclick=()=>openFood());
   box.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{
     const lg=dayLog(cur), h=S.habits.find(x=>x.id===b.dataset.t);
     const was = !!lg.values[h.id];
@@ -1155,7 +1080,7 @@ function refrescarTarjeta(id){
     if(val) val.textContent = done ? "Hecho" : "Pendiente";
     const t = card.querySelector(".toggle");
     if(t){ t.classList.toggle("on", done); t.textContent = done ? "✓" : "○"; }
-  }else if(h.type !== "workout" && h.type !== "food"){
+  }else if(h.type !== "workout"){
     if(val) val.innerHTML = `${fmt(v)}<small>/ ${fmt(h.goal)} ${esc(h.unit||"")}</small>`;
     card.querySelectorAll(".dot").forEach((d,i)=>{
       d.className = "dot" + (v >= i+1 ? " f" : (v > i ? " p" : ""));
@@ -1530,7 +1455,6 @@ function renderStats(){
   const avgSleep = sleeps.length ? Math.round(sleeps.reduce((a,s)=>a+s.score,0)/sleeps.length) : 0;
   const avgHrs = sleeps.length ? Math.round(sleeps.reduce((a,s)=>a+s.hours,0)/sleeps.length*10)/10 : 0;
   const totKg = days.reduce((a,d)=>a+wkVolume(S.logs[d]?.workout), 0);
-  const jw = junkWeek(todayKey());
   let gstreak=0, kk=todayKey();
   if(dayPct(kk)===0) kk=shift(kk,-1);
   while(dayPct(kk)>0){ gstreak++; kk=shift(kk,-1); }
@@ -1540,8 +1464,7 @@ function renderStats(){
     <div class="stat"><b>${rachaBuenos()}</b><span>Días buenos seguidos</span></div>
     <div class="stat"><b>${perfect}</b><span>Días impecables (90+)</span></div>
     <div class="stat"><b style="color:#a5b4fc">${avgSleep||"–"}</b><span>Sueño promedio</span></div>
-    <div class="stat"><b>${kg(totKg)}</b><span>Kg movidos · 30 días</span></div>
-    <div class="stat"><b style="color:${RISK[riskLevel(junkCount(todayKey()), jw)].c}">${jw}</b><span>Chatarra · 7 días</span></div>`;
+    <div class="stat"><b>${kg(totKg)}</b><span>Kg movidos · 30 días</span></div>`;
 
   const sesiones = days.filter(d=>wkVolume(S.logs[d]?.workout)>0);
   const mejor = sesiones.length ? Math.max(...sesiones.map(d=>wkVolume(S.logs[d].workout))) : 0;
@@ -1556,25 +1479,6 @@ function renderStats(){
       <div class="hp"><i style="width:${Math.min(100,sesiones.length/12*100)}%"></i></div>
       <div class="hn">${(sesiones.length/30*7).toFixed(1)}/sem</div></div>`
     : `<div class="empty">Aún no registras entrenamientos con peso.</div>`;
-
-  const j30 = days.reduce((a,d)=>a+junkCount(d),0);
-  const dias0 = days.filter(d=>junkCount(d)===0).length;
-  const R = RISK[riskLevel(junkCount(todayKey()), jw)];
-  const topJunk = {};
-  days.forEach(d=>(S.logs[d]?.food?.junk||[]).forEach(x=>topJunk[x.e+" "+x.l]=(topJunk[x.e+" "+x.l]||0)+x.n));
-  const rank = Object.entries(topJunk).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  document.getElementById("foodBox").innerHTML = `
-    <div class="risk ${R.cls}" style="margin:0 0 12px">
-      <div class="lv" style="background:${R.c}1f">${R.e}</div>
-      <div><b style="color:${R.c}">${R.t}</b>
-        <span>${jw} porciones en los últimos 7 días · límite de riesgo ${S.settings.junk.weekRisk}</span></div>
-    </div>
-    <div class="hist" style="cursor:default"><div class="hd">🧼 Días limpios</div>
-      <div class="hp"><i style="width:${dias0/30*100}%"></i></div><div class="hn">${dias0}/30</div></div>
-    <div class="hist" style="cursor:default"><div class="hd">🍔 Total 30 días</div>
-      <div class="hp"><i style="width:${Math.min(100,j30/(S.settings.junk.weekRisk*4)*100)}%;background:${R.c}"></i></div>
-      <div class="hn">${j30}</div></div>
-    ${rank.length?`<div style="font-size:12px;color:var(--tx3);margin-top:10px">Lo que más repites: ${rank.map(([k,v])=>`${k} ×${v}`).join(" · ")}</div>`:""}`;
 
   const last14 = days.slice(0,14).reverse();
   document.getElementById("chart14").innerHTML = last14.map(d=>{
@@ -1710,29 +1614,6 @@ function renderHabits(){
   box.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{
     const i=+b.dataset.up; [S.habits[i-1],S.habits[i]]=[S.habits[i],S.habits[i-1]]; save(); renderHabits();
   });
-}
-function renderJunk(){
-  const j = S.settings.junk;
-  document.getElementById("junkPanel").innerHTML = `
-    <p style="font-size:13px;color:var(--tx2);margin:0 0 14px">
-      Una <b>porción</b> = una comida o bebida chatarra (un combo, una bebida azucarada, un postre…).
-      Cuando superes estos números la app te marca <b style="color:#fbbf24">precaución</b> o
-      <b style="color:#fb7185">riesgo</b> en la tarjeta de alimentación.</p>
-    <div class="two">
-      <label class="f"><span>Precaución · día</span><input class="inp" type="number" min="1" max="10" id="jDW" value="${j.dayWarn}"></label>
-      <label class="f"><span>Riesgo · día</span><input class="inp" type="number" min="1" max="10" id="jDR" value="${j.dayRisk}"></label>
-    </div>
-    <div class="two">
-      <label class="f"><span>Precaución · 7 días</span><input class="inp" type="number" min="1" max="30" id="jWW" value="${j.weekWarn}"></label>
-      <label class="f"><span>Riesgo · 7 días</span><input class="inp" type="number" min="1" max="30" id="jWR" value="${j.weekRisk}"></label>
-    </div>
-    <p style="font-size:12px;color:var(--tx3);margin:2px 0 0">
-      Valores sugeridos: hasta 2 porciones por semana se considera ocasional; de 3 a 4 conviene vigilarlo;
-      5 o más en una semana (o 3 en un mismo día) ya es un patrón de riesgo. Ajústalos a tu criterio.</p>`;
-  const set=(id,k,min,max)=>document.getElementById(id).onchange=e=>{
-    j[k]=clamp(Math.round(Number(e.target.value)||min),min,max); save(); renderJunk(); renderToday(); };
-  set("jDW","dayWarn",1,10); set("jDR","dayRisk",1,10);
-  set("jWW","weekWarn",1,30); set("jWR","weekRisk",1,30);
 }
 async function renderInstall(){
   const box = document.getElementById("installPanel");
@@ -1936,7 +1817,7 @@ function renderTurnos(){
     save(); renderTurnos();
   };
 }
-function renderSettings(){ renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderJunk(); renderHabits(); }
+function renderSettings(){ renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
 
 /* ============================================================
    MODAL HÁBITO
@@ -1981,7 +1862,7 @@ function notaPeso(){
 
 function typeUI(){
   const t = fType.value;
-  if(t==="workout"||t==="food"||t==="activity"){
+  if(t==="workout"||t==="activity"){
     document.getElementById("stepWrap").classList.add("hidden");
     document.getElementById("goalWrap").classList.toggle("hidden", t==="workout");
     if(t==="activity") document.getElementById("goalWrap").classList.remove("hidden");
@@ -2204,145 +2085,12 @@ function syncActividad(){
   save();
 }
 
-/* ============================================================
-   ALIMENTACIÓN · prioridades y comida chatarra
-   ============================================================ */
-const junkCount = k => (S.logs[k]?.food?.junk||[]).reduce((a,j)=>a+(j.n||1),0);
-function junkWeek(endKey){
-  let t=0, k=endKey;
-  for(let i=0;i<7;i++){ t += junkCount(k); k = shift(k,-1); }
-  return t;
-}
-function riskLevel(day, week){
-  const j = S.settings.junk;
-  if(day >= j.dayRisk || week >= j.weekRisk) return 2;
-  if(day >= j.dayWarn || week >= j.weekWarn) return 1;
-  return 0;
-}
+/* Semáforo reutilizable: lo usa el panel de sincronización. */
 const RISK = [
-  {cls:"rk-ok",   bd:"bd-ok",   e:"✅", t:"En control",  c:"#22e07a"},
-  {cls:"rk-warn", bd:"bd-warn", e:"⚠️", t:"Precaución",  c:"#fbbf24"},
-  {cls:"rk-bad",  bd:"bd-bad",  e:"🚨", t:"Zona de riesgo", c:"#fb7185"}
+  {cls:"rk-ok",   e:"✅", t:"En control",  c:"#22e07a"},
+  {cls:"rk-warn", e:"⚠️", t:"Precaución",  c:"#fbbf24"},
+  {cls:"rk-bad",  e:"🚨", t:"Zona de riesgo", c:"#fb7185"}
 ];
-
-function foodCardBody(h,l){
-  const g = (l.food.groups||[]).length;
-  const d = junkCount(cur), w = junkWeek(cur), lv = riskLevel(d,w), R = RISK[lv];
-  return `<div class="row">
-      <div class="hval">${g}<small>/ ${h.goal} grupos</small></div>
-      <span class="badge ${R.bd}" style="margin-left:auto">${R.e} ${d} chatarra hoy</span>
-    </div>
-    <div class="hgoal" style="margin-top:8px">${g? (l.food.groups.map(k=>FOOD_GROUPS.find(f=>f.k===k)?.e||"").join(" ")) : "Sin alimentos priorizados"} · ${w} en 7 días</div>
-    <button class="cardbtn" data-fd="1">Registrar alimentación</button>`;
-}
-
-function openFood(){
-  shutModals();
-  drawFood();
-  document.getElementById("fdNote").value = dayLog(cur).food.note||"";
-  document.getElementById("fdModal").classList.add("open");
-}
-function drawFood(){
-  const f = dayLog(cur).food;
-  const gBox = document.getElementById("fdGroups"), jBox = document.getElementById("fdJunkPick");
-
-  if(!gBox.children.length){
-    gBox.innerHTML = FOOD_GROUPS.map(g=>`<button class="tag" data-g="${g.k}">${g.e} ${g.l}</button>`).join("");
-    jBox.innerHTML = JUNK_ITEMS.map(j=>`<button class="tag junk" data-j="${esc(j.l)}" data-je="${j.e}">${j.e} ${j.l}</button>`).join("")
-      + `<button class="tag" id="junkOtro" style="border-style:dashed">＋ Otro</button>`;
-    jBox.querySelector("#junkOtro").onclick = ()=>{
-      const nombre = prompt("¿Qué comiste?");
-      if(!nombre || !nombre.trim()) return;
-      const l0 = nombre.trim().slice(0,40);
-      const it = f.junk.find(x=>x.l.toLowerCase() === l0.toLowerCase());
-      it ? it.n++ : f.junk.push({l:l0, e:"🍽", n:1});
-      syncFood(); listaChatarra(); drawRisk();
-    };
-    gBox.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{
-      const k = b.dataset.g, i = f.groups.indexOf(k);
-      i < 0 ? f.groups.push(k) : f.groups.splice(i,1);
-      b.classList.toggle("on", i < 0);                 // solo este botón cambia
-      contarGrupos(); syncFood();
-    });
-    jBox.querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{
-      const it = f.junk.find(x=>x.l === b.dataset.j);
-      it ? it.n++ : f.junk.push({l:b.dataset.j, e:b.dataset.je, n:1});
-      syncFood(); listaChatarra(); drawRisk();
-    });
-  }
-  gBox.querySelectorAll("[data-g]").forEach(b=>b.classList.toggle("on", f.groups.includes(b.dataset.g)));
-  contarGrupos(); listaChatarra(); drawRisk();
-}
-
-function contarGrupos(){
-  const n = dayLog(cur).food.groups.length;
-  document.getElementById("fdGroupsN").textContent = `${n} grupo${n===1?"":"s"}`;
-}
-
-function listaChatarra(){
-  const f = dayLog(cur).food;
-  document.getElementById("fdJunkList").innerHTML = f.junk.length
-    ? f.junk.map((j,i)=>`<div class="jrow">
-        <span style="font-size:17px">${j.e}</span>
-        <div class="n">${esc(j.l)}</div>
-        <div class="stepper">
-          <button class="sbtn" data-jm="${i}">−</button>
-          <div style="min-width:26px;text-align:center;font-weight:800" data-jn="${i}">${j.n}</div>
-          <button class="sbtn" data-jp="${i}">+</button>
-        </div></div>`).join("")
-    : `<div class="empty" style="padding:16px">Sin comida chatarra hoy 🎉</div>`;
-  document.querySelectorAll("[data-jp]").forEach(b=>b.onclick=()=>{
-    const i = +b.dataset.jp; f.junk[i].n++;
-    document.querySelector(`[data-jn="${i}"]`).textContent = f.junk[i].n;   // sin rehacer la fila
-    syncFood(); drawRisk(); });
-  document.querySelectorAll("[data-jm]").forEach(b=>b.onclick=()=>{
-    const i = +b.dataset.jm; f.junk[i].n--;
-    if(f.junk[i].n <= 0){ f.junk.splice(i,1); syncFood(); listaChatarra(); drawRisk(); return; }
-    document.querySelector(`[data-jn="${i}"]`).textContent = f.junk[i].n;
-    syncFood(); drawRisk(); });
-}
-
-function drawRisk(){
-  const j = S.settings.junk;
-  const d = junkCount(cur), w = junkWeek(cur), lv = riskLevel(d,w), R = RISK[lv];
-  const quedan = Math.max(0, j.weekRisk - w);
-  const limpia = rachaLimpia();
-  const p = puntajeDia(cur);
-
-  const msg = lv === 2
-      ? "Estás por sobre tu límite. Vale la pena frenar y planificar las comidas de los próximos días."
-      : lv === 1 ? "Vas justo en el límite. Cuida los próximos días para no pasarte."
-                 : quedan >= j.weekRisk ? "Semana limpia hasta ahora. Así se ve un buen mes."
-                                        : `Vas bien: te quedan ${quedan} porcion${quedan===1?"":"es"} de margen esta semana.`;
-
-  document.getElementById("fdRisk").innerHTML = `
-    <div class="risk ${R.cls}">
-      <div class="lv" style="background:${R.c}1f">${R.e}</div>
-      <div><b style="color:${R.c}">${R.t}</b><span>${msg}</span></div>
-    </div>
-
-    <div class="presu">
-      <div class="pcab"><span>Presupuesto de la semana</span>
-        <b style="color:${R.c}">${w} de ${j.weekRisk}</b></div>
-      <div class="pfichas">${Array.from({length:j.weekRisk}, (_,i)=>
-        `<i class="${i < w ? "usada" : ""}" style="${i < w ? `background:${R.c}` : ""}"></i>`).join("")}</div>
-      <div class="mini-lbl"><span>Hoy: ${d} ${d===1?"porción":"porciones"}</span>
-        <span>${quedan ? `quedan ${quedan}` : "sin margen"}</span></div>
-    </div>
-
-    <div class="sl-meta libre" style="margin:12px 0 14px">
-      <div><b style="color:${limpia > 0 ? "#4ade80" : "var(--tx3)"}">${limpia}</b><span>Días seguidos limpios</span></div>
-      <div><b style="color:${p.com === PUNTOS.comida ? "#4ade80" : "var(--tx2)"}">${p.com}/${PUNTOS.comida}</b><span>Puntos de hoy</span></div>
-      ${p.perdidosChatarra ? `<div><b style="color:#fb7185">−${p.perdidosChatarra}</b><span>Perdidos por chatarra</span></div>` : ""}
-    </div>`;
-}
-
-function syncFood(){
-  const l = dayLog(cur), hf = S.habits.find(h=>h.type==="food");
-  if(hf) l.values[hf.id] = l.food.groups.length;
-  save();
-  renderHero();                 // el puntaje del día cambia al instante
-}
 
 /* ============================================================
    ALERTA DE PANTALLAS
@@ -3066,16 +2814,6 @@ document.getElementById("wkClose").onclick = saveWorkout;
 document.getElementById("wkModal").onclick = e=>{ if(e.target.id==="wkModal") saveWorkout(); };
 document.getElementById("wkNote").oninput  = e=>{ dayLog(cur).workout.note = e.target.value; save(); };
 
-function closeFood(){
-  dayLog(cur).food.note = document.getElementById("fdNote").value;
-  syncFood();
-  document.getElementById("fdModal").classList.remove("open");
-  renderToday();
-}
-document.getElementById("fdSave").onclick  = ()=>{ closeFood(); toast("🥗 Alimentación guardada"); };
-document.getElementById("fdClose").onclick = closeFood;
-document.getElementById("fdModal").onclick = e=>{ if(e.target.id==="fdModal") closeFood(); };
-
 /* Tocar fuera de la tarjeta cierra y vuelve atrás, igual que su botón de
    cancelar. Las fichas, las mediciones y los documentos no lo tenían y había
    que buscar el botón para salir. */
@@ -3105,8 +2843,8 @@ document.getElementById("fSave").onclick=()=>{
     color: document.querySelector("[data-c].on")?.dataset.c || COLORS[0],
     type,
     goal: (type==="check"||type==="workout") ? 1 : Math.max(0.1, Number(fGoal.value)||1),
-    unit: type==="check" ? "" : (type==="workout" ? "" : (type==="food" ? "grupos" : (type==="activity" ? "min" : fUnit.value.trim()))),
-    step: (type==="check"||type==="workout"||type==="food") ? 1 : Math.max(0.1, Number(fStep.value)||1)
+    unit: type==="check" ? "" : (type==="workout" ? "" : (type==="activity" ? "min" : fUnit.value.trim())),
+    step: (type==="check"||type==="workout") ? 1 : Math.max(0.1, Number(fStep.value)||1)
   };
   if(editing) Object.assign(editing, data);
   else{
@@ -3164,7 +2902,6 @@ document.addEventListener("keydown",e=>{
     closeModal();
     document.getElementById("sleepModal").classList.remove("open");
     if(document.getElementById("wkModal").classList.contains("open")) saveWorkout();
-    if(document.getElementById("fdModal").classList.contains("open")) closeFood();
     if(document.getElementById("acModal").classList.contains("open")) cerrarActividad();
   }
   if(e.target.matches("input,textarea,select")) return;
