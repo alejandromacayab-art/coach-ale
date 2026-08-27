@@ -2,7 +2,7 @@
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "coachale-v46";
+const CACHE = "coachale-v47";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
@@ -20,10 +20,18 @@ self.addEventListener("activate", e=>{
     .then(()=>self.clients.claim()));
 });
 
+/* La app puede pedirle que deje de esperar y tome el mando ya mismo. */
+self.addEventListener("message", e=>{
+  if(e.data && e.data.tipo === "saltarEspera") self.skipWaiting();
+});
+
 /* red primero para el HTML (para que veas los cambios), caché como respaldo */
 self.addEventListener("fetch", e=>{
   const req = e.request;
   if(req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
+  /* El aviso de versión nunca se guarda: es justamente lo que detecta que
+     la caché quedó vieja, así que tiene que venir siempre de la red. */
+  if(new URL(req.url).pathname.endsWith("/version.txt")) return;
   // el HTML se pide siempre al servidor, sin pasar por la caché del navegador:
   // si no, una copia guardada podía tapar una versión nueva durante horas
   const esHTML = req.mode === "navigate" ||

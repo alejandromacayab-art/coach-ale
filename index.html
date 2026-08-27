@@ -464,7 +464,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-16";
+const APP_VERSION = "2026.08.26-17";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -812,10 +812,60 @@ async function initSW(){
     swReg.update().catch(()=>{});
     // y buscamos actualizaciones cada vez que vuelves a la app
     document.addEventListener("visibilitychange", ()=>{
-      if(document.visibilityState === "visible" && swReg) swReg.update().catch(()=>{});
+      if(document.visibilityState !== "visible") return;
+      if(swReg) swReg.update().catch(()=>{});
+      buscarVersion();
     });
     renderInstall && renderInstall();
   }catch(e){ console.warn("SW no registrado:", e); }
+}
+
+/* ---------------- aviso de versión nueva ----------------
+   No depende del service worker: si este se queda pegado con una copia
+   vieja, esto lo detecta igual y te ofrece el botón para forzarla. */
+let ultimaBusqueda = 0;
+async function buscarVersion(forzar){
+  if(location.protocol === "file:") return;
+  if(!forzar && Date.now() - ultimaBusqueda < 5*60*1000) return;
+  ultimaBusqueda = Date.now();
+  try{
+    const r = await fetch("version.txt?t=" + Date.now(), {cache:"no-store"});
+    if(!r.ok) return;
+    const v = (await r.text()).trim();
+    if(v && v !== APP_VERSION) avisarVersion(v);
+  }catch(e){}
+}
+
+function avisarVersion(v){
+  if(document.getElementById("updBar")) return;
+  const bar = document.createElement("div");
+  bar.id = "updBar";
+  bar.className = "banner";
+  bar.innerHTML = `<div style="font-size:20px">✨</div>
+    <div class="t"><b>Hay una versión nueva</b>La ${esc(v)}. Tienes la ${esc(APP_VERSION)}.</div>
+    <button id="updYes">Actualizar</button>`;
+  const vista = document.getElementById("view-hoy");
+  vista.insertBefore(bar, vista.firstChild);
+  document.getElementById("updYes").onclick = forzarActualizacion;
+}
+
+/* Borra las cachés, empuja al service worker nuevo si estaba esperando y
+   vuelve a pedir la página con una dirección que nadie tiene guardada.
+   No lo damos de baja a propósito: eso borraría tus alertas del celular. */
+async function forzarActualizacion(){
+  toast("Actualizando…");
+  try{
+    const ks = await caches.keys();
+    await Promise.all(ks.map(k=>caches.delete(k)));
+  }catch(e){}
+  try{
+    if(swReg){
+      await swReg.update();
+      const esperando = swReg.waiting || swReg.installing;
+      if(esperando) esperando.postMessage({tipo:"saltarEspera"});
+    }
+  }catch(e){}
+  setTimeout(()=>location.replace(location.pathname + "?v=" + Date.now()), 600);
 }
 
 /* ---------- espejo del día en IndexedDB, para que el push sea específico ---------- */
@@ -1782,15 +1832,7 @@ async function renderInstall(){
         Buscar actualización</button></p>`;
   box.innerHTML = estado + (standalone ? "" : pasos) + pushBlock + pie;
   const fu = document.getElementById("forceUpd");
-  if(fu) fu.onclick = async ()=>{
-    toast("Buscando actualización…");
-    try{
-      const ks = await caches.keys();
-      await Promise.all(ks.map(k=>caches.delete(k)));
-      if(swReg) await swReg.update();
-    }catch(e){}
-    setTimeout(()=>location.reload(true), 700);
-  };
+  if(fu) fu.onclick = forzarActualizacion;
 
   const cp = document.getElementById("copySub");
   if(cp) cp.onclick = async ()=>{
@@ -3027,6 +3069,7 @@ applyTheme();
 renderAll();
 go("hoy");
 initSW();
+setTimeout(()=>buscarVersion(true), 2500);   // por si el service worker se quedó pegado
 mirrorState();
 /* Si acabamos de recargar por una versión nueva, se lo decimos:
    una pantalla que se recarga sola sin explicación asusta. */
