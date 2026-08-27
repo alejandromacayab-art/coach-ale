@@ -30,10 +30,12 @@ body{
     var(--bg);
   background-attachment:fixed;
 }
-/* Sin touch-action:manipulation: bloqueaba el doble toque para acercar.
-   El retardo de 350 ms ya no existe con un viewport width=device-width. */
+/* `manipulation` deja pasar el desplazamiento y el pellizco, pero anula el
+   zoom por doble o triple toque, que se disparaba sin querer al tocar rapido
+   un habito o un dia del calendario. */
+html,body{touch-action:manipulation}
 button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;
-  -webkit-user-select:none;user-select:none}
+  touch-action:manipulation;-webkit-user-select:none;user-select:none}
 input,select,textarea{font:inherit;color:inherit}
 .wrap{max-width:760px;margin:0 auto;padding:0 16px}
 .hidden{display:none !important}

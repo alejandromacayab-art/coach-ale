@@ -1,8 +1,10 @@
 /* Coach Ale — control del zoom de la pantalla
    Safari en iOS ignora `minimum-scale` cuando el usuario pellizca, así que se
    puede alejar la app por debajo de su tamaño normal y todo queda diminuto.
-   Aquí vigilamos el gesto a mano: dejamos acercar (hasta el doble) y cortamos
-   cualquier movimiento que fuera a dejar la escala por debajo de 1. */
+   Aquí vigilamos el gesto a mano: dejamos acercar con pellizco (hasta el doble)
+   y cortamos cualquier movimiento que fuera a dejar la escala por debajo de 1.
+   El zoom por doble o triple toque queda anulado desde el CSS
+   (`touch-action:manipulation`) para que no salte al tocar rápido. */
 (function(){
   const vv = window.visualViewport;
   const meta = document.querySelector('meta[name="viewport"]');
