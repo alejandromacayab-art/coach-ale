@@ -440,3 +440,23 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .tedit input[type=color]{width:38px;height:38px;flex:none;padding:0;border:1px solid var(--line);
   border-radius:11px;background:var(--card2);cursor:pointer}
 .tedit input[type=text]:focus{border-color:var(--accent)}
+
+
+/* ---------- Calendario en blanco ----------
+   Redefinimos los tokens dentro de la tarjeta: todo lo de dentro
+   (días, etiquetas, leyenda) se adapta solo, sin tocar sus reglas. */
+.panel.cal{
+  --card2:#ffffff;
+  --line:#e4e7ec;
+  --tx:#12161c;
+  --tx2:#4d5765;
+  --tx3:#8b94a1;
+  background:#ffffff;
+  border-color:#d9dde4;
+  color:#12161c;
+}
+.panel.cal .dia{background:#ffffff;border-color:#e4e7ec}
+.panel.cal .dia.vacio{background:#fafbfc}
+.panel.cal .dia.hoy{border-color:#12161c;box-shadow:inset 0 0 0 1px #12161c}
+.panel.cal .et.nota{background:#eef0f4;color:#4d5765}
+.panel.cal .dow span{color:#8b94a1}
