@@ -460,3 +460,28 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .panel.cal .dia.hoy{border-color:#12161c;box-shadow:inset 0 0 0 1px #12161c}
 .panel.cal .et.nota{background:#eef0f4;color:#4d5765}
 .panel.cal .dow span{color:#8b94a1}
+
+
+/* ---------- Calendario a pantalla completa ---------- */
+@media(max-width:700px){
+  #view-hist{margin-top:-6px}
+  #view-hist section{margin:0}
+  #view-hist .mescab{padding:0 2px}
+  /* rompemos el margen lateral de la página para llegar a los bordes */
+  #view-hist .panel.cal{
+    max-width:none;
+    width:auto;
+    margin:10px -16px 0;
+    border-radius:0;
+    border-left:none;
+    border-right:none;
+    padding:12px 8px calc(10px + env(safe-area-inset-bottom));
+  }
+  #view-hist .mes{gap:2px}
+  #view-hist .dia{min-height:0;border-radius:7px}
+}
+.mes{grid-auto-rows:1fr}
+
+@media(max-width:700px){
+  body:has(#view-hist:not(.hidden)){padding-bottom:0}
+}

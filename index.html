@@ -502,7 +502,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-3";
+const APP_VERSION = "2026.08.26-4";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1406,11 +1406,30 @@ function renderHist(){
     : `<span>Toca un día para ver o anotar</span>`;
 
   document.querySelectorAll("[data-dia]").forEach(b=> b.onclick = ()=> openAgenda(b.dataset.dia));
+  ajustarAltoMes();
   document.getElementById("mesHoy").style.visibility =
     (mesActual().y === parseKey(hoy).getFullYear() && mesActual().m === parseKey(hoy).getMonth())
       ? "hidden" : "visible";
 
 }
+
+/* En el móvil el mes ocupa lo que queda de pantalla: las filas se estiran
+   hasta la barra de pestañas en vez de dejar hueco muerto abajo. */
+function ajustarAltoMes(){
+  const grid = document.getElementById("mesGrid");
+  if(!grid || document.getElementById("view-hist").classList.contains("hidden")) return;
+  if(innerWidth > 700){ grid.style.height = ""; return; }
+  const tabs = document.querySelector("nav.tabs");
+  const leyenda = document.getElementById("mesLeyenda");
+  const arriba = grid.getBoundingClientRect().top + scrollY;
+  const libre = innerHeight - arriba
+              - (leyenda ? leyenda.offsetHeight + 12 : 0)
+              - (tabs ? tabs.offsetHeight : 0) - 14;
+  const filas = Math.ceil(grid.children.length / 7);
+  grid.style.height = Math.max(filas*52, libre) + "px";
+}
+addEventListener("resize", ajustarAltoMes);
+addEventListener("orientationchange", ()=> setTimeout(ajustarAltoMes, 250));
 
 document.getElementById("mesPrev").onclick = ()=> moverMes(-1);
 document.getElementById("mesNext").onclick = ()=> moverMes(+1);
