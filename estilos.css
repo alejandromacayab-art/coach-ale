@@ -389,8 +389,9 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .mescab .nav{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);
   background:var(--card);display:grid;place-items:center;color:var(--tx2);flex:none}
 .mestit{flex:1;text-align:center;min-width:0}
-.mestit b{display:block;font-size:15px;letter-spacing:-.02em;text-transform:capitalize}
-.mestit span{display:block;font-size:11.5px;color:var(--tx3)}
+.mestit b{display:block;font-size:19px;letter-spacing:-.025em;text-transform:capitalize;line-height:1.15}
+.mestit span{display:block;font-size:11.5px;color:var(--tx3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-bottom:6px}
 .dow span{text-align:center;font-size:10px;font-weight:800;color:var(--tx3);letter-spacing:.05em}
 .mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
@@ -466,7 +467,15 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 @media(max-width:700px){
   #view-hist{margin-top:-6px}
   #view-hist section{margin:0}
-  #view-hist .mescab{padding:0 2px}
+  /* El encabezado se alinea con la primera columna del calendario y el
+     nombre del mes manda: grande y a la izquierda, la navegacion al lado. */
+  #view-hist .mescab{margin:0 -8px 8px;padding:0;gap:4px}
+  #view-hist .mestit{order:0;text-align:left;padding-left:1px}
+  #view-hist .mestit b{font-size:26px;letter-spacing:-.035em}
+  #view-hist .mestit span{font-size:11px}
+  #view-hist .mescab #mesPrev{order:1}
+  #view-hist .mescab #mesNext{order:2}
+  #view-hist .mescab #mesHoy{order:3}
   /* rompemos el margen lateral de la página para llegar a los bordes */
   #view-hist .panel.cal{
     max-width:none;
