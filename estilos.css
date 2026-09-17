@@ -52,8 +52,10 @@ header{position:sticky;top:0;z-index:50;padding-top:env(safe-area-inset-top);
 .brand .wm{font-size:15px;font-weight:500;letter-spacing:.14em;line-height:1;
   display:flex;flex-direction:column;gap:2px;color:var(--tx)}
 .brand .wm b{font-weight:800;letter-spacing:.06em;font-size:16px}
-:root[data-theme="dark"] .brand .lg-light{display:none}
-:root[data-theme="light"] .brand .lg-dark{display:none}
+/* El logo tiene dos versiones: la de trazo claro para fondos oscuros y
+   la de trazo oscuro para fondos claros. Vale para la cabecera y el acceso. */
+:root[data-theme="dark"] .lg-light{display:none !important}
+:root[data-theme="light"] .lg-dark{display:none !important}
 .spacer{flex:1}
 .iconbtn{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
   border:1px solid var(--line);background:var(--card);font-size:15px;position:relative}

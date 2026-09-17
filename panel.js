@@ -502,8 +502,12 @@ $("themeBtn").onclick = ()=>{
 };
 
 (async function init(){
+  /* La app pasó a fondo claro en la versión 7: un tema guardado de antes
+     ya no manda, si no el panel se quedaba negro para siempre. */
   try{ const w = JSON.parse(localStorage.getItem("wellness.v1")||"{}");
-       if(w.theme) document.documentElement.dataset.theme = w.theme; }catch(e){}
+       const t = ((w.v||0) >= 7 && w.theme) ? w.theme : "light";
+       document.documentElement.dataset.theme = t;
+       $("themeBtn").textContent = t === "dark" ? "☀️" : "🌙"; }catch(e){}
 
   if(!Nube.activa()){
     $("main").innerHTML = `<div class="empty">

@@ -410,7 +410,8 @@
 <div id="login" class="hidden" style="position:fixed;inset:0;z-index:300;background:var(--bg);
      display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto">
   <div style="width:100%;max-width:380px">
-    <img src="assets/logo-dark.png" alt="Coach Ale" style="width:190px;max-width:60%;margin:0 auto 22px;display:block">
+    <img src="assets/logo-dark.png"  alt="Coach Ale" class="lg-dark"  style="width:190px;max-width:60%;margin:0 auto 22px;display:block">
+    <img src="assets/logo-light.png" alt="Coach Ale" class="lg-light" style="width:190px;max-width:60%;margin:0 auto 22px;display:block">
 
     <p id="lgVer" style="text-align:center;color:var(--tx3);font-size:11.5px;margin:0 0 14px"></p>
     <div id="lgEntrar">
@@ -477,7 +478,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-2";
+const APP_VERSION = "2026.09.17-3";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -659,7 +660,11 @@ function load(){
       d.habits.forEach((h,i)=> h.color ||= COLORS[i % COLORS.length]);
       /* Si acabamos de migrar, la lista nueva tiene que ganarle a la que está en
          la nube. Sin esto, al sincronizar volvían los hábitos viejos. */
-      if((d.v||0) > vAntes) d.metaMt = Date.now();
+      if((d.v||0) > vAntes){
+        d.metaMt = Date.now();
+        /* Y la dejamos escrita ya: el panel lee este mismo guardado. */
+        try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){}
+      }
       return d;
     }
   }catch(e){
