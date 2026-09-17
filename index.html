@@ -124,6 +124,13 @@
       <div class="stitle">Cómo se sintieron</div>
       <div class="panel" id="sensBox"></div>
     </section>
+    <section>
+      <div class="stitle">🔎 Consulta</div>
+      <div class="panel">
+        <p class="sub" style="margin:0 0 12px">Respuestas con tus datos, no consejos genéricos.</p>
+        <div class="preguntas" id="preguntas"></div>
+      </div>
+    </section>
   </div>
 
   <!-- ================= SALUD ================= -->
@@ -217,6 +224,15 @@
   <button data-v="stats"><i>◑</i>Progreso</button>
   <button data-v="salud"><i>♡</i>Salud</button>
 </nav>
+
+<!-- ===== Modal consulta ===== -->
+<div class="modal" id="cnModal">
+  <div class="sheet">
+    <h3 id="cnTitulo">Consulta</h3>
+    <div id="cnCuerpo"></div>
+    <button class="btn ghost" style="margin-top:12px" id="cnClose">Cerrar</button>
+  </div>
+</div>
 
 <!-- ===== Modal evaluación del ejercicio ===== -->
 <div class="modal" id="evModal">
@@ -499,7 +515,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-8";
+const APP_VERSION = "2026.09.17-9";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -2119,6 +2135,242 @@ function renderVolumenGrupos(dias){
       <span>${o.volTope} o más · al límite</span></div>`;
 }
 
+/* ============================================================
+   CONSULTA
+   Responde con TUS datos y una acción concreta. No es una IA:
+   son reglas escritas a partir de la evidencia que hay sobre
+   volumen, frecuencia, proximidad al fallo, sueño y proteína.
+   Cada respuesta dice de dónde sale, para que puedas discutirla.
+   ============================================================ */
+function dias(n){ const a=[]; let k=todayKey(); for(let i=0;i<n;i++){ a.push(k); k=shift(k,-1);} return a; }
+
+/* Las sesiones en que aparece un ejercicio, de la más reciente hacia atrás. */
+function historialEjercicio(nombre, n){
+  const clave = String(nombre).trim().toLowerCase(), out = [];
+  let k = todayKey();
+  for(let i = 0; i < 180 && out.length < n; i++){
+    const e = (S.logs[k]?.workout?.ex || [])
+      .find(x => String(x.name||"").trim().toLowerCase() === clave && seriesHechas(x));
+    if(e) out.push({fecha:k, e});
+    k = shift(k, -1);
+  }
+  return out;
+}
+
+/* Cuántos días distintos se entrenó cada grupo en la ventana. */
+function frecuenciaGrupo(ds){
+  const f = {};
+  ds.forEach(k=>{
+    const vistos = new Set();
+    (S.logs[k]?.workout?.ex || []).forEach(e=>{ if(seriesHechas(e)) vistos.add(grupoDe(e)); });
+    vistos.forEach(g=> f[g] = (f[g]||0) + 1);
+  });
+  return f;
+}
+
+/* El RIR medio de las series anotadas, y cuántas lo traen. */
+function rirMedio(ds){
+  let suma = 0, n = 0;
+  ds.forEach(k=>(S.logs[k]?.workout?.ex || []).forEach(e=>
+    (e.sets||[]).forEach(st=>{
+      if(num(st.w) && num(st.r) && st.rir !== "" && st.rir != null){ suma += num(st.rir); n++; }
+    })));
+  return n ? {medio: Math.round(suma/n*10)/10, n} : null;
+}
+
+function suenoMedio(ds){
+  const s = ds.map(k=>S.logs[k]?.sleep).filter(Boolean);
+  if(!s.length) return null;
+  return {horas: Math.round(s.reduce((a,x)=>a+x.hours,0)/s.length*10)/10,
+          score: Math.round(s.reduce((a,x)=>a+x.score,0)/s.length),
+          n: s.length};
+}
+
+/* El ejercicio más entrenado del último mes: el que sirve de ejemplo. */
+function ejercicioPrincipal(){
+  const r = resumenEntreno(dias(30));
+  const l = Object.entries(r.porEjercicio).sort((a,b)=> b[1].series - a[1].series);
+  return l.length ? l[0][0] : null;
+}
+
+const CONSULTAS = [
+  {
+    id:"progreso", etiqueta:"¿Por qué no progreso?",
+    resolver(){
+      const nombre = ejercicioPrincipal();
+      if(!nombre) return null;
+      const h = historialEjercicio(nombre, 4);
+      if(h.length < 2) return {titulo:`${nombre}`,
+        dato:`Solo tengo ${h.length} sesión registrada de este ejercicio.`,
+        accion:"Necesito al menos dos para comparar. Sigue anotando y vuelve.",
+        fuente:""};
+
+      const pesos = h.map(x=>Math.max(...x.e.sets.filter(st=>num(st.w)).map(st=>num(st.w))));
+      const estancado = pesos[0] <= pesos[pesos.length-1];
+      const ev = h.map(x=>veredicto(x.e.ev)).filter(Boolean);
+      const alLimite = ev.filter(v=>v.t === "Límite recuperable").length;
+      const bajo = ev.filter(v=>v.t === "Estímulo bajo").length;
+      const g = grupoDe(h[0].e);
+      const ser = seriesPorGrupo(dias(7))[g] || 0;
+      const su = suenoMedio(dias(7));
+      const o = objetivo();
+
+      let accion, porque, fuente;
+      if(!estancado){
+        accion = `Sí estás progresando: de ${fmt(pesos[pesos.length-1])} a ${fmt(pesos[0])} kg. Sigue con la doble progresión.`;
+        porque = "Subir carga o repeticiones de forma sostenida es la señal de progreso que importa; el resto son detalles.";
+        fuente = "Sobrecarga progresiva · NSCA (Essentials of Strength Training and Conditioning)";
+      }else if(alLimite >= 2){
+        accion = `Baja una o dos series de ${nombreGrupo(g)} durante una semana y mantén el peso. No sumes carga todavía.`;
+        porque = `Vienes marcando "límite recuperable" en ${alLimite} de tus últimas sesiones y llevas ${ser} series semanales de ${nombreGrupo(g)}. Más volumen sobre una recuperación que ya no alcanza no produce más músculo: el estancamiento es de recuperación, no de estímulo.`;
+        fuente = "Relación dosis-respuesta del volumen · Schoenfeld, Ogborn y Krieger (meta-análisis)";
+      }else if(bajo >= 1 && ser < o.volTope){
+        accion = `Añade 1–2 series semanales a ${nombreGrupo(g)}. Vas en ${ser} y tu objetivo trabaja bien hasta ${o.volTope}.`;
+        porque = "El volumen tiene una relación dosis-respuesta con la hipertrofia: por debajo de unas 10 series semanales por músculo, subirlas suele mejorar los resultados.";
+        fuente = "Schoenfeld, Ogborn y Krieger · meta-análisis de volumen";
+      }else if(su && su.horas < 7){
+        accion = `Antes de tocar el entrenamiento, sube el sueño. Vas en ${fmt(su.horas)} h de media.`;
+        porque = "Dormir por debajo de 7 h deteriora la recuperación, la fuerza y la calidad de las sesiones. Es la palanca con mejor relación esfuerzo-resultado cuando el entrenamiento ya está bien puesto.";
+        fuente = "Revisiones sistemáticas sobre sueño y rendimiento deportivo";
+      }else{
+        accion = `Mantén ${fmt(pesos[0])} kg y persigue repeticiones: busca llegar a ${o.repMax} antes de subir carga.`;
+        porque = `El peso se estancó pero tu recuperación está bien. La doble progresión —primero repeticiones, después carga— evita subir antes de tiempo.`;
+        fuente = "Doble progresión · NSCA · regla de las 2 repeticiones extra en 2 sesiones seguidas";
+      }
+      return {titulo:nombre,
+        dato:`Últimas ${h.length} sesiones: ${pesos.slice().reverse().map(fmt).join(" → ")} kg. ${ser} series semanales de ${nombreGrupo(g)}.`,
+        accion, porque, fuente};
+    }
+  },
+  {
+    id:"volumen", etiqueta:"¿Debo añadir series?",
+    resolver(){
+      const ser = seriesPorGrupo(dias(7));
+      const o = objetivo();
+      const gs = GRUPOS.filter(g=>ser[g.id]);
+      if(!gs.length) return null;
+      const bajos = gs.filter(g=>ser[g.id] < o.volBajo).map(g=>`${g.nombre} (${ser[g.id]})`);
+      const altos = gs.filter(g=>ser[g.id] >= o.volTope).map(g=>`${g.nombre} (${ser[g.id]})`);
+      return {
+        titulo:"Volumen semanal",
+        dato: gs.map(g=>`${g.nombre} ${ser[g.id]}`).join(" · "),
+        accion: altos.length
+          ? `Frena en ${altos.join(", ")}: ya estás en el techo de tu objetivo. ${bajos.length ? `Sube en cambio ${bajos.join(", ")}.` : "En el resto, mantén."}`
+          : bajos.length
+            ? `Añade 1–2 series semanales a ${bajos.join(", ")}. En el resto, mantén y deja que la evaluación decida.`
+            : "Estás en rango en todos los grupos. Mantén y sube carga, no series.",
+        porque: `Tu objetivo (${o.emoji} ${o.nombre}) trabaja bien entre ${o.volOpt} y ${o.volTope} series semanales por músculo. Por debajo de ~10 hay margen claro de mejora; pasado el techo, las series extra aportan cada vez menos y cuestan recuperación.`,
+        fuente:"Schoenfeld, Ogborn y Krieger · meta-análisis dosis-respuesta del volumen"
+      };
+    }
+  },
+  {
+    id:"frecuencia", etiqueta:"¿Entreno cada músculo suficientes veces?",
+    resolver(){
+      const f = frecuenciaGrupo(dias(7));
+      const gs = Object.keys(f);
+      if(!gs.length) return null;
+      const unaVez = gs.filter(g=>f[g] === 1).map(nombreGrupo);
+      return {
+        titulo:"Frecuencia semanal",
+        dato: gs.map(g=>`${nombreGrupo(g)} ${f[g]}×`).join(" · "),
+        accion: unaVez.length
+          ? `Reparte ${unaVez.join(", ")} en dos sesiones en vez de una. Mismo volumen total, partido en dos días.`
+          : "Todos tus músculos se entrenan dos o más veces por semana. Así está bien.",
+        porque:"Con el volumen semanal igualado, repartirlo en dos sesiones rinde algo más que concentrarlo en una sola, y además permite más calidad por serie.",
+        fuente:"Schoenfeld y cols. · meta-análisis de frecuencia de entrenamiento"
+      };
+    }
+  },
+  {
+    id:"intensidad", etiqueta:"¿Voy con suficiente intensidad?",
+    resolver(){
+      const r = rirMedio(dias(14));
+      const o = objetivo();
+      if(!r) return {titulo:"Intensidad", dato:"No has anotado el RIR en tus series.",
+        accion:"Apunta el RIR —repeticiones que te sobraron— en cada serie. Es el dato que mejor mide la intensidad real.",
+        porque:"La escala de RIR permite ajustar el esfuerzo sesión a sesión sin depender de porcentajes fijos, que cambian con la fatiga del día.",
+        fuente:"Helms y cols. · escala de esfuerzo percibido basada en RIR", };
+      const d = r.medio - o.rir;
+      return {
+        titulo:"Intensidad", dato:`RIR medio ${r.medio} en ${r.n} series (tu objetivo es ${o.rir}).`,
+        accion: d > 1 ? `Estás dejando demasiado en la recámara. Sube el peso o alarga las series hasta acercarte a RIR ${o.rir}.`
+              : d < -1 ? `Estás entrenando más cerca del fallo de lo necesario. Aflojar a RIR ${o.rir} da resultados parecidos con bastante menos fatiga.`
+              : `Estás justo donde toca. Mantén RIR ${o.rir} y deja que la carga suba sola.`,
+        porque: d < -1
+          ? "Llegar al fallo no es necesario para ganar músculo: con un margen moderado de repeticiones en reserva los resultados son similares, y la fatiga acumulada es mucho menor."
+          : "Entrenar demasiado lejos del fallo reduce el estímulo. El RIR sirve justamente para quedarse en la ventana útil.",
+        fuente: d < -1
+          ? "Refalo y cols. · meta-análisis sobre proximidad al fallo · Helms y cols. (RIR)"
+          : "Helms y cols. · escala RIR aplicada al entrenamiento de fuerza"
+      };
+    }
+  },
+  {
+    id:"recuperacion", etiqueta:"¿Estoy recuperando bien?",
+    resolver(){
+      const su = suenoMedio(dias(7));
+      const r = resumenEntreno(dias(7));
+      const limite = r.veredictos["Límite recuperable"] || 0;
+      const fatiga = r.veredictos["Fatiga sin estímulo"] || 0;
+      if(!su && !limite && !fatiga) return null;
+      const partes = [];
+      if(su) partes.push(`${fmt(su.horas)} h de sueño (${su.n} noches)`);
+      if(limite) partes.push(`${limite} ejercicios al límite`);
+      if(fatiga) partes.push(`${fatiga} con dolor sin estímulo`);
+      return {
+        titulo:"Recuperación",
+        dato: partes.join(" · "),
+        accion: fatiga ? "Revisa la técnica o cambia el ejercicio donde marcaste dolor sin estímulo: te está costando recuperación sin darte músculo."
+              : (su && su.horas < 7) ? `Duerme más antes de subir nada. Cada hora que ganes rinde más que una serie extra.`
+              : limite >= 3 ? "Haz una semana de descarga: mismo peso, la mitad de las series."
+              : "Vas bien. Puedes seguir subiendo según la progresión.",
+        porque: fatiga
+          ? "Las agujetas no miden crecimiento: se puede ganar músculo sin dolor y tener mucho dolor sin ganar nada. Dolor alto con poca tensión apunta a un ejercicio mal elegido o mal ejecutado."
+          : "La recuperación es el techo real del volumen que puedes aprovechar. Cuando sueño y evaluaciones avisan a la vez, subir volumen solo profundiza el agujero.",
+        fuente: fatiga
+          ? "Damas y cols. · el daño muscular no es requisito para la hipertrofia"
+          : "Revisiones sistemáticas sobre sueño y rendimiento · principios de fatiga de la NSCA"
+      };
+    }
+  },
+  {
+    id:"proteina", etiqueta:"¿Cuánta proteína necesito?",
+    resolver(){
+      const m = ultimaMedicion();
+      const o = objetivo();
+      if(!m || !num(m.peso)) return {titulo:"Proteína",
+        dato:"No tengo tu peso registrado.",
+        accion:"Anota una medición en Salud y te doy el rango exacto en gramos.",
+        porque:"La proteína se calcula por kilo de peso corporal, no en cifras fijas.",
+        fuente:"Morton y cols. · meta-análisis de proteína y entrenamiento de fuerza"};
+      const peso = num(m.peso);
+      const min = Math.round(peso * 1.6), max = Math.round(peso * 2.2);
+      const extra = o.id === "grasa";
+      return {
+        titulo:"Proteína",
+        dato:`Con ${fmt(peso)} kg de peso corporal.`,
+        accion:`Entre ${min} y ${max} g al día${extra ? ", y en déficit apunta a la parte alta del rango" : ""}. Repartidos en 3–4 comidas.`,
+        porque:`Alrededor de 1,6 g por kilo al día es donde deja de haber ganancias claras para la mayoría; el rango hasta ~2,2 cubre la variabilidad individual.${extra ? " En déficit calórico, más proteína protege mejor la masa muscular." : ""}`,
+        fuente:"Morton y cols. · meta-análisis · posicionamiento de la ISSN sobre proteína"
+      };
+    }
+  },
+  {
+    id:"descanso", etiqueta:"¿Cuánto descanso entre series?",
+    resolver(){
+      const o = objetivo();
+      return {
+        titulo:"Descanso entre series",
+        dato:`Tu objetivo: ${o.emoji} ${o.nombre}.`,
+        accion:`${o.descanso} entre series. En los básicos pesados, tira a la parte alta; en aislamientos puedes acortar.`,
+        porque:"Descansos cortos recortan las repeticiones de las series siguientes y con ello el volumen efectivo. Con dos minutos o más, la fuerza y la hipertrofia salen mejor paradas, sobre todo en multiarticulares.",
+        fuente:"Grgic y cols. · revisión sobre intervalos de descanso · NSCA"
+      };
+    }
+  }
+];
+
 let periodo = 1;                       // 1 = hoy, 7 = semana, 30 = mes
 const NOMBRE_PERIODO = {1:"hoy", 7:"esta semana", 30:"este mes"};
 
@@ -2228,9 +2480,49 @@ function renderStats(){
       </div>`).join("")
     : `<div class="empty">Evalúa tus ejercicios al terminar y aquí verás el resumen.</div>`;
 
+  renderPreguntas();
+
   /* ---- el sueño vive en Salud, pero se dibuja aquí mismo ---- */
   renderSueno14();
 }
+
+/* Solo se ofrecen las preguntas que hoy se pueden responder con datos. */
+function renderPreguntas(){
+  const box = document.getElementById("preguntas");
+  if(!box) return;
+  const vivas = CONSULTAS.filter(c=>{ try{ return !!c.resolver(); }catch(e){ return false; } });
+
+  box.innerHTML = vivas.length
+    ? vivas.map(c=>`<button class="preg" data-cn="${c.id}">${c.etiqueta}<i>›</i></button>`).join("")
+    : `<div class="empty">Registra un par de entrenamientos y aquí aparecerán las preguntas que te puedo responder.</div>`;
+
+  box.querySelectorAll("[data-cn]").forEach(b=> b.onclick = ()=> abrirConsulta(b.dataset.cn));
+}
+
+function abrirConsulta(id){
+  const c = CONSULTAS.find(x=>x.id === id);
+  const r = c && c.resolver();
+  if(!r) return;
+  document.getElementById("cnTitulo").textContent = c.etiqueta;
+  document.getElementById("cnCuerpo").innerHTML = `
+    <div class="cn-bloque dato">
+      <span>Tus datos</span>
+      <p>${esc(r.titulo)}${r.dato ? " · " + esc(r.dato) : ""}</p>
+    </div>
+    <div class="cn-bloque accion">
+      <span>Qué hacer</span>
+      <p>${esc(r.accion)}</p>
+    </div>
+    <div class="cn-bloque porque">
+      <span>Por qué</span>
+      <p>${esc(r.porque)}</p>
+      ${r.fuente ? `<small>${esc(r.fuente)}</small>` : ""}
+    </div>`;
+  shutModals();
+  document.getElementById("cnModal").classList.add("open");
+}
+document.getElementById("cnClose").onclick = ()=> document.getElementById("cnModal").classList.remove("open");
+document.getElementById("cnModal").onclick = e=>{ if(e.target.id === "cnModal") document.getElementById("cnModal").classList.remove("open"); };
 
 /* La curva de sueño, en la pestaña de Salud. */
 function renderSueno14(){
