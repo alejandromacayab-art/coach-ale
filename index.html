@@ -163,6 +163,10 @@
   <!-- ================= AJUSTES ================= -->
   <div id="view-set" class="hidden">
     <section>
+      <div class="stitle">🎯 Tu objetivo</div>
+      <div class="panel" id="objPanel"></div>
+    </section>
+    <section>
       <div class="stitle">☁️ Sincronización entre dispositivos</div>
       <div class="panel" id="syncPanel"></div>
     </section>
@@ -307,6 +311,7 @@
   <div class="sheet">
     <h3>🏋️ Entrenamiento</h3>
     <p class="sub" id="wkSub">Anota ejercicios, peso, repeticiones y series.</p>
+    <div class="objtag" id="wkObj"></div>
     <div class="total">
       <div><b id="wkTotal">0 kg</b><span>Volumen total de la sesión</span></div>
       <div class="side" id="wkSide">0 ejercicios<br>0 series</div>
@@ -491,7 +496,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-5";
+const APP_VERSION = "2026.09.17-6";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -517,7 +522,39 @@ const DEF_SALUD = {
   restricciones:"", suplementos:"", objetivoNutri:"", notasNutri:""
 };
 
+/* ============================================================
+   OBJETIVOS DE ENTRENAMIENTO
+   El motor de progresión no tiene números fijos: los saca de aquí.
+   Cambiar de objetivo cambia el rango de repeticiones, cuánta
+   reserva dejar, cuánto sube la carga y cuántas series por músculo
+   se consideran poco, suficientes o demasiadas.
+   ============================================================ */
+const OBJETIVOS = [
+  {id:"hipertrofia", nombre:"Hipertrofia", emoji:"💪",
+   desc:"Ganar masa muscular",
+   repMin:8,  repMax:12, rir:2, saltoSup:2.5, saltoInf:5,
+   volBajo:6, volOpt:14, volTope:20, descanso:"90 – 120 s"},
+  {id:"fuerza", nombre:"Fuerza", emoji:"🏋️",
+   desc:"Levantar más peso",
+   repMin:3,  repMax:6,  rir:2, saltoSup:2.5, saltoInf:5,
+   volBajo:4, volOpt:10, volTope:14, descanso:"3 – 5 min"},
+  {id:"resistencia", nombre:"Resistencia muscular", emoji:"🔁",
+   desc:"Aguantar más repeticiones",
+   repMin:15, repMax:25, rir:2, saltoSup:1,   saltoInf:2.5,
+   volBajo:5, volOpt:12, volTope:18, descanso:"45 – 60 s"},
+  {id:"grasa", nombre:"Perder grasa", emoji:"🔥",
+   desc:"Mantener músculo gastando más",
+   repMin:10, repMax:15, rir:2, saltoSup:2.5, saltoInf:5,
+   volBajo:5, volOpt:12, volTope:16, descanso:"45 – 60 s"},
+  {id:"rehab", nombre:"Rehabilitación", emoji:"🩺",
+   desc:"Volver sin forzar, nunca al fallo",
+   repMin:12, repMax:20, rir:4, saltoSup:1,   saltoInf:2.5,
+   volBajo:3, volOpt:8,  volTope:12, descanso:"60 – 90 s"}
+];
+const objetivo = () => OBJETIVOS.find(o=>o.id === S.settings?.objetivo) || OBJETIVOS[0];
+
 const DEF_SETTINGS = {
+  objetivo:"hipertrofia",
   rem:{on:false, from:"08:00", to:"22:00", every:120, lastAt:0},
   wake:{on:true, goalHours:8, lastAsked:""},
   screens:{on:true, at:"21:00", lastFired:""},
@@ -610,13 +647,16 @@ function seriesPorGrupo(dias){
 
 /* Tramos de volumen semanal. Debajo del mínimo casi no hay estímulo;
    pasado el límite el cuerpo ya no alcanza a recuperar. */
-const TRAMOS = [
-  {hasta: 5,        t:"Volumen bajo",      c:"#fb7185"},
-  {hasta: 9,        t:"Mínimo efectivo",   c:"#fbbf24"},
-  {hasta: 19,       t:"Volumen óptimo",    c:"#22e07a"},
-  {hasta: Infinity, t:"Límite recuperable",c:"#a78bfa"}
-];
-const tramoDe = n => TRAMOS.find(t => n <= t.hasta);
+function tramos(){
+  const o = objetivo();
+  return [
+    {hasta: o.volBajo - 1,  t:"Volumen bajo",       c:"#fb7185"},
+    {hasta: o.volOpt - 1,   t:"Mínimo efectivo",    c:"#fbbf24"},
+    {hasta: o.volTope - 1,  t:"Volumen óptimo",     c:"#22e07a"},
+    {hasta: Infinity,       t:"Límite recuperable", c:"#a78bfa"}
+  ];
+}
+const tramoDe = n => tramos().find(t => n <= t.hasta);
 
 /* ---------- 1RM estimado ----------
    Fórmula de Epley. Las repeticiones que te quedaban en reserva (RIR)
@@ -627,11 +667,16 @@ const tramoDe = n => TRAMOS.find(t => n <= t.hasta);
    volumen semanal del grupo — la app puede proponer la sesión
    siguiente en vez de dejarte la hoja en blanco.
    ============================================================ */
-const META_DEF = {repMin:8, repMax:12, rir:2};   // doble progresión por defecto
-const metaDe = e => Object.assign({}, META_DEF, e.meta || {});
+/* La meta de cada ejercicio la marca tu objetivo, salvo que la fijes a mano. */
+const metaDef = () => { const o = objetivo(); return {repMin:o.repMin, repMax:o.repMax, rir:o.rir}; };
+const metaDe  = e => Object.assign(metaDef(), e.meta || {});
 
-/* Salto de carga: las piernas admiten escalones mayores que los brazos. */
-const saltoKg = grupo => (grupo === "pierna" || grupo === "gluteo") ? 5 : 2.5;
+/* Salto de carga: las piernas admiten escalones mayores que los brazos,
+   y un objetivo de fuerza sube distinto que uno de rehabilitación. */
+const saltoKg = grupo => {
+  const o = objetivo();
+  return (grupo === "pierna" || grupo === "gluteo") ? o.saltoInf : o.saltoSup;
+};
 
 /* La última sesión anterior a `desde` que tenga ejercicios anotados. */
 function ultimaSesion(desde){
@@ -682,7 +727,7 @@ function progresionDe(e, seriesGrupo){
   let nota = "";
   if(v){
     const yaSemana = seriesGrupo[grupoDe(e)] || 0;
-    if(v.t === "Estímulo bajo" && yaSemana < 20){ series += 1; nota = " Y una serie más: el estímulo fue bajo."; }
+    if(v.t === "Estímulo bajo" && yaSemana < objetivo().volTope){ series += 1; nota = " Y una serie más: el estímulo fue bajo."; }
     else if(v.t === "Límite recuperable")        nota = " No añadas series: venías al límite.";
     else if(v.t === "Fatiga sin estímulo")       nota = " Ojo: la última vez fue dolor sin estímulo. Revisa la técnica.";
   }
@@ -1947,7 +1992,8 @@ function renderVolumenGrupos(){
     return;
   }
 
-  const tope = Math.max(20, ...filas.map(g=>total[g.id]));
+  const o = objetivo();
+  const tope = Math.max(o.volTope, ...filas.map(g=>total[g.id]));
   box.innerHTML = filas.map(g=>{
     const n = total[g.id], tr = tramoDe(n);
     return `<div class="vg">
@@ -1956,10 +2002,10 @@ function renderVolumenGrupos(){
       <div class="vg-pie" style="color:${tr.c}">● ${tr.t}</div>
     </div>`;
   }).join("") + `<div class="hlbl" style="margin-top:14px">
-      <span>Menos de 6 · bajo</span><span style="flex:1"></span>
+      <span>Menos de ${o.volBajo} · bajo</span><span style="flex:1"></span>
       <b style="background:#fb7185"></b><b style="background:#fbbf24"></b>
       <b style="background:#22e07a"></b><b style="background:#a78bfa"></b>
-      <span>20 o más · al límite</span></div>`;
+      <span>${o.volTope} o más · al límite</span></div>`;
 }
 
 function renderStats(){
@@ -2204,6 +2250,37 @@ async function renderInstall(){
   if(ds) ds.onclick = async ()=>{ await subscribePush(); renderInstall(); renderRem(); };
 }
 
+/* El objetivo manda sobre todo el motor: cambiarlo reescribe los
+   rangos, la reserva, el salto de carga y el techo de series. */
+function renderObjetivo(){
+  const box = document.getElementById("objPanel");
+  if(!box) return;
+  const act = objetivo();
+
+  box.innerHTML = OBJETIVOS.map(o=>`
+    <button class="obj ${o.id===act.id?"on":""}" data-obj="${o.id}">
+      <span class="em">${o.emoji}</span>
+      <span class="tx"><b>${o.nombre}</b><span>${o.desc}</span></span>
+      <span class="ck">${o.id===act.id?"✓":""}</span>
+    </button>`).join("") + `
+    <div class="objdet">
+      <div><b>${act.repMin}–${act.repMax}</b><span>Repeticiones</span></div>
+      <div><b>${act.rir}</b><span>RIR objetivo</span></div>
+      <div><b>${act.volOpt}–${act.volTope}</b><span>Series/semana</span></div>
+      <div><b>${act.descanso}</b><span>Descanso</span></div>
+    </div>
+    <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
+      Con esto la app calcula tus próximas sesiones. Si cambias de objetivo,
+      la progresión se recalcula desde tu siguiente entrenamiento.</p>`;
+
+  box.querySelectorAll("[data-obj]").forEach(b=> b.onclick = ()=>{
+    S.settings.objetivo = b.dataset.obj; save();
+    renderObjetivo(); renderStats();
+    const o = objetivo();
+    toast(`${o.emoji} Objetivo: ${o.nombre}`);
+  });
+}
+
 function renderSyncPanel(){
   const box = document.getElementById("syncPanel");
   if(!box) return;
@@ -2316,7 +2393,8 @@ function renderTurnos(){
     save(); renderTurnos();
   };
 }
-function renderSettings(){ renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
+function renderSettings(){
+  renderObjetivo(); renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
 
 /* ============================================================
    MODAL HÁBITO
@@ -2402,6 +2480,9 @@ function openWorkout(){
                      : `Sesión del ${d.getDate()} ${MESES[d.getMonth()]}.`;
   document.getElementById("exPresets").innerHTML = EX_PRESETS.map(e=>`<option value="${e}">`).join("");
   document.getElementById("wkNote").value = dayLog(cur).workout.note||"";
+  const o = objetivo();
+  document.getElementById("wkObj").innerHTML =
+    `<b>${o.emoji} ${o.nombre}</b><span>${o.repMin}–${o.repMax} reps · RIR ${o.rir} · descanso ${o.descanso}</span>`;
   renderPropuesta();
   if(!dayLog(cur).workout.ex.length) addExercise(true);
   renderExercises();
