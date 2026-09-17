@@ -211,6 +211,18 @@
   <button data-v="salud"><i>♡</i>Salud</button>
 </nav>
 
+<!-- ===== Modal evaluación del ejercicio ===== -->
+<div class="modal" id="evModal">
+  <div class="sheet">
+    <h3 id="evTitle">Evaluar ejercicio</h3>
+    <p class="sub" id="evSub">Cómo se sintió, para saber si conviene añadir series.</p>
+    <div id="evCampos"></div>
+    <div class="evver" id="evVer"></div>
+    <button class="btn" id="evSave">Confirmar evaluación</button>
+    <button class="btn ghost" style="margin-top:8px" id="evClose">Cancelar</button>
+  </div>
+</div>
+
 <!-- ===== Modal registro rápido ===== -->
 <div class="modal" id="raModal">
   <div class="sheet">
@@ -478,7 +490,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-3";
+const APP_VERSION = "2026.09.17-4";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -604,6 +616,54 @@ const TRAMOS = [
   {hasta: Infinity, t:"Límite recuperable",c:"#a78bfa"}
 ];
 const tramoDe = n => TRAMOS.find(t => n <= t.hasta);
+
+/* ---------- 1RM estimado ----------
+   Fórmula de Epley. Las repeticiones que te quedaban en reserva (RIR)
+   cuentan como repeticiones que podrías haber hecho. */
+function unoRM(st){
+  const w = num(st.w), r = num(st.r);
+  if(!w || !r) return 0;
+  const rr = r + (num(st.rir) || 0);
+  return w * (1 + rr/30);
+}
+const exUnoRM = e => Math.max(0, ...(e.sets||[]).map(unoRM));
+
+/* ---------- evaluación del ejercicio ----------
+   Tres señales: cuánta tensión sentiste en el músculo objetivo, cuánto
+   pump, y cuánto tardó en recuperarse. Juntas dicen si conviene añadir
+   series, mantener el volumen o parar de sumar. */
+const EV_PREGUNTAS = [
+  {id:"tension", t:"Tensión muscular", p:"¿Cuánto sentiste el músculo objetivo?",
+   txt:["No lo sentí trabajar","Algo de tensión","Buena tensión","Sentí tensión y quemazón cerca del límite"]},
+  {id:"pump", t:"Pump", p:"¿Cuánta hinchazón o ardor sentiste en el músculo?",
+   txt:["Sin pump","Pump leve","Buen pump","Pump máximo en el músculo"]},
+  {id:"doms", t:"Agujetas / dolor", p:"¿Cuánto tardó en recuperarse este músculo? Déjalo en 0 si es la primera vez que lo haces.",
+   txt:["Sin molestias","Algo de rigidez, recuperado al día siguiente","Dos días molesto","Más de dos días dolorido"]}
+];
+
+function evPuntos(ev){
+  if(!ev) return null;
+  return (num(ev.tension)||0) + (num(ev.pump)||0) + (num(ev.doms)||0);
+}
+
+/* El veredicto no es solo la suma: mucho dolor con poca tensión es
+   fatiga que no construye nada, y eso hay que decirlo aparte. */
+function veredicto(ev){
+  const n = evPuntos(ev);
+  if(n === null) return null;
+  const t = num(ev.tension)||0, d = num(ev.doms)||0;
+  if(d >= 2 && t <= 1)
+    return {t:"Fatiga sin estímulo", e:"⚠️", c:"#fb7185", n,
+            s:"Te dejó dolorido sin que sintieras el músculo. Revisa la técnica o cambia el ejercicio."};
+  if(n <= 3)
+    return {t:"Estímulo bajo", e:"↗", c:"#38bdf8", n,
+            s:"Puedes añadir una o dos series a este músculo la próxima vez."};
+  if(n <= 6)
+    return {t:"Volumen óptimo", e:"✅", c:"#22e07a", n,
+            s:"La dosis está en el punto. Mantenla y sube el peso cuando te sobre una repetición."};
+  return {t:"Límite recuperable", e:"🛑", c:"#a78bfa", n,
+          s:"No añadas más series. Consolida este volumen antes de subir nada."};
+}
 
 let S = load();
 let cur = todayKey();
@@ -2272,6 +2332,8 @@ function renderExercises(){
       <div class="exhead">
         <span style="font-size:16px">💪</span>
         <input list="exPresets" data-exn="${i}" value="${esc(e.name)}" placeholder="Nombre del ejercicio">
+        ${(()=>{ const v = veredicto(e.ev); return v
+          ? `<span class="eps" style="background:${v.c}22;color:${v.c}">${v.n}/9</span>` : ""; })()}
         <button class="exdel" data-exdel="${i}">✕</button>
       </div>
       <div class="exgrp">
@@ -2285,6 +2347,7 @@ function renderExercises(){
           <div class="setn">${j+1}</div>
           <div class="fld"><input inputmode="decimal" data-w="${i}.${j}" value="${esc(st.w)}" placeholder="0"><span>kg</span></div>
           <div class="fld"><input inputmode="numeric" data-r="${i}.${j}" value="${esc(st.r)}" placeholder="0"><span>reps</span></div>
+          <div class="fld rir"><input inputmode="numeric" data-rir="${i}.${j}" value="${esc(st.rir ?? "")}" placeholder="–"><span>rir</span></div>
           <div class="eq" data-eq="${i}.${j}">${num(st.w)&&num(st.r)?kg(num(st.w)*num(st.r))+" kg":""}</div>
           <button class="exdel" data-sdel="${i}.${j}">✕</button>
         </div>`).join("")}
@@ -2292,6 +2355,13 @@ function renderExercises(){
         <button class="addset" data-adds="${i}">+ Serie</button>
         <div class="exsub" data-sub="${i}">${exVolume(e)?kg(exVolume(e))+" kg":""}</div>
       </div>
+      <div class="exmet">
+        <div><b data-rm="${i}">${exUnoRM(e) ? kg(exUnoRM(e))+" kg" : "–"}</b><span>1RM est.</span></div>
+        <div><b data-vol="${i}">${exVolume(e) ? kg(exVolume(e))+" kg" : "–"}</b><span>Volumen</span></div>
+      </div>
+      ${(()=>{ const v = veredicto(e.ev);
+        return `<button class="exeval" data-ev="${i}" ${v?`style="border-style:solid;border-color:${v.c}66;color:${v.c}"`:""}>
+          ${v ? `${v.e} ${v.t} · ${v.n}/9 · editar` : "Evaluar ejercicio"}</button>`; })()}
     </div>`).join("");
 
   const L = document.getElementById("wkList");
@@ -2310,20 +2380,24 @@ function renderExercises(){
     sel.style.setProperty("--g", colorGrupo(sel.value));
     save();
   });
-  L.querySelectorAll("[data-w],[data-r]").forEach(inp=>inp.oninput=()=>{
-    const key = inp.dataset.w!==undefined ? "w":"r";
-    const [i,j] = (inp.dataset.w ?? inp.dataset.r).split(".").map(Number);
+  L.querySelectorAll("[data-w],[data-r],[data-rir]").forEach(inp=>inp.oninput=()=>{
+    const key = inp.dataset.w!==undefined ? "w" : inp.dataset.r!==undefined ? "r" : "rir";
+    const [i,j] = (inp.dataset.w ?? inp.dataset.r ?? inp.dataset.rir).split(".").map(Number);
     w.ex[i].sets[j][key] = inp.value;
     const st = w.ex[i].sets[j];
     L.querySelector(`[data-eq="${i}.${j}"]`).textContent = num(st.w)&&num(st.r) ? kg(num(st.w)*num(st.r))+" kg" : "";
     L.querySelector(`[data-sub="${i}"]`).textContent = exVolume(w.ex[i]) ? kg(exVolume(w.ex[i]))+" kg" : "";
     const ns = seriesHechas(w.ex[i]), et = L.querySelector(`[data-exs="${i}"]`);
     if(et) et.textContent = `${ns} ${ns===1?"serie":"series"}`;
+    const rm = L.querySelector(`[data-rm="${i}"]`), vo = L.querySelector(`[data-vol="${i}"]`);
+    if(rm) rm.textContent = exUnoRM(w.ex[i]) ? kg(exUnoRM(w.ex[i]))+" kg" : "–";
+    if(vo) vo.textContent = exVolume(w.ex[i]) ? kg(exVolume(w.ex[i]))+" kg" : "–";
     updateWkTotal(); save();
   });
+  L.querySelectorAll("[data-ev]").forEach(b=>b.onclick=()=>openEval(+b.dataset.ev));
   L.querySelectorAll("[data-adds]").forEach(b=>b.onclick=()=>{
     const i=+b.dataset.adds, prev = w.ex[i].sets[w.ex[i].sets.length-1];
-    w.ex[i].sets.push({w:prev?prev.w:"", r:prev?prev.r:""});   // repite la última serie
+    w.ex[i].sets.push({w:prev?prev.w:"", r:prev?prev.r:"", rir:prev?prev.rir:""});  // repite la última serie
     save(); renderExercises();
   });
   L.querySelectorAll("[data-sdel]").forEach(b=>b.onclick=()=>{
@@ -2343,6 +2417,67 @@ function updateWkTotal(){
   document.getElementById("wkSide").innerHTML =
     `${wkExN(w)} ejercicio${wkExN(w)===1?"":"s"}<br>${wkSets(w)} serie${wkSets(w)===1?"":"s"}`;
 }
+/* ---------------- evaluación del ejercicio ---------------- */
+let evIdx = null, evTmp = null;
+
+function openEval(i){
+  const e = dayLog(cur).workout.ex[i];
+  if(!e) return;
+  evIdx = i;
+  evTmp = Object.assign({tension:0, pump:0, doms:0}, e.ev || {});
+
+  document.getElementById("evTitle").textContent = e.name.trim() || "Evaluar ejercicio";
+  document.getElementById("evSub").textContent =
+    `${nombreGrupo(grupoDe(e))} · ${seriesHechas(e)} ${seriesHechas(e)===1?"serie":"series"}`;
+
+  document.getElementById("evCampos").innerHTML = EV_PREGUNTAS.map(q=>`
+    <div class="evq">
+      <b>${q.t}</b>
+      <p>${q.p}</p>
+      <input type="range" min="0" max="3" step="1" data-ev="${q.id}" value="${evTmp[q.id]||0}">
+      <div class="evesc"><span>0</span><span>1</span><span>2</span><span>3</span></div>
+      <div class="evtxt" data-evt="${q.id}">${q.txt[evTmp[q.id]||0]}</div>
+    </div>`).join("");
+
+  document.querySelectorAll("#evCampos [data-ev]").forEach(inp=>{
+    inp.oninput = ()=>{
+      const q = EV_PREGUNTAS.find(x=>x.id === inp.dataset.ev);
+      evTmp[q.id] = Number(inp.value);
+      document.querySelector(`[data-evt="${q.id}"]`).textContent = q.txt[evTmp[q.id]];
+      pintaVeredicto();
+    };
+  });
+
+  pintaVeredicto();
+  shutModals();
+  document.getElementById("evModal").classList.add("open");
+}
+
+function pintaVeredicto(){
+  const v = veredicto(evTmp), box = document.getElementById("evVer");
+  box.style.background = `color-mix(in srgb, ${v.c} 13%, transparent)`;
+  box.style.border = `1px solid color-mix(in srgb, ${v.c} 32%, transparent)`;
+  box.innerHTML = `<div class="lv" style="background:${v.c}22">${v.e}</div>
+    <div><b style="color:${v.c}">${v.t}</b><span>${v.s}</span></div>
+    <div class="pt" style="color:${v.c}">${v.n}/9</div>`;
+}
+
+function guardarEval(){
+  const e = dayLog(cur).workout.ex[evIdx];
+  if(e){ e.ev = Object.assign({}, evTmp, {at: Date.now()}); save(); }
+  cerrarEval();
+  renderExercises();
+  toast("Evaluación guardada");
+}
+function cerrarEval(){
+  document.getElementById("evModal").classList.remove("open");
+  evIdx = null; evTmp = null;
+  document.getElementById("wkModal").classList.add("open");
+}
+document.getElementById("evSave").onclick  = guardarEval;
+document.getElementById("evClose").onclick = cerrarEval;
+document.getElementById("evModal").onclick = e=>{ if(e.target.id === "evModal") cerrarEval(); };
+
 function saveWorkout(){
   const l = dayLog(cur), w = l.workout;
   w.note = document.getElementById("wkNote").value;
