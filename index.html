@@ -59,29 +59,21 @@
 
     <div class="spot" id="spot"></div>
 
-    <div class="sec-lbl">💚 Tus mediciones</div>
-    <div class="rail" id="rail"></div>
-
     <section>
       <div class="stitle">😴 Al despertar</div>
       <div class="sleepcard" id="sleepCard"></div>
     </section>
 
     <section>
-      <div class="stitle">⏰ Recordatorios importantes</div>
+      <div class="stitle">🏋️ Entrenamiento</div>
+      <button class="entrenar" id="entrenarCard"></button>
+    </section>
+
+    <section>
+      <div class="stitle">🔎 Consulta</div>
       <div class="panel">
-        <div id="recorLista"></div>
-        <div class="two" style="margin-top:12px">
-          <label class="f" style="grid-column:1/-1"><span>¿Qué no se te puede olvidar?</span>
-            <input class="inp" id="recorTxt" maxlength="80" placeholder="Control con el kinesiólogo"></label>
-        </div>
-        <div class="two">
-          <label class="f"><span>¿A qué hora?</span>
-            <input class="inp" id="recorHora" type="time"></label>
-          <label class="f"><span>&nbsp;</span>
-            <button class="btn" id="recorAdd">Agregar</button></label>
-        </div>
-        <p id="recorPie" style="font-size:12px;color:var(--tx3);margin:2px 0 0"></p>
+        <p class="sub" style="margin:0 0 12px">Respuestas con tus datos, no consejos genéricos.</p>
+        <div class="preguntas" id="preguntas"></div>
       </div>
     </section>
   </div>
@@ -124,13 +116,6 @@
       <div class="stitle">Cómo se sintieron</div>
       <div class="panel" id="sensBox"></div>
     </section>
-    <section>
-      <div class="stitle">🔎 Consulta</div>
-      <div class="panel">
-        <p class="sub" style="margin:0 0 12px">Respuestas con tus datos, no consejos genéricos.</p>
-        <div class="preguntas" id="preguntas"></div>
-      </div>
-    </section>
   </div>
 
   <!-- ================= SALUD ================= -->
@@ -171,6 +156,10 @@
     <section>
       <div class="stitle">🎯 Tu objetivo</div>
       <div class="panel" id="objPanel"></div>
+    </section>
+    <section>
+      <div class="stitle">📋 Tu nivel</div>
+      <div class="panel" id="nivelPanel"></div>
     </section>
     <section>
       <div class="stitle">🗓 Tu rutina</div>
@@ -224,6 +213,17 @@
   <button data-v="stats"><i>◑</i>Progreso</button>
   <button data-v="salud"><i>♡</i>Salud</button>
 </nav>
+
+<!-- ===== Modal test de nivel ===== -->
+<div class="modal" id="nvModal">
+  <div class="sheet">
+    <h3 id="nvTitulo">Test de nivel</h3>
+    <p class="sub" id="nvSub">Seis preguntas para saber desde dónde partimos.</p>
+    <div id="nvCuerpo"></div>
+    <button class="btn" id="nvAccion">Siguiente</button>
+    <button class="btn ghost" style="margin-top:8px" id="nvClose">Ahora no</button>
+  </div>
+</div>
 
 <!-- ===== Modal consulta ===== -->
 <div class="modal" id="cnModal">
@@ -360,6 +360,19 @@
       <span style="font-size:12px;color:var(--tx3);font-weight:700">Ánimo del día</span>
       <div class="stepper" id="mood" style="gap:6px"></div>
     </div>
+    <div class="stitle" style="margin:4px 0 8px">⏰ Recordatorios</div>
+    <div id="recorLista"></div>
+    <div class="two" style="margin-top:10px">
+      <label class="f" style="grid-column:1/-1"><span>¿Qué no se te puede olvidar?</span>
+        <input class="inp" id="recorTxt" maxlength="80" placeholder="Control con el kinesiólogo"></label>
+    </div>
+    <div class="two">
+      <label class="f"><span>¿A qué hora?</span>
+        <input class="inp" id="recorHora" type="time"></label>
+      <label class="f"><span>&nbsp;</span>
+        <button class="btn" id="recorAdd">Agregar</button></label>
+    </div>
+    <p id="recorPie" style="font-size:12px;color:var(--tx3);margin:2px 0 14px"></p>
     <div class="stitle" style="margin:18px 0 8px">Por horas</div>
     <button class="btn ghost" id="agMadrugada" style="margin-bottom:10px">Mostrar madrugada (00:00 – 05:00)</button>
     <div id="agHoras"></div>
@@ -515,7 +528,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-10";
+const APP_VERSION = "2026.09.17-11";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -693,8 +706,10 @@ const metaDe  = e => Object.assign(metaDef(), e.meta || {});
 /* Salto de carga: las piernas admiten escalones mayores que los brazos,
    y un objetivo de fuerza sube distinto que uno de rehabilitación. */
 const saltoKg = grupo => {
-  const o = objetivo();
-  return (grupo === "pierna" || grupo === "gluteo") ? o.saltoInf : o.saltoSup;
+  const o = objetivo(), niv = nivelDeEntreno();
+  const base = (grupo === "pierna" || grupo === "gluteo") ? o.saltoInf : o.saltoSup;
+  const ajustado = base * (niv ? niv.saltoRelativo : 1);
+  return Math.max(0.5, Math.round(ajustado * 2) / 2);
 };
 
 /* La última sesión anterior a `desde` que tenga ejercicios anotados. */
@@ -764,6 +779,82 @@ function progresionDe(e, seriesGrupo){
    y con cuántos ejercicios; los ejercicios y las series salen del
    objetivo y de los días por semana que puedas entrenar.
    ============================================================ */
+/* ============================================================
+   NIVEL DE ENTRENAMIENTO
+   Un test corto al empezar: experiencia, técnica y tres pruebas
+   con el propio peso corporal. El nivel decide cuántos ejercicios
+   lleva cada día, cuántas series y con qué carga arrancar.
+   ============================================================ */
+const NIVELES_ENTRENO = [
+  {id:"principiante", nombre:"Principiante", emoji:"🌱",
+   desc:"Menos de 6 meses entrenando, o volviendo tras una pausa larga",
+   ejerciciosMax:5, factorSeries:0.75, saltoRelativo:1.2,
+   nota:"Empezarás con pocos ejercicios y subirás carga casi cada sesión: al principio se progresa rápido."},
+  {id:"intermedio", nombre:"Intermedio", emoji:"💪",
+   desc:"Entre 6 meses y 2 años entrenando con constancia",
+   ejerciciosMax:7, factorSeries:1, saltoRelativo:1,
+   nota:"Progresarás semana a semana con doble progresión."},
+  {id:"avanzado", nombre:"Avanzado", emoji:"🔥",
+   desc:"Más de 2 años entrenando, con técnica sólida en los básicos",
+   ejerciciosMax:8, factorSeries:1.15, saltoRelativo:0.6,
+   nota:"Los saltos de carga serán pequeños: a tu nivel el margen es estrecho y la recuperación manda."}
+];
+const nivelDeEntreno = () => NIVELES_ENTRENO.find(n=>n.id === S.nivel?.id) || null;
+
+/* El test: tres preguntas y tres pruebas con tu propio peso.
+   Las pruebas son de resistencia-fuerza general y sirven para
+   confirmar lo que dices de tu experiencia, no para etiquetarte. */
+const TEST = [
+  {id:"tiempo", t:"¿Cuánto llevas entrenando con pesas de forma regular?",
+   ops:[["Menos de 6 meses",0],["Entre 6 meses y 2 años",2],["Más de 2 años",4]]},
+  {id:"tecnica", t:"¿Manejas la técnica de sentadilla, press y remo?",
+   ops:[["Todavía no",0],["Más o menos, con supervisión",2],["Sí, entreno solo sin problema",4]]},
+  {id:"frecuencia", t:"¿Cuántos días por semana has entrenado los últimos 3 meses?",
+   ops:[["Ninguno o casi ninguno",0],["1 o 2",1],["3 o 4",3],["5 o más",4]]},
+  {id:"flex", t:"Flexiones de brazos seguidas, con buena técnica",
+   ops:[["Menos de 5",0],["5 a 14",1],["15 a 29",3],["30 o más",4]], prueba:true},
+  {id:"sent", t:"Sentadillas con tu propio peso en 60 segundos",
+   ops:[["Menos de 15",0],["15 a 29",1],["30 a 44",3],["45 o más",4]], prueba:true},
+  {id:"plancha", t:"Plancha abdominal aguantada",
+   ops:[["Menos de 30 s",0],["30 a 59 s",1],["1 a 2 min",3],["Más de 2 min",4]], prueba:true}
+];
+
+/* 0-8 principiante · 9-16 intermedio · 17-24 avanzado */
+function nivelPorPuntos(p){
+  return p <= 8 ? NIVELES_ENTRENO[0] : p <= 16 ? NIVELES_ENTRENO[1] : NIVELES_ENTRENO[2];
+}
+
+/* ---------- carga inicial según peso corporal ----------
+   Múltiplos orientativos del peso corporal para una serie de 8-10
+   repeticiones cómodas. Son un punto de partida para la primera
+   sesión, no una marca a batir: la app ajusta desde ahí. */
+const PATRONES = [
+  /* Peso corporal: aquí la carga la pones tú (o el lastre), no un múltiplo. */
+  [/domin|fondo|plancha|abdominal|puente|flexi[oó]n/i, null],
+  /* Mancuernas: el número es por mano, así que el múltiplo es mucho menor. */
+  [/mancuerna/i,                                   {principiante:0.12, intermedio:0.22, avanzado:0.32}],
+  [/sentadilla|prensa|split|bulgar/i,              {principiante:0.50, intermedio:0.90, avanzado:1.30}],
+  [/peso\s*muerto|rumano|hip\s*thrust/i,           {principiante:0.60, intermedio:1.00, avanzado:1.50}],
+  [/press\s*banca|press\s*inclinado/i,             {principiante:0.35, intermedio:0.65, avanzado:0.95}],
+  [/remo|jal[oó]n/i,                                {principiante:0.35, intermedio:0.60, avanzado:0.85}],
+  [/press\s*militar|press\s*hombro/i,              {principiante:0.25, intermedio:0.45, avanzado:0.65}],
+  [/curl|extensi[oó]n|elevaci[oó]n|apertura|face|franc[eé]s|pull\s*over|patada/i,
+                                                    {principiante:0.10, intermedio:0.18, avanzado:0.26}],
+  [/zancada|femoral|gemelo/i,                       {principiante:0.25, intermedio:0.45, avanzado:0.70}]
+];
+function cargaInicial(nombre, grupo){
+  const m = ultimaMedicion();
+  const peso = num(m?.peso);
+  const niv = nivelDeEntreno();
+  if(!peso || !niv) return "";
+  const par = PATRONES.find(([re])=>re.test(String(nombre||"")));
+  if(!par || !par[1]) return "";          // sin patrón, o ejercicio con tu propio peso
+  const factor = par[1][niv.id];
+  if(!factor) return "";
+  /* Redondeado al medio kilo: es el disco más fino de cualquier gimnasio. */
+  return String(Math.max(1, Math.round(peso * factor * 2) / 2));
+}
+
 const EJ_POR_GRUPO = {
   pecho:   ["Press banca","Press inclinado con mancuernas","Aperturas en polea","Fondos"],
   espalda: ["Dominadas","Remo con barra","Jalón al pecho","Remo en polea"],
@@ -800,7 +891,7 @@ const REPARTO_REHAB = [
 ];
 
 function armarRutina(diasSemana){
-  const o = objetivo();
+  const o = objetivo(), niv = nivelDeEntreno();
   const base = o.id === "rehab" ? REPARTO_REHAB : (REPARTOS[diasSemana] || REPARTOS[3]);
 
   /* Cuántas veces a la semana toca cada músculo: eso reparte las series. */
@@ -814,13 +905,18 @@ function armarRutina(diasSemana){
       const lista = EJ_POR_GRUPO[g] || [];
       /* Se reparte el volumen del objetivo entre las veces que toca ese
          músculo y sus ejercicios. Tope de 4: más series en un mismo
-         ejercicio aportan poco y alargan la sesión. */
-      const series = clamp(Math.round(o.volOpt / (vecesGrupo[g] * n)), 2, 4);
+         ejercicio aportan poco y alargan la sesión. El nivel ajusta
+         el total: un principiante rinde más con menos. */
+      const bruto = o.volOpt * (niv ? niv.factorSeries : 1) / (vecesGrupo[g] * n);
+      const series = clamp(Math.round(bruto), 2, 4);
       return lista.slice(0, n).map(name=>({name, grupo:g, series}));
     })
   }));
 
-  return {objetivo:o.id, diasSemana: o.id === "rehab" ? base.length : diasSemana,
+  if(niv) dias.forEach(d=>{ if(d.ex.length > niv.ejerciciosMax) d.ex = d.ex.slice(0, niv.ejerciciosMax); });
+
+  return {objetivo:o.id, nivel: niv?.id || null,
+          diasSemana: o.id === "rehab" ? base.length : diasSemana,
           dias, ultimo:"", creada: Date.now()};
 }
 
@@ -864,10 +960,13 @@ function proponerSesion(){
         const p = progresionDe(ant, vol);
         if(p) return Object.assign(p, {nuevo:false});
       }
+      const w0 = cargaInicial(pl.name, pl.grupo);
       return {
         name: pl.name, grupo: pl.grupo, meta: metaDef(), icono:"✦", nuevo:true,
-        motivo:`Primera vez: busca un peso que te deje a RIR ${o.rir} en ${o.repMin} repeticiones.`,
-        sets: Array.from({length: pl.series}, ()=>({w:"", r:String(o.repMin), rir:String(o.rir)}))
+        motivo: w0
+          ? `Primera vez. Empieza con ${fmt(num(w0))} kg, calculado desde tu peso corporal y tu nivel. Ajústalo si te queda corto o largo.`
+          : `Primera vez: busca un peso que te deje a RIR ${o.rir} en ${o.repMin} repeticiones.`,
+        sets: Array.from({length: pl.series}, ()=>({w:w0, r:String(o.repMin), rir:String(o.rir)}))
       };
     });
     return {rutina:true, dia, items};
@@ -1501,29 +1600,32 @@ function renderSpot(){
   document.getElementById("spotVer").onclick = ()=> go("stats");
 }
 
-/* Tres cifras del día que hoy hay que ir a buscar entre las tarjetas. */
-function renderRail(){
-  const l = dayLog(cur), sl = l.sleep;
-  const hCam = S.habits.find(h=>h.id === "caminar") || S.habits.find(h=>h.type === "amount");
-  const hAct = S.habits.find(h=>h.type === "activity");
-  const cuando = cur === todayKey() ? "hoy" : "ese día";
+/* La tarjeta grande de entrenamiento: lo que hoy toca, o lo que ya hiciste. */
+function renderEntrenar(){
+  const b = document.getElementById("entrenarCard");
+  if(!b) return;
+  const w = dayLog(cur).workout, vol = wkVolume(w);
+  const series = (w.ex||[]).reduce((a,e)=>a+seriesHechas(e), 0);
+  const o = objetivo(), r = rutina();
+  const toca = r ? diaQueToca() : null;
 
-  const tarjeta = (color, icono, val, uni, nombre) => `
-    <div class="mini">
-      <div class="mini-top">
-        <span class="mini-ic" style="background:${color}26;color:${color}">${icono}</span>
-        <span>${cuando}</span>
-      </div>
-      <b>${val}${uni ? `<em>${uni}</em>` : ""}</b>
-      <span class="nm">${esc(nombre)}</span>
-    </div>`;
-
-  const cajas = [tarjeta("#a78bfa", "☾", sl ? fmt(sl.hours) : "–", sl ? "h" : "", "Sueño")];
-  if(hCam) cajas.push(tarjeta(hCam.color || "#fbbf24", hCam.emoji || "🚶",
-                              fmt(Number(l.values[hCam.id]) || 0), "", hCam.name));
-  if(hAct) cajas.push(tarjeta(hAct.color || "#f97316", hAct.emoji || "🏃",
-                              fmt(Number(l.values[hAct.id]) || 0), "min", hAct.name));
-  document.getElementById("rail").innerHTML = cajas.join("");
+  if(series){
+    b.className = "entrenar hecho";
+    b.innerHTML = `
+      <span class="ic">✅</span>
+      <span class="tx"><b>${kg(vol)} kg movidos</b>
+        <span>${series} series · ${(w.ex||[]).filter(seriesHechas).length} ejercicios</span></span>
+      <span class="go">Seguir ›</span>`;
+  }else{
+    b.className = "entrenar";
+    b.innerHTML = `
+      <span class="ic">🏋️</span>
+      <span class="tx"><b>${toca ? "Hoy toca: " + esc(toca.nombre) : "Registrar entrenamiento"}</b>
+        <span>${toca ? `${toca.ex.length} ejercicios · ${o.emoji} ${o.nombre}`
+                     : "Anota ejercicios, peso, repeticiones y RIR"}</span></span>
+      <span class="go">Empezar ›</span>`;
+  }
+  b.onclick = openWorkout;
 }
 
 function renderSleepCard(){
@@ -1638,7 +1740,7 @@ function refrescarTarjeta(id){
   if(pEl) pEl.innerHTML = `${pts1(puntosGanados(h,v))}<i>/${pts1(puntosHabito(h))} pts</i>`;
   const st = streak(h), sEl = card.querySelector(".streak");
   if(sEl){ sEl.className = "streak" + (st>1 ? " on" : ""); sEl.textContent = st>1 ? "🔥 "+st : ""; }
-  renderSpot(); renderRail();
+  renderSpot(); renderEntrenar();
 
   /* Si estás dentro de la ventana, el contador de arriba también avanza. */
   const sub = document.getElementById("raSub");
@@ -1693,6 +1795,8 @@ const AVISOS = [60, 30];                 // minutos de antelación
 const GRACIA = 15;                       // margen para avisar si abriste tarde
 
 const recorDe = k => (S.logs[k]?.recor || []);
+/* Los recordatorios viven en la ficha del día del calendario. */
+const diaRecor = () => agDia || cur;
 
 function agregarRecor(){
   const txt  = document.getElementById("recorTxt").value.trim();
@@ -1700,11 +1804,12 @@ function agregarRecor(){
   if(!txt){ toast("Escribe qué quieres recordar"); return; }
   if(!/^\d{2}:\d{2}$/.test(hora)){ toast("Elige una hora"); return; }
 
+  const antes = cur; cur = diaRecor();
   const l = dayLog(cur);
   l.recor = l.recor || [];
   l.recor.push({id:"r"+Date.now(), txt, hora, av:{}});
   l.recor.sort((a,b)=> a.hora.localeCompare(b.hora));
-  save();
+  save(); cur = antes;
   document.getElementById("recorTxt").value = "";
   document.getElementById("recorHora").value = "";
   renderRecor();
@@ -1713,15 +1818,17 @@ function agregarRecor(){
 }
 
 function borrarRecor(id){
+  const antes = cur; cur = diaRecor();
   const l = dayLog(cur);
   l.recor = recorDe(cur).filter(r=>r.id !== id);
-  save(); renderRecor();
+  save(); cur = antes; renderRecor();
 }
 
 function renderRecor(){
   const box = document.getElementById("recorLista");
   if(!box) return;
-  const lista = recorDe(cur), ahora = nowMin(), esHoy = cur === todayKey();
+  const k = diaRecor();
+  const lista = recorDe(k), ahora = nowMin(), esHoy = k === todayKey();
 
   box.innerHTML = lista.length ? lista.map(r=>{
     const faltan = hm(r.hora) - ahora;
@@ -1781,7 +1888,7 @@ function recorTick(){
   }
 }
 
-function renderToday(){ renderDate(); renderSaludo(); renderSpot(); renderRail(); renderSleepCard(); renderCards(); renderRecor(); }
+function renderToday(){ renderDate(); renderSaludo(); renderSpot(); renderSleepCard(); renderCards(); renderEntrenar(); renderPreguntas(); }
 
 /* ============================================================
    CHECK-IN DE SUEÑO
@@ -2020,6 +2127,7 @@ function openAgenda(k){
     : "Anota lo que quieras a la hora que corresponda.";
   document.getElementById("agNota").value = S.logs[k]?.note || "";
   renderMood();
+  renderRecor();
   pintaResumenDia(k);
   pintaTurnos();
   pintaHoras();
@@ -2493,8 +2601,6 @@ function renderStats(){
       </div>`).join("")
     : `<div class="empty">Evalúa tus ejercicios al terminar y aquí verás el resumen.</div>`;
 
-  renderPreguntas();
-
   /* ---- el sueño vive en Salud, pero se dibuja aquí mismo ---- */
   renderSueno14();
 }
@@ -2775,6 +2881,70 @@ function renderObjetivo(){
   });
 }
 
+/* ---------------- test de nivel ---------------- */
+let nvPaso = 0, nvResp = {};
+
+function abrirTest(){
+  nvPaso = 0; nvResp = {};
+  pintarTest();
+  shutModals();
+  document.getElementById("nvModal").classList.add("open");
+}
+
+function pintarTest(){
+  const cuerpo = document.getElementById("nvCuerpo");
+  const accion = document.getElementById("nvAccion");
+
+  if(nvPaso >= TEST.length){                 // resultado
+    const puntos = Object.values(nvResp).reduce((a,b)=>a+b, 0);
+    const niv = nivelPorPuntos(puntos);
+    document.getElementById("nvTitulo").textContent = "Tu nivel";
+    document.getElementById("nvSub").textContent = `${puntos} de 24 puntos`;
+    cuerpo.innerHTML = `
+      <div class="nvres">
+        <div class="em">${niv.emoji}</div>
+        <b>${niv.nombre}</b>
+        <span>${niv.desc}</span>
+        <p>${niv.nota}</p>
+      </div>
+      <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
+        Podrás rehacerlo cuando quieras desde Ajustes. Si además registras tu peso
+        en Salud, la app te propondrá con cuántos kilos empezar cada ejercicio.</p>`;
+    accion.textContent = "Guardar mi nivel";
+    accion.onclick = ()=>{
+      S.nivel = {id:niv.id, puntos, respuestas:{...nvResp}, fecha: todayKey()};
+      if(rutina()) S.rutina = null;          // se rehace con el nivel nuevo
+      save();
+      document.getElementById("nvModal").classList.remove("open");
+      renderSettings(); renderToday();
+      toast(`${niv.emoji} Nivel ${niv.nombre}`);
+    };
+    return;
+  }
+
+  const q = TEST[nvPaso];
+  document.getElementById("nvTitulo").textContent = q.prueba ? "Prueba física" : "Test de nivel";
+  document.getElementById("nvSub").textContent = `Pregunta ${nvPaso+1} de ${TEST.length}`;
+  cuerpo.innerHTML = `
+    <p class="nvq">${q.t}</p>
+    ${q.prueba ? `<p class="nvayuda">Hazla ahora si puedes, o responde con lo que recuerdes de la última vez.</p>` : ""}
+    ${q.ops.map(([txt, val], i)=>`
+      <button class="nvop ${nvResp[q.id] === val ? "on" : ""}" data-val="${val}" data-i="${i}">${txt}</button>`).join("")}`;
+
+  cuerpo.querySelectorAll("[data-val]").forEach(b=> b.onclick = ()=>{
+    nvResp[q.id] = +b.dataset.val;
+    cuerpo.querySelectorAll("[data-val]").forEach(x=>x.classList.toggle("on", x === b));
+    accion.disabled = false;
+  });
+
+  accion.textContent = nvPaso === TEST.length - 1 ? "Ver mi nivel" : "Siguiente";
+  accion.disabled = nvResp[q.id] === undefined;
+  accion.onclick = ()=>{ if(nvResp[q.id] !== undefined){ nvPaso++; pintarTest(); } };
+}
+
+document.getElementById("nvClose").onclick = ()=> document.getElementById("nvModal").classList.remove("open");
+document.getElementById("nvModal").onclick = e=>{ if(e.target.id === "nvModal") document.getElementById("nvModal").classList.remove("open"); };
+
 /* La rutina se arma sola desde el objetivo y los días que puedas
    entrenar. No es una talla única: rehabilitación reparte distinto. */
 function renderRutina(){
@@ -2824,6 +2994,36 @@ function renderRutina(){
     S.rutina = null; save(); renderRutina();
     toast("Rutina quitada · la app vuelve a proponer desde tu última sesión");
   };
+}
+
+function renderNivel(){
+  const box = document.getElementById("nivelPanel");
+  if(!box) return;
+  const niv = nivelDeEntreno();
+  const m = ultimaMedicion();
+
+  box.innerHTML = niv ? `
+    <div class="risk rk-ok" style="margin:0 0 14px">
+      <div class="lv" style="background:#22e07a1f">${niv.emoji}</div>
+      <div><b style="color:#22e07a">${niv.nombre}</b>
+        <span>${S.nivel.puntos} de 24 puntos · test del ${S.nivel.fecha}</span></div>
+    </div>
+    <p style="font-size:13px;color:var(--tx2);margin:0 0 12px">${niv.nota}</p>
+    ${m && num(m.peso)
+      ? `<p style="font-size:12px;color:var(--tx3);margin:0 0 12px">
+           Con tus ${fmt(num(m.peso))} kg, la app calcula la carga inicial de cada ejercicio nuevo.</p>`
+      : `<div class="risk rk-warn" style="margin:0 0 12px"><div class="lv" style="background:#fbbf241f">⚖️</div>
+           <div><b style="color:#fbbf24">Falta tu peso</b>
+             <span>Regístralo en Salud y te propondré con cuántos kilos empezar cada ejercicio.</span></div></div>`}
+    <button class="btn ghost" id="nvRehacer">Rehacer el test</button>`
+  : `
+    <p style="font-size:13px;color:var(--tx2);margin:0 0 13px">
+      Seis preguntas y tres pruebas con tu propio peso. Con el resultado ajusto
+      cuántos ejercicios lleva cada sesión, cuántas series y con cuánto peso empezar.</p>
+    <button class="btn" id="nvEmpezar">Hacer el test</button>`;
+
+  const a = document.getElementById("nvEmpezar") || document.getElementById("nvRehacer");
+  if(a) a.onclick = abrirTest;
 }
 
 function renderSyncPanel(){
@@ -2939,7 +3139,7 @@ function renderTurnos(){
   };
 }
 function renderSettings(){
-  renderObjetivo(); renderRutina(); renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
+  renderObjetivo(); renderNivel(); renderRutina(); renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
 
 /* ============================================================
    MODAL HÁBITO
