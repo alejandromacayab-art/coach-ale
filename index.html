@@ -105,36 +105,35 @@
 
   <!-- ================= PROGRESO ================= -->
   <div id="view-stats" class="hidden">
+    <div class="periodos" id="periodos">
+      <button data-per="1"  class="on">Hoy</button>
+      <button data-per="7">Semana</button>
+      <button data-per="30">Mes</button>
+    </div>
+    <div id="infoPeriodo"></div>
+
     <section>
-      <div class="stitle">Resumen</div>
-      <div class="stats" id="statBoxes"></div>
-    </section>
-    <section>
-      <div class="stitle">🏋️ Entrenamiento · últimos 30 días</div>
-      <div class="panel" id="trainBox"></div>
-    </section>
-    <section>
-      <div class="stitle">Puntaje · últimos 14 días</div>
-      <div class="panel"><div class="chart" id="chart14"></div></div>
-    </section>
-    <section>
-      <div class="stitle">😴 Calidad de sueño · últimos 14 días</div>
-      <div class="panel"><div class="chart" id="chartSleep"></div>
-        <div class="hlbl" id="sleepAvg"></div></div>
-    </section>
-    <section>
-      <div class="stitle">Series por grupo muscular · últimos 7 días</div>
+      <div class="stitle">Series por grupo muscular</div>
       <div class="panel" id="volGrupos"></div>
     </section>
     <section>
-      <div class="stitle">Por hábito · últimos 30 días</div>
-      <div class="panel" id="perHabit"></div>
+      <div class="stitle">Ejercicios</div>
+      <div class="panel" id="topEx"></div>
+    </section>
+    <section>
+      <div class="stitle">Cómo se sintieron</div>
+      <div class="panel" id="sensBox"></div>
     </section>
   </div>
 
   <!-- ================= SALUD ================= -->
   <div id="view-salud" class="hidden">
     <div id="saludFlags"></div>
+    <section>
+      <div class="stitle">😴 Calidad de sueño · últimos 14 días</div>
+      <div class="panel"><div class="chart" id="chartSleep"></div>
+        <div class="hlbl" id="sleepAvg"></div></div>
+    </section>
     <section>
       <div class="stitle">⚖️ Composición corporal</div>
       <div id="cuerpoResumen"></div>
@@ -500,7 +499,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-7";
+const APP_VERSION = "2026.09.17-8";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -2089,20 +2088,18 @@ document.getElementById("agModal").onclick = e=>{
    ============================================================ */
 /* Cuánto trabajo recibió cada músculo esta semana y si esa dosis
    se queda corta, está en el punto, o ya pide recortar. */
-function renderVolumenGrupos(){
+function renderVolumenGrupos(dias){
   const box = document.getElementById("volGrupos");
   if(!box) return;
-  const semana = []; let k = todayKey();
-  for(let i=0;i<7;i++){ semana.push(k); k = shift(k,-1); }
+  if(!dias){ dias = []; let k = todayKey(); for(let i=0;i<7;i++){ dias.push(k); k = shift(k,-1); } }
 
-  const total = seriesPorGrupo(semana);
+  const total = seriesPorGrupo(dias);
   const filas = GRUPOS
     .filter(g => total[g.id])
     .sort((a,b)=> total[b.id] - total[a.id]);
 
   if(!filas.length){
-    box.innerHTML = `<div class="empty">Aún no hay series registradas esta semana.<br>
-      Anota tus ejercicios en <b>Entrenar</b> y aquí verás el volumen de cada músculo.</div>`;
+    box.innerHTML = `<div class="empty">Sin series registradas en este periodo.</div>`;
     return;
   }
 
@@ -2122,71 +2119,139 @@ function renderVolumenGrupos(){
       <span>${o.volTope} o más · al límite</span></div>`;
 }
 
+let periodo = 1;                       // 1 = hoy, 7 = semana, 30 = mes
+const NOMBRE_PERIODO = {1:"hoy", 7:"esta semana", 30:"este mes"};
+
+/* Los días de la ventana actual y los de la ventana anterior, del mismo
+   largo, para poder decir si vas mejor o peor que antes. */
+function ventanas(n){
+  const ahora = [], antes = []; let k = todayKey();
+  for(let i=0;i<n;i++){ ahora.push(k); k = shift(k,-1); }
+  for(let i=0;i<n;i++){ antes.push(k); k = shift(k,-1); }
+  return {ahora, antes};
+}
+
+/* Todo lo que se puede decir del entrenamiento en un tramo de días. */
+function resumenEntreno(dias){
+  let volumen = 0, series = 0, sesiones = 0;
+  const porEjercicio = {}, veredictos = {};
+  dias.forEach(k=>{
+    const ex = S.logs[k]?.workout?.ex || [];
+    let hubo = false;
+    ex.forEach(e=>{
+      const n = seriesHechas(e);
+      if(!n) return;
+      hubo = true;
+      const v = exVolume(e);
+      volumen += v; series += n;
+      const nom = String(e.name||"").trim() || "Sin nombre";
+      const acc = porEjercicio[nom] || (porEjercicio[nom] = {series:0, volumen:0, rm:0, grupo:grupoDe(e)});
+      acc.series += n; acc.volumen += v; acc.rm = Math.max(acc.rm, exUnoRM(e));
+      const ver = veredicto(e.ev);
+      if(ver) veredictos[ver.t] = (veredictos[ver.t]||0) + 1;
+    });
+    if(hubo) sesiones++;
+  });
+  return {volumen, series, sesiones, porEjercicio, veredictos};
+}
+
+const variacion = (hoy, antes) => {
+  if(!antes) return null;
+  return Math.round((hoy - antes) / antes * 100);
+};
+function tendencia(p){
+  if(p === null) return {t:"", c:"var(--tx3)"};
+  if(p > 2)  return {t:`↗ ${p}%`,  c:"#22e07a"};
+  if(p < -2) return {t:`↘ ${p}%`,  c:"#fb7185"};
+  return {t:"→ igual", c:"var(--tx3)"};
+}
+
 function renderStats(){
-  const days=[]; let k=todayKey();
-  for(let i=0;i<30;i++){ days.push(k); k=shift(k,-1); }
-  const avg30 = promedioPuntaje(30);
-  const perfect = days.filter(d=>puntajeDia(d).total >= 90).length;
-  const sleeps = days.map(d=>S.logs[d]?.sleep).filter(Boolean);
-  const avgSleep = sleeps.length ? Math.round(sleeps.reduce((a,s)=>a+s.score,0)/sleeps.length) : 0;
-  const avgHrs = sleeps.length ? Math.round(sleeps.reduce((a,s)=>a+s.hours,0)/sleeps.length*10)/10 : 0;
-  const totKg = days.reduce((a,d)=>a+wkVolume(S.logs[d]?.workout), 0);
-  let gstreak=0, kk=todayKey();
-  if(dayPct(kk)===0) kk=shift(kk,-1);
-  while(dayPct(kk)>0){ gstreak++; kk=shift(kk,-1); }
+  document.querySelectorAll("#periodos button").forEach(b=>
+    b.classList.toggle("on", +b.dataset.per === periodo));
 
-  document.getElementById("statBoxes").innerHTML = `
-    <div class="stat"><b style="color:${nivelDe(avg30).c}">${avg30}</b><span>Puntaje medio · 30 días</span></div>
-    <div class="stat"><b>${rachaBuenos()}</b><span>Días buenos seguidos</span></div>
-    <div class="stat"><b>${perfect}</b><span>Días impecables (90+)</span></div>
-    <div class="stat"><b style="color:#a5b4fc">${avgSleep||"–"}</b><span>Sueño promedio</span></div>
-    <div class="stat"><b>${kg(totKg)}</b><span>Kg movidos · 30 días</span></div>`;
+  const {ahora, antes} = ventanas(periodo);
+  const r = resumenEntreno(ahora), p0 = resumenEntreno(antes);
+  const etiqueta = NOMBRE_PERIODO[periodo];
 
-  const sesiones = days.filter(d=>wkVolume(S.logs[d]?.workout)>0);
-  const mejor = sesiones.length ? Math.max(...sesiones.map(d=>wkVolume(S.logs[d].workout))) : 0;
-  document.getElementById("trainBox").innerHTML = sesiones.length ? `
+  /* ---- informe de cabecera ---- */
+  const vVol = tendencia(variacion(r.volumen, p0.volumen));
+  const vSer = tendencia(variacion(r.series,  p0.series));
+  const porSesion = r.sesiones ? r.volumen / r.sesiones : 0;
+
+  document.getElementById("infoPeriodo").innerHTML = !r.series ? `
+    <div class="panel"><div class="empty">
+      Sin entrenamientos registrados ${etiqueta}.<br>
+      Anótalos en <b>Entrenar</b> y aquí tendrás el informe.</div></div>`
+    : `
     <div class="total" style="margin:0 0 12px">
-      <div><b>${kg(totKg)} kg</b><span>Volumen total en 30 días</span></div>
-      <div class="side">${sesiones.length} ${sesiones.length===1?"sesión":"sesiones"}<br>${kg(totKg/sesiones.length)} kg promedio</div>
+      <div><b>${kg(r.volumen)} kg</b><span>Volumen ${etiqueta}</span>
+        ${vVol.t ? `<span style="color:${vVol.c};font-weight:800">${vVol.t} que ${periodo===1?"ayer":"el periodo anterior"}</span>` : ""}</div>
+      <div class="side">${r.sesiones} ${r.sesiones===1?"sesión":"sesiones"}<br>${r.series} series</div>
     </div>
-    <div class="hist" style="cursor:default"><div class="hd">🏆 Mejor sesión</div>
-      <div class="hp"><i style="width:100%"></i></div><div class="hn">${kg(mejor)} kg</div></div>
-    <div class="hist" style="cursor:default"><div class="hd">📅 Frecuencia</div>
-      <div class="hp"><i style="width:${Math.min(100,sesiones.length/12*100)}%"></i></div>
-      <div class="hn">${(sesiones.length/30*7).toFixed(1)}/sem</div></div>`
-    : `<div class="empty">Aún no registras entrenamientos con peso.</div>`;
+    <div class="stats" style="margin-bottom:4px">
+      <div class="stat"><b>${r.series}</b><span>Series ${vSer.t ? "· "+vSer.t : ""}</span></div>
+      <div class="stat"><b>${Object.keys(r.porEjercicio).length}</b><span>Ejercicios distintos</span></div>
+      <div class="stat"><b>${kg(porSesion)}</b><span>Kg por sesión</span></div>
+      ${periodo > 1 ? `<div class="stat"><b>${(r.sesiones/periodo*7).toFixed(1)}</b><span>Sesiones/semana</span></div>` : ""}
+    </div>`;
 
-  const last14 = days.slice(0,14).reverse();
-  document.getElementById("chart14").innerHTML = last14.map(d=>{
-    const p = puntajeDia(d).total/100, dt = parseKey(d);
-    return `<div class="cb" title="${d} · ${Math.round(p*100)} pts">
-      <div class="cbar ${p===0?'empty':''}" style="height:${Math.max(3,p*100)}%"></div>
-      <div class="cbl">${dt.getDate()}</div></div>`;
-  }).join("");
+  renderVolumenGrupos(ahora);
 
-  document.getElementById("chartSleep").innerHTML = last14.map(d=>{
-    const s = S.logs[d]?.sleep, dt = parseKey(d), v = s? s.score : 0;
+  /* ---- ejercicio por ejercicio ---- */
+  const lista = Object.entries(r.porEjercicio).sort((a,b)=> b[1].volumen - a[1].volumen);
+  document.getElementById("topEx").innerHTML = lista.length ? lista.map(([nombre, d])=>{
+    const ant = p0.porEjercicio[nombre];
+    const dif = ant ? variacion(d.rm || d.volumen, ant.rm || ant.volumen) : null;
+    const f = tendencia(dif);
+    return `<div class="exrow">
+      <div class="exr-h">
+        <span class="pt" style="background:${colorGrupo(d.grupo)}"></span>
+        <b>${esc(nombre)}</b>
+        <span class="v">${kg(d.volumen)} kg</span>
+      </div>
+      <div class="exr-d">${d.series} series · 1RM est. ${d.rm ? kg(d.rm)+" kg" : "–"}
+        ${f.t ? `<i style="color:${f.c}">${f.t}</i>` : ""}</div>
+    </div>`;
+  }).join("") : `<div class="empty">Sin ejercicios ${etiqueta}.</div>`;
+
+  /* ---- qué dijeron las evaluaciones ---- */
+  const ev = Object.entries(r.veredictos);
+  const totEv = ev.reduce((a,[,n])=>a+n, 0);
+  const colorVer = t => t==="Volumen óptimo" ? "#22e07a" : t==="Estímulo bajo" ? "#38bdf8"
+                      : t==="Límite recuperable" ? "#a78bfa" : "#fb7185";
+  document.getElementById("sensBox").innerHTML = totEv ? ev
+    .sort((a,b)=>b[1]-a[1])
+    .map(([t,n])=>`<div class="vg">
+        <div class="vg-top"><b>${t}</b><span>${n} <i>${n===1?"ejercicio":"ejercicios"}</i></span></div>
+        <div class="vg-bar"><i style="width:${Math.round(n/totEv*100)}%;background:${colorVer(t)}"></i></div>
+      </div>`).join("")
+    : `<div class="empty">Evalúa tus ejercicios al terminar y aquí verás el resumen.</div>`;
+
+  /* ---- el sueño vive en Salud, pero se dibuja aquí mismo ---- */
+  renderSueno14();
+}
+
+/* La curva de sueño, en la pestaña de Salud. */
+function renderSueno14(){
+  const caja = document.getElementById("chartSleep");
+  if(!caja) return;
+  const dias = []; let k = todayKey();
+  for(let i=0;i<14;i++){ dias.push(k); k = shift(k,-1); }
+  const orden = dias.slice().reverse();
+  const sleeps = dias.map(d=>S.logs[d]?.sleep).filter(Boolean);
+  const media = sleeps.length ? Math.round(sleeps.reduce((a,s)=>a+s.score,0)/sleeps.length) : 0;
+  const horas = sleeps.length ? Math.round(sleeps.reduce((a,s)=>a+s.hours,0)/sleeps.length*10)/10 : 0;
+
+  caja.innerHTML = orden.map(d=>{
+    const s = S.logs[d]?.sleep, dt = parseKey(d), v = s ? s.score : 0;
     return `<div class="cb" title="${d}${s?` · ${s.score} · ${fmt(s.hours)}h`:" · sin registro"}">
-      <div class="cbar sleep ${v===0?'empty':''}" style="height:${Math.max(3,v)}%"></div>
+      <div class="cbar sleep ${v===0?"empty":""}" style="height:${Math.max(3,v)}%"></div>
       <div class="cbl">${dt.getDate()}</div></div>`;
   }).join("");
   document.getElementById("sleepAvg").innerHTML = sleeps.length
-    ? `<span>Promedio: <b style="width:auto;color:#a5b4fc;background:none">${avgSleep}/100</b> · ${fmt(avgHrs)} h por noche · ${sleeps.length} registros</span>`
+    ? `<span>Promedio: <b style="width:auto;color:#a5b4fc;background:none">${media}/100</b> · ${fmt(horas)} h por noche · ${sleeps.length} registros</span>`
     : `<span>Aún sin check-ins de sueño registrados.</span>`;
-
-  renderVolumenGrupos();
-
-  document.getElementById("perHabit").innerHTML = S.habits.length ? S.habits.map(h=>{
-    const s = days.reduce((a,d)=>a+progress(h,S.logs[d]?.values?.[h.id]||0),0);
-    const pct = Math.round(s/30*100);
-    const tot = days.reduce((a,d)=>a+(Number(S.logs[d]?.values?.[h.id])||0),0);
-    return `<div class="hist" style="cursor:default">
-        <div class="hd">${h.emoji} ${esc(h.name)}</div>
-        <div class="hp"><i style="width:${Math.min(100,pct)}%;background:${h.color}"></i></div>
-        <div class="hn">${pct}%</div></div>
-      <div style="font-size:11.5px;color:var(--tx3);margin:-6px 0 8px 0">
-        Total: ${fmt(Math.round(tot*10)/10)} ${esc(h.unit||(h.type==="check"?"días":""))} · racha 🔥 ${streak(h)}</div>`;
-  }).join("") : `<div class="empty">Sin hábitos.</div>`;
 }
 
 /* ============================================================
@@ -3295,7 +3360,8 @@ function delta(actual, antes, mejorSube){
           c: bueno === null ? "var(--tx2)" : bueno ? "#22e07a" : "#fb7185"};
 }
 
-function renderSalud(){ renderCuerpo(); renderCuerpoGrafico(); renderFichas(); renderDocs(); }
+function renderSalud(){
+  renderSueno14(); renderCuerpo(); renderCuerpoGrafico(); renderFichas(); renderDocs(); }
 
 function renderCuerpo(){
   const box = document.getElementById("cuerpoResumen"), m = ultimaMedicion();
@@ -3787,6 +3853,9 @@ document.getElementById("raClose").onclick = cerrarRapido;
 document.getElementById("raModal").onclick = e=>{ if(e.target.id === "raModal") cerrarRapido(); };
 
 document.querySelectorAll("nav.tabs button[data-v]").forEach(b=>b.onclick=()=>go(b.dataset.v));
+document.querySelectorAll("#periodos button").forEach(b=>b.onclick=()=>{
+  periodo = +b.dataset.per; renderStats();
+});
 document.getElementById("prevD").onclick=()=>{ cur=shift(cur,-1); renderAll(); };
 document.getElementById("nextD").onclick=()=>{ if(cur<todayKey()){ cur=shift(cur,1); renderAll(); } };
 document.getElementById("todayBtn").onclick=()=>{ cur=todayKey(); renderAll(); };
