@@ -214,6 +214,38 @@
   <button data-v="salud"><i>♡</i>Salud</button>
 </nav>
 
+<!-- ===== Modal plan del mes ===== -->
+<div class="modal" id="plModal">
+  <div class="sheet">
+    <h3>📅 Tu mes</h3>
+    <p class="sub" id="plSub"></p>
+    <div id="plCuerpo"></div>
+    <button class="btn" id="plAplicar">Dejarlo escrito en el calendario</button>
+    <button class="btn ghost" style="margin-top:8px" id="plClose">Cerrar</button>
+  </div>
+</div>
+
+<!-- ===== Modal biblioteca de ejercicios ===== -->
+<div class="modal" id="bibModal">
+  <div class="sheet">
+    <h3>Elegir ejercicio</h3>
+    <input class="inp" id="bibBuscar" placeholder="Buscar por nombre o material…" autocomplete="off">
+    <div class="chipsg" id="bibGrupos"></div>
+    <div id="bibLista"></div>
+    <button class="btn ghost" style="margin-top:12px" id="bibClose">Cerrar</button>
+  </div>
+</div>
+
+<!-- ===== Modal ficha del ejercicio ===== -->
+<div class="modal" id="fiModal">
+  <div class="sheet">
+    <h3 id="fiNombre">Ejercicio</h3>
+    <p class="sub" id="fiSub"></p>
+    <div id="fiCuerpo"></div>
+    <button class="btn ghost" style="margin-top:12px" id="fiClose">Cerrar</button>
+  </div>
+</div>
+
 <!-- ===== Modal test de nivel ===== -->
 <div class="modal" id="nvModal">
   <div class="sheet">
@@ -512,6 +544,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="zoom.js"></script>
+<script src="ejercicios.js"></script>
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="nube.js"></script>
@@ -528,7 +561,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-11";
+const APP_VERSION = "2026.09.17-12";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -660,7 +693,7 @@ function adivinaGrupo(nombre){
   for(const [re, id] of PISTAS) if(re.test(n)) return id;
   return "otro";
 }
-const grupoDe = e => e.grupo || adivinaGrupo(e.name);
+const grupoDe = e => e.grupo || fichaEjercicio(e.name)?.g || adivinaGrupo(e.name);
 
 /* Series efectivas de un ejercicio: las que tienen peso y repeticiones. */
 const seriesHechas = e => (e.sets||[]).filter(st=>num(st.w) && num(st.r)).length;
@@ -855,16 +888,14 @@ function cargaInicial(nombre, grupo){
   return String(Math.max(1, Math.round(peso * factor * 2) / 2));
 }
 
-const EJ_POR_GRUPO = {
-  pecho:   ["Press banca","Press inclinado con mancuernas","Aperturas en polea","Fondos"],
-  espalda: ["Dominadas","Remo con barra","Jalón al pecho","Remo en polea"],
-  hombros: ["Press militar","Elevaciones laterales","Face pull"],
-  biceps:  ["Curl bíceps","Curl martillo"],
-  triceps: ["Extensión tríceps en polea","Press francés"],
-  pierna:  ["Sentadilla","Prensa","Peso muerto rumano","Curl femoral"],
-  gluteo:  ["Hip thrust","Zancadas"],
-  core:    ["Plancha","Abdominales en polea"]
-};
+/* La biblioteca (ejercicios.js) es la fuente: las plantillas eligen de ahí. */
+const BIBLIO = (window.COACH_ALE_EJERCICIOS?.lista) || [];
+const fichaEjercicio = nombre => BIBLIO.find(x =>
+  x.n.toLowerCase() === String(nombre||"").trim().toLowerCase()) || null;
+
+/* Para cada grupo, sus ejercicios en el orden del catálogo: los básicos
+   están primero, así una plantilla corta se queda con lo importante. */
+const EJ_POR_GRUPO = BIBLIO.reduce((a, x)=>{ (a[x.g] ||= []).push(x.n); return a; }, {});
 
 /* El reparto de la semana. Cada día es [nombre, [[grupo, nº de ejercicios], …]] */
 const REPARTOS = {
@@ -890,6 +921,21 @@ const REPARTO_REHAB = [
   ["Sesión B", [["gluteo",2],["hombros",2],["core",2]]]
 ];
 
+/* Coger los `n` primeros del catálogo juntaba tres press de pecho seguidos.
+   Se toma el básico y luego se reparten los demás a lo largo de la lista,
+   que está ordenada de multiarticular a analítico y mezcla material. */
+function variados(lista, n){
+  if(lista.length <= n) return lista.slice();
+  const out = [lista[0]];
+  const paso = (lista.length - 1) / (n - 1 || 1);
+  for(let i = 1; i < n; i++){
+    const idx = Math.min(lista.length - 1, Math.round(1 + paso * (i - 1)));
+    const cand = lista[idx];
+    out.push(out.includes(cand) ? lista.find(x=>!out.includes(x)) : cand);
+  }
+  return out.filter(Boolean);
+}
+
 function armarRutina(diasSemana){
   const o = objetivo(), niv = nivelDeEntreno();
   const base = o.id === "rehab" ? REPARTO_REHAB : (REPARTOS[diasSemana] || REPARTOS[3]);
@@ -902,14 +948,14 @@ function armarRutina(diasSemana){
     id: "d" + (i+1),
     nombre,
     ex: gs.flatMap(([g, n])=>{
-      const lista = EJ_POR_GRUPO[g] || [];
+      const lista = variados(EJ_POR_GRUPO[g] || [], n);
       /* Se reparte el volumen del objetivo entre las veces que toca ese
          músculo y sus ejercicios. Tope de 4: más series en un mismo
          ejercicio aportan poco y alargan la sesión. El nivel ajusta
          el total: un principiante rinde más con menos. */
       const bruto = o.volOpt * (niv ? niv.factorSeries : 1) / (vecesGrupo[g] * n);
       const series = clamp(Math.round(bruto), 2, 4);
-      return lista.slice(0, n).map(name=>({name, grupo:g, series}));
+      return lista.map(name=>({name, grupo:g, series}));
     })
   }));
 
@@ -921,6 +967,105 @@ function armarRutina(diasSemana){
 }
 
 const rutina = () => S.rutina && Array.isArray(S.rutina.dias) && S.rutina.dias.length ? S.rutina : null;
+
+/* ============================================================
+   PLAN MENSUAL
+   Cuatro semanas: tres de carga creciente y una de descarga.
+   No se inventa nada nuevo — usa tu rutina, tu objetivo y tu
+   nivel, y solo decide cuánto volumen lleva cada semana.
+   ============================================================ */
+const SEMANAS_PLAN = [
+  {n:1, factor:0.85, t:"Adaptación",  d:"Algo menos de volumen y una repetición más en reserva. Aquí se afina la técnica y se toman referencias."},
+  {n:2, factor:1.00, t:"Carga",       d:"El volumen de tu rutina, al RIR que marca tu objetivo. Sube el peso donde cerraste el rango."},
+  {n:3, factor:1.15, t:"Carga alta",  d:"La semana más dura del mes. Llega a tu RIR objetivo en las últimas series de cada ejercicio."},
+  {n:4, factor:0.55, t:"Descarga",    d:"Mismo peso, la mitad de las series. No es perder el tiempo: es cuando el cuerpo asimila las tres semanas anteriores."}
+];
+
+/* Los días de entrenamiento del mes, repartidos de lunes a domingo
+   según cuántos días por semana puedas. */
+const REPARTO_SEMANAL = {
+  2:[1,4], 3:[1,3,5], 4:[1,2,4,5], 5:[1,2,3,5,6]
+};
+
+/* Ajustar el volumen semana a semana multiplicando cada ejercicio no
+   funciona: con 4 series, un 15 % y un 30 % redondean al mismo número.
+   Se calcula el total de la sesión y se reparte la diferencia ejercicio
+   a ejercicio, empezando por los que más series llevan. */
+function repartirSeries(lista, factor){
+  const ex = lista.map(e=>({...e}));
+  const base = ex.reduce((a,e)=>a+e.series, 0);
+  let faltan = Math.max(ex.length, Math.round(base * factor)) - base;
+
+  const orden = ex.map((e,i)=>i).sort((a,b)=> ex[b].series - ex[a].series);
+  let vuelta = 0;
+  while(faltan !== 0 && vuelta < 40){
+    for(const i of orden){
+      if(faltan === 0) break;
+      if(faltan > 0 && ex[i].series < 5){ ex[i].series++; faltan--; }
+      else if(faltan < 0 && ex[i].series > 1){ ex[i].series--; faltan++; }
+    }
+    vuelta++;
+  }
+  return ex;
+}
+
+function planMensual(){
+  const r = rutina();
+  if(!r) return null;
+  const nDias = r.dias.length;
+  const huecos = REPARTO_SEMANAL[nDias] || REPARTO_SEMANAL[3];
+
+  /* Arrancamos el lunes de esta semana. */
+  const hoy = parseKey(todayKey());
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7));
+
+  return SEMANAS_PLAN.map(sem=>{
+    const sesiones = huecos.map((diaSemana, i)=>{
+      const f = new Date(lunes);
+      f.setDate(lunes.getDate() + (sem.n - 1) * 7 + diaSemana - 1);
+      const plantilla = r.dias[i % r.dias.length];
+      const ex = repartirSeries(plantilla.ex, sem.factor);
+      return {fecha: todayKey(f), dia: plantilla, ex,
+              series: ex.reduce((a,e)=>a+e.series, 0)};
+    });
+    return {...sem, sesiones, series: sesiones.reduce((a,x)=>a+x.series, 0)};
+  });
+}
+
+/* Deja el plan escrito en cada día del calendario, listo para abrirlo. */
+function aplicarPlan(){
+  const plan = planMensual();
+  if(!plan) return 0;
+  const o = objetivo();
+  const antes = cur;
+  let n = 0;
+
+  plan.forEach(sem=> sem.sesiones.forEach(ses=>{
+    if(ses.fecha < todayKey()) return;            // el pasado no se toca
+    cur = ses.fecha;
+    const l = dayLog(ses.fecha);
+    const yaHecho = (l.workout?.ex || []).some(seriesHechas);
+    if(yaHecho) return;                           // ni un día ya entrenado
+    l.workout = {
+      ex: ses.ex.map(e=>{
+        const w0 = cargaInicial(e.name, e.grupo);
+        return {name:e.name, grupo:e.grupo, meta:metaDef(),
+                sets: Array.from({length:e.series}, ()=>(
+                  {w:w0, r:String(o.repMin), rir:String(sem.n === 1 ? o.rir + 1 : o.rir)}))};
+      }),
+      dia: ses.dia.id,
+      plan: {semana: sem.n, tipo: sem.t}
+    };
+    save();
+    n++;
+  }));
+
+  cur = antes;
+  S.rutina.plan = {creado: Date.now(), desde: todayKey()};
+  save();
+  return n;
+}
 
 /* Qué día toca hoy: el siguiente al último que cerraste. */
 function diaQueToca(){
@@ -1600,6 +1745,11 @@ function renderSpot(){
   document.getElementById("spotVer").onclick = ()=> go("stats");
 }
 
+const nombreDiaPlan = w => {
+  const r = rutina();
+  return r?.dias.find(d=>d.id === w.dia)?.nombre || "Sesión de hoy";
+};
+
 /* La tarjeta grande de entrenamiento: lo que hoy toca, o lo que ya hiciste. */
 function renderEntrenar(){
   const b = document.getElementById("entrenarCard");
@@ -1620,9 +1770,10 @@ function renderEntrenar(){
     b.className = "entrenar";
     b.innerHTML = `
       <span class="ic">🏋️</span>
-      <span class="tx"><b>${toca ? "Hoy toca: " + esc(toca.nombre) : "Registrar entrenamiento"}</b>
-        <span>${toca ? `${toca.ex.length} ejercicios · ${o.emoji} ${o.nombre}`
-                     : "Anota ejercicios, peso, repeticiones y RIR"}</span></span>
+      <span class="tx"><b>${w.plan ? esc(nombreDiaPlan(w)) : toca ? "Hoy toca: " + esc(toca.nombre) : "Registrar entrenamiento"}</b>
+        <span>${w.plan ? `Semana ${w.plan.semana} · ${esc(w.plan.tipo)} · ${(w.ex||[]).length} ejercicios`
+                : toca ? `${toca.ex.length} ejercicios · ${o.emoji} ${o.nombre}`
+                       : "Anota ejercicios, peso, repeticiones y RIR"}</span></span>
       <span class="go">Empezar ›</span>`;
   }
   b.onclick = openWorkout;
@@ -2881,6 +3032,141 @@ function renderObjetivo(){
   });
 }
 
+/* ---------------- plan del mes ---------------- */
+function abrirPlan(){
+  const plan = planMensual();
+  if(!plan){ toast("Primero crea tu rutina"); return; }
+  const o = objetivo(), r = rutina();
+
+  document.getElementById("plSub").textContent =
+    `${r.dias.length} días por semana · ${o.emoji} ${o.nombre} · 4 semanas`;
+
+  document.getElementById("plCuerpo").innerHTML = plan.map(sem=>`
+    <div class="plsem ${sem.n === 4 ? "descarga" : ""}">
+      <div class="pl-h">
+        <b>Semana ${sem.n} · ${sem.t}</b>
+        <span>${sem.series} series</span>
+      </div>
+      <p>${sem.d}</p>
+      <div class="pl-dias">${sem.sesiones.map(ses=>{
+        const f = parseKey(ses.fecha);
+        return `<span><i>${DIAS[f.getDay()].slice(0,3)} ${f.getDate()}</i>${esc(ses.dia.nombre)}</span>`;
+      }).join("")}</div>
+    </div>`).join("") + `
+    <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
+      Al aplicarlo, cada sesión queda escrita en su día con ejercicios, series y
+      pesos. Los días que ya entrenaste no se tocan, y puedes cambiar lo que
+      quieras dentro de cada sesión.</p>`;
+
+  document.getElementById("plModal").classList.add("open");
+}
+
+document.getElementById("plAplicar").onclick = ()=>{
+  const n = aplicarPlan();
+  document.getElementById("plModal").classList.remove("open");
+  renderToday(); renderRutina();
+  toast(n ? `📅 ${n} sesiones escritas en tu calendario` : "No había días libres que planificar");
+};
+document.getElementById("plClose").onclick = ()=> document.getElementById("plModal").classList.remove("open");
+document.getElementById("plModal").onclick = e=>{ if(e.target.id === "plModal") document.getElementById("plModal").classList.remove("open"); };
+
+/* ---------------- biblioteca de ejercicios ---------------- */
+let bibIdx = null, bibGrupo = "", bibTexto = "";
+
+function abrirBiblioteca(i){
+  bibIdx = i; bibGrupo = ""; bibTexto = "";
+  const e = dayLog(cur).workout.ex[i];
+  if(e && e.grupo) bibGrupo = e.grupo;
+  document.getElementById("bibBuscar").value = "";
+  pintarBiblioteca();
+  document.getElementById("wkModal").classList.remove("open");
+  document.getElementById("bibModal").classList.add("open");
+  setTimeout(()=>document.getElementById("bibBuscar").focus(), 60);
+}
+
+function pintarBiblioteca(){
+  const gr = document.getElementById("bibGrupos");
+  gr.innerHTML = `<button class="chipg ${bibGrupo?"":"on"}" data-bg="">Todos</button>` +
+    GRUPOS.filter(g=>EJ_POR_GRUPO[g.id]).map(g=>
+      `<button class="chipg ${bibGrupo===g.id?"on":""}" data-bg="${g.id}"
+         style="--g:${g.color}">${g.nombre}</button>`).join("");
+  gr.querySelectorAll("[data-bg]").forEach(b=> b.onclick = ()=>{
+    bibGrupo = b.dataset.bg; pintarBiblioteca();
+  });
+
+  const t = bibTexto.trim().toLowerCase();
+  const filtrados = BIBLIO.filter(x =>
+    (!bibGrupo || x.g === bibGrupo) &&
+    (!t || x.n.toLowerCase().includes(t) || x.eq.toLowerCase().includes(t)));
+
+  document.getElementById("bibLista").innerHTML = filtrados.length
+    ? filtrados.map(x=>`
+        <div class="bibi">
+          <button class="bibsel" data-bs="${esc(x.n)}">
+            <span class="pt" style="background:${colorGrupo(x.g)}"></span>
+            <span class="tx"><b>${esc(x.n)}</b><span>${nombreGrupo(x.g)} · ${esc(x.eq)}</span></span>
+          </button>
+          <button class="exinfo" data-bi="${esc(x.n)}" title="Cómo se hace">ⓘ</button>
+        </div>`).join("")
+    : `<div class="empty">Ningún ejercicio con ese nombre.<br>
+         Puedes escribirlo igualmente y se añadirá como está.</div>
+       <button class="btn ghost" style="margin-top:10px" id="bibLibre">Usar "${esc(bibTexto)}"</button>`;
+
+  document.querySelectorAll("[data-bs]").forEach(b=> b.onclick = ()=> elegirEjercicio(b.dataset.bs));
+  document.querySelectorAll("[data-bi]").forEach(b=> b.onclick = ()=> abrirFicha(b.dataset.bi));
+  const libre = document.getElementById("bibLibre");
+  if(libre) libre.onclick = ()=> elegirEjercicio(bibTexto.trim());
+}
+
+function elegirEjercicio(nombre){
+  const e = dayLog(cur).workout.ex[bibIdx];
+  if(e && nombre){
+    e.name = nombre;
+    const f = fichaEjercicio(nombre);
+    e.grupo = f ? f.g : adivinaGrupo(nombre);
+    /* Si aún no tiene peso puesto, lo proponemos desde tu nivel y tu peso. */
+    const w0 = cargaInicial(e.name, e.grupo);
+    if(w0) (e.sets||[]).forEach(st=>{ if(!num(st.w)) st.w = w0; });
+    save();
+  }
+  document.getElementById("bibModal").classList.remove("open");
+  document.getElementById("wkModal").classList.add("open");
+  renderExercises(); updateWkTotal();
+}
+
+document.getElementById("bibBuscar").oninput = e=>{ bibTexto = e.target.value; pintarBiblioteca(); };
+document.getElementById("bibClose").onclick = ()=>{
+  document.getElementById("bibModal").classList.remove("open");
+  document.getElementById("wkModal").classList.add("open");
+};
+document.getElementById("bibModal").onclick = e=>{
+  if(e.target.id === "bibModal") document.getElementById("bibClose").click();
+};
+
+/* ---------------- ficha del ejercicio ---------------- */
+function abrirFicha(nombre){
+  const f = fichaEjercicio(nombre);
+  if(!f) return;
+  document.getElementById("fiNombre").textContent = f.n;
+  document.getElementById("fiSub").textContent = `${nombreGrupo(f.g)} · ${f.eq}`;
+  document.getElementById("fiCuerpo").innerHTML = `
+    <div class="fidibujo" style="color:${colorGrupo(f.g)}">
+      ${window.COACH_ALE_EJERCICIOS.cuerpoSVG(f.g, colorGrupo(f.g))}
+      <span>Esquema del músculo que trabaja</span>
+    </div>
+    <div class="fibloque sentir">
+      <span>Dónde deberías sentirlo</span>
+      <p>${esc(f.s)}</p>
+    </div>
+    <div class="fibloque errores">
+      <span>Errores más comunes</span>
+      <ul>${f.e.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+    </div>`;
+  document.getElementById("fiModal").classList.add("open");
+}
+document.getElementById("fiClose").onclick = ()=> document.getElementById("fiModal").classList.remove("open");
+document.getElementById("fiModal").onclick = e=>{ if(e.target.id === "fiModal") document.getElementById("fiModal").classList.remove("open"); };
+
 /* ---------------- test de nivel ---------------- */
 let nvPaso = 0, nvResp = {};
 
@@ -2982,10 +3268,14 @@ function renderRutina(){
         <div class="rd-ex">${d.ex.map(e=>
           `<span style="--g:${colorGrupo(e.grupo)}">${e.series}× ${esc(e.name)}</span>`).join("")}</div>
       </div>`).join("")}
-    <button class="btn ghost" style="margin-top:12px" id="rutNueva">Rehacer la rutina</button>
+    <button class="btn" style="margin-top:14px" id="rutPlan">📅 Planificar el mes</button>
+    <button class="btn ghost" style="margin-top:8px" id="rutNueva">Rehacer la rutina</button>
     <button class="btn danger" style="margin-top:8px" id="rutQuitar">Quitar la rutina</button>
     <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
       Al guardar un entrenamiento, la rutina avanza sola al día siguiente.</p>`;
+
+  const pl = document.getElementById("rutPlan");
+  if(pl) pl.onclick = abrirPlan;
 
   document.getElementById("rutNueva").onclick = ()=>{
     S.rutina = null; save(); renderRutina();
@@ -3237,8 +3527,9 @@ function openWorkout(){
    empezaste a anotar, estorbaría más de lo que ayuda. */
 function renderPropuesta(){
   const box = document.getElementById("wkProp");
-  const vacio = dayLog(cur).workout.ex.every(e=>!String(e.name||"").trim() && !seriesHechas(e));
-  const p = vacio ? proponerSesion() : null;
+  const w = dayLog(cur).workout;
+  const vacio = (w.ex||[]).every(e=>!String(e.name||"").trim() && !seriesHechas(e));
+  const p = (vacio && !w.plan) ? proponerSesion() : null;
   box.classList.toggle("hidden", !p);
   if(!p) return;
 
@@ -3293,7 +3584,9 @@ function renderExercises(){
     <div class="exbox">
       <div class="exhead">
         <span style="font-size:16px">💪</span>
-        <input list="exPresets" data-exn="${i}" value="${esc(e.name)}" placeholder="Nombre del ejercicio">
+        <button class="exnom ${e.name ? "" : "vacio"}" data-exb="${i}">${
+          e.name ? esc(e.name) : "Elegir ejercicio"}</button>
+        ${fichaEjercicio(e.name) ? `<button class="exinfo" data-exi="${i}" title="Cómo se hace">ⓘ</button>` : ""}
         ${(()=>{ const v = veredicto(e.ev); return v
           ? `<span class="eps" style="background:${v.c}22;color:${v.c}">${v.n}/9</span>` : ""; })()}
         <button class="exdel" data-exdel="${i}">✕</button>
@@ -3327,16 +3620,8 @@ function renderExercises(){
     </div>`).join("");
 
   const L = document.getElementById("wkList");
-  L.querySelectorAll("[data-exn]").forEach(inp=>inp.oninput=()=>{
-    const i = +inp.dataset.exn;
-    w.ex[i].name = inp.value;
-    /* Mientras no lo corrijas a mano, el grupo sigue al nombre. */
-    if(!w.ex[i].grupo){
-      const sel = L.querySelector(`[data-exg="${i}"]`);
-      if(sel){ sel.value = adivinaGrupo(inp.value); sel.style.setProperty("--g", colorGrupo(sel.value)); }
-    }
-    save();
-  });
+  L.querySelectorAll("[data-exb]").forEach(b=> b.onclick = ()=> abrirBiblioteca(+b.dataset.exb));
+  L.querySelectorAll("[data-exi]").forEach(b=> b.onclick = ()=> abrirFicha(w.ex[+b.dataset.exi].name));
   L.querySelectorAll("[data-exg]").forEach(sel=>sel.onchange=()=>{
     w.ex[+sel.dataset.exg].grupo = sel.value;
     sel.style.setProperty("--g", colorGrupo(sel.value));

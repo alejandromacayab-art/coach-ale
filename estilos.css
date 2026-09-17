@@ -205,6 +205,64 @@ section{margin:22px 0}
   color:var(--tx3);margin-top:10px;max-width:100%}
 .hlbl b{width:11px;height:11px;border-radius:3px;display:inline-block}
 
+/* Plan del mes */
+.plsem{border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin-bottom:10px;
+  background:var(--card2)}
+.plsem.descarga{border-color:color-mix(in srgb,#a78bfa 40%,transparent);
+  background:color-mix(in srgb,#a78bfa 10%,transparent)}
+.pl-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.pl-h b{font-size:14px;font-weight:800;letter-spacing:-.02em}
+.pl-h span{font-size:11.5px;font-weight:700;color:var(--tx3);flex:none}
+.plsem p{margin:5px 0 9px;font-size:12px;color:var(--tx2);line-height:1.45}
+.pl-dias{display:flex;flex-wrap:wrap;gap:5px}
+.pl-dias span{font-size:10.5px;font-weight:700;padding:4px 8px;border-radius:8px;
+  background:var(--card);border:1px solid var(--line);color:var(--tx2)}
+.pl-dias span i{font-style:normal;color:var(--tx3);margin-right:5px}
+
+/* La biblioteca y la ficha se abren encima de la ventana de entrenamiento. */
+#bibModal{z-index:110}
+#fiModal{z-index:120}
+
+/* Biblioteca de ejercicios */
+.exnom{flex:1;min-width:0;text-align:left;font-size:15px;font-weight:700;padding:4px 0;
+  border-bottom:1px dashed var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exnom.vacio{color:var(--tx3);font-weight:600}
+.exinfo{flex:none;width:26px;height:26px;border-radius:8px;font-size:14px;
+  color:var(--tx3);background:var(--card2);border:1px solid var(--line)}
+.exinfo:active{color:var(--accent);border-color:var(--accent)}
+.chipsg{display:flex;gap:6px;overflow-x:auto;padding:10px 0 12px;margin:0 -2px}
+.chipsg::-webkit-scrollbar{display:none}
+.chipg{--g:var(--accent);flex:none;font-size:12px;font-weight:700;padding:7px 12px;
+  border-radius:99px;border:1px solid var(--line);background:var(--card2);color:var(--tx3)}
+.chipg.on{border-color:var(--g);background:color-mix(in srgb,var(--g) 15%,transparent);color:var(--g)}
+.bibi{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.bibi:last-child{border-bottom:none}
+.bibsel{flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-align:left;padding:11px 0}
+.bibsel .pt{width:9px;height:9px;border-radius:3px;flex:none}
+.bibsel .tx{min-width:0}
+.bibsel .tx b{display:block;font-size:14px;font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bibsel .tx span{display:block;font-size:11.5px;color:var(--tx3)}
+#bibLista{max-height:46vh;overflow-y:auto;overscroll-behavior:contain}
+
+/* Ficha del ejercicio */
+.fidibujo{text-align:center;background:var(--card2);border:1px solid var(--line);
+  border-radius:15px;padding:14px 10px 10px;margin-bottom:12px}
+.fidibujo .cuerpo{width:100%;max-width:280px;height:auto}
+.fidibujo span{display:block;font-size:10.5px;color:var(--tx3);margin-top:4px}
+.fibloque{border-radius:13px;padding:12px 13px;margin-bottom:10px;border:1px solid var(--line)}
+.fibloque span{display:block;font-size:9.5px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:6px}
+.fibloque p{margin:0;font-size:13.5px;line-height:1.5}
+.fibloque ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.5}
+.fibloque li{margin-bottom:5px}
+.fibloque li:last-child{margin-bottom:0}
+.fibloque.sentir{background:var(--accent2);
+  border-color:color-mix(in srgb,var(--accent) 28%,transparent)}
+.fibloque.sentir span{color:var(--accent)}
+.fibloque.errores{background:var(--card2)}
+.fibloque.errores span{color:#fb7185}
+
 /* Tarjeta de entrenamiento en la pantalla de Hoy */
 .entrenar{display:flex;align-items:center;gap:13px;width:100%;text-align:left;
   padding:17px 16px;border-radius:var(--r);box-shadow:var(--glow);
