@@ -216,7 +216,13 @@ section{margin:22px 0}
 .cn-bloque span{display:block;font-size:9.5px;font-weight:800;text-transform:uppercase;
   letter-spacing:.07em;margin-bottom:5px}
 .cn-bloque p{margin:0;font-size:13.5px;line-height:1.5}
-.cn-bloque small{display:block;margin-top:9px;font-size:11px;color:var(--tx3);font-style:italic}
+.cn-ref{display:block;margin-top:9px;padding:9px 10px;border-radius:10px;
+  background:var(--card);border:1px solid var(--line);
+  font-size:11.5px;line-height:1.45;color:var(--tx2);text-decoration:none}
+.cn-ref .et{display:block;font-size:9.5px;font-weight:800;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:3px}
+.cn-ref.libro{color:var(--tx3);font-style:italic}
+.cn-ref:active{border-color:var(--accent)}
 .cn-bloque.dato{background:var(--card2);border:1px solid var(--line)}
 .cn-bloque.dato span{color:var(--tx3)}
 .cn-bloque.accion{background:var(--accent2);

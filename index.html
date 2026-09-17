@@ -515,7 +515,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-9";
+const APP_VERSION = "2026.09.17-10";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -2144,6 +2144,23 @@ function renderVolumenGrupos(dias){
    ============================================================ */
 function dias(n){ const a=[]; let k=todayKey(); for(let i=0;i<n;i++){ a.push(k); k=shift(k,-1);} return a; }
 
+/* Las referencias, comprobadas una a una en PubMed. `pmc` significa que
+   el texto completo está libre; si no, el enlace va al resumen en PubMed. */
+const REFS = {
+  volumen:   {cita:"Schoenfeld, Ogborn y Krieger (2017). Dose-response relationship between weekly resistance training volume and increases in muscle mass. J Sports Sci", pmid:"27433992"},
+  dosis:     {cita:"Pelland y cols. (2026). The Resistance Training Dose Response: meta-regresiones de volumen semanal. Sports Med", pmid:"41343037"},
+  frecuencia:{cita:"Schoenfeld, Ogborn y Krieger (2016). Effects of Resistance Training Frequency on Measures of Muscle Hypertrophy. Sports Med", pmid:"27102172"},
+  rir:       {cita:"Helms y cols. (2016). Application of the Repetitions in Reserve-Based RPE Scale for Resistance Training. Strength Cond J", pmc:"PMC4961270"},
+  fallo:     {cita:"Refalo y cols. (2023). Influence of Resistance Training Proximity-to-Failure on Skeletal Muscle Hypertrophy. Sports Med", pmc:"PMC9935748"},
+  proteina:  {cita:"Morton y cols. (2018). Protein supplementation and resistance training-induced gains in muscle mass and strength. Br J Sports Med", pmc:"PMC5867436"},
+  dano:      {cita:"Damas y cols. (2016). Resistance training-induced changes in integrated myofibrillar protein synthesis are related to hypertrophy only after attenuation of muscle damage. J Physiol", pmc:"PMC5023708"},
+  sueno:     {cita:"Kong y cols. (2025). Effects of sleep deprivation on sports performance and perceived exertion. Front Physiol", pmc:"PMC11996801"},
+  descanso:  {cita:"Grgic y cols. (2018). Effects of Rest Interval Duration in Resistance Training on Measures of Muscular Strength. Sports Med", pmid:"28933024"},
+  nsca:      {cita:"NSCA · Essentials of Strength Training and Conditioning (4.ª ed.) — principio de sobrecarga progresiva y regla de las 2 repeticiones"}
+};
+const urlRef = r => r.pmc ? `https://pmc.ncbi.nlm.nih.gov/articles/${r.pmc}/`
+                  : r.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/` : "";
+
 /* Las sesiones en que aparece un ejercicio, de la más reciente hacia atrás. */
 function historialEjercicio(nombre, n){
   const clave = String(nombre).trim().toLowerCase(), out = [];
@@ -2219,23 +2236,23 @@ const CONSULTAS = [
       if(!estancado){
         accion = `Sí estás progresando: de ${fmt(pesos[pesos.length-1])} a ${fmt(pesos[0])} kg. Sigue con la doble progresión.`;
         porque = "Subir carga o repeticiones de forma sostenida es la señal de progreso que importa; el resto son detalles.";
-        fuente = "Sobrecarga progresiva · NSCA (Essentials of Strength Training and Conditioning)";
+        fuente = ["nsca"];
       }else if(alLimite >= 2){
         accion = `Baja una o dos series de ${nombreGrupo(g)} durante una semana y mantén el peso. No sumes carga todavía.`;
         porque = `Vienes marcando "límite recuperable" en ${alLimite} de tus últimas sesiones y llevas ${ser} series semanales de ${nombreGrupo(g)}. Más volumen sobre una recuperación que ya no alcanza no produce más músculo: el estancamiento es de recuperación, no de estímulo.`;
-        fuente = "Relación dosis-respuesta del volumen · Schoenfeld, Ogborn y Krieger (meta-análisis)";
+        fuente = ["volumen","dosis"];
       }else if(bajo >= 1 && ser < o.volTope){
         accion = `Añade 1–2 series semanales a ${nombreGrupo(g)}. Vas en ${ser} y tu objetivo trabaja bien hasta ${o.volTope}.`;
         porque = "El volumen tiene una relación dosis-respuesta con la hipertrofia: por debajo de unas 10 series semanales por músculo, subirlas suele mejorar los resultados.";
-        fuente = "Schoenfeld, Ogborn y Krieger · meta-análisis de volumen";
+        fuente = ["volumen","dosis"];
       }else if(su && su.horas < 7){
         accion = `Antes de tocar el entrenamiento, sube el sueño. Vas en ${fmt(su.horas)} h de media.`;
         porque = "Dormir por debajo de 7 h deteriora la recuperación, la fuerza y la calidad de las sesiones. Es la palanca con mejor relación esfuerzo-resultado cuando el entrenamiento ya está bien puesto.";
-        fuente = "Revisiones sistemáticas sobre sueño y rendimiento deportivo";
+        fuente = ["sueno"];
       }else{
         accion = `Mantén ${fmt(pesos[0])} kg y persigue repeticiones: busca llegar a ${o.repMax} antes de subir carga.`;
         porque = `El peso se estancó pero tu recuperación está bien. La doble progresión —primero repeticiones, después carga— evita subir antes de tiempo.`;
-        fuente = "Doble progresión · NSCA · regla de las 2 repeticiones extra en 2 sesiones seguidas";
+        fuente = ["nsca"];
       }
       return {titulo:nombre,
         dato:`Últimas ${h.length} sesiones: ${pesos.slice().reverse().map(fmt).join(" → ")} kg. ${ser} series semanales de ${nombreGrupo(g)}.`,
@@ -2260,7 +2277,7 @@ const CONSULTAS = [
             ? `Añade 1–2 series semanales a ${bajos.join(", ")}. En el resto, mantén y deja que la evaluación decida.`
             : "Estás en rango en todos los grupos. Mantén y sube carga, no series.",
         porque: `Tu objetivo (${o.emoji} ${o.nombre}) trabaja bien entre ${o.volOpt} y ${o.volTope} series semanales por músculo. Por debajo de ~10 hay margen claro de mejora; pasado el techo, las series extra aportan cada vez menos y cuestan recuperación.`,
-        fuente:"Schoenfeld, Ogborn y Krieger · meta-análisis dosis-respuesta del volumen"
+        fuente:["volumen","dosis"]
       };
     }
   },
@@ -2278,7 +2295,7 @@ const CONSULTAS = [
           ? `Reparte ${unaVez.join(", ")} en dos sesiones en vez de una. Mismo volumen total, partido en dos días.`
           : "Todos tus músculos se entrenan dos o más veces por semana. Así está bien.",
         porque:"Con el volumen semanal igualado, repartirlo en dos sesiones rinde algo más que concentrarlo en una sola, y además permite más calidad por serie.",
-        fuente:"Schoenfeld y cols. · meta-análisis de frecuencia de entrenamiento"
+        fuente:["frecuencia"]
       };
     }
   },
@@ -2290,7 +2307,7 @@ const CONSULTAS = [
       if(!r) return {titulo:"Intensidad", dato:"No has anotado el RIR en tus series.",
         accion:"Apunta el RIR —repeticiones que te sobraron— en cada serie. Es el dato que mejor mide la intensidad real.",
         porque:"La escala de RIR permite ajustar el esfuerzo sesión a sesión sin depender de porcentajes fijos, que cambian con la fatiga del día.",
-        fuente:"Helms y cols. · escala de esfuerzo percibido basada en RIR", };
+        fuente:["rir"] };
       const d = r.medio - o.rir;
       return {
         titulo:"Intensidad", dato:`RIR medio ${r.medio} en ${r.n} series (tu objetivo es ${o.rir}).`,
@@ -2300,9 +2317,7 @@ const CONSULTAS = [
         porque: d < -1
           ? "Llegar al fallo no es necesario para ganar músculo: con un margen moderado de repeticiones en reserva los resultados son similares, y la fatiga acumulada es mucho menor."
           : "Entrenar demasiado lejos del fallo reduce el estímulo. El RIR sirve justamente para quedarse en la ventana útil.",
-        fuente: d < -1
-          ? "Refalo y cols. · meta-análisis sobre proximidad al fallo · Helms y cols. (RIR)"
-          : "Helms y cols. · escala RIR aplicada al entrenamiento de fuerza"
+        fuente: d < -1 ? ["fallo","rir"] : ["rir"]
       };
     }
   },
@@ -2328,9 +2343,7 @@ const CONSULTAS = [
         porque: fatiga
           ? "Las agujetas no miden crecimiento: se puede ganar músculo sin dolor y tener mucho dolor sin ganar nada. Dolor alto con poca tensión apunta a un ejercicio mal elegido o mal ejecutado."
           : "La recuperación es el techo real del volumen que puedes aprovechar. Cuando sueño y evaluaciones avisan a la vez, subir volumen solo profundiza el agujero.",
-        fuente: fatiga
-          ? "Damas y cols. · el daño muscular no es requisito para la hipertrofia"
-          : "Revisiones sistemáticas sobre sueño y rendimiento · principios de fatiga de la NSCA"
+        fuente: fatiga ? ["dano"] : ["sueno","nsca"]
       };
     }
   },
@@ -2343,7 +2356,7 @@ const CONSULTAS = [
         dato:"No tengo tu peso registrado.",
         accion:"Anota una medición en Salud y te doy el rango exacto en gramos.",
         porque:"La proteína se calcula por kilo de peso corporal, no en cifras fijas.",
-        fuente:"Morton y cols. · meta-análisis de proteína y entrenamiento de fuerza"};
+        fuente:["proteina"]};
       const peso = num(m.peso);
       const min = Math.round(peso * 1.6), max = Math.round(peso * 2.2);
       const extra = o.id === "grasa";
@@ -2352,7 +2365,7 @@ const CONSULTAS = [
         dato:`Con ${fmt(peso)} kg de peso corporal.`,
         accion:`Entre ${min} y ${max} g al día${extra ? ", y en déficit apunta a la parte alta del rango" : ""}. Repartidos en 3–4 comidas.`,
         porque:`Alrededor de 1,6 g por kilo al día es donde deja de haber ganancias claras para la mayoría; el rango hasta ~2,2 cubre la variabilidad individual.${extra ? " En déficit calórico, más proteína protege mejor la masa muscular." : ""}`,
-        fuente:"Morton y cols. · meta-análisis · posicionamiento de la ISSN sobre proteína"
+        fuente:["proteina"]
       };
     }
   },
@@ -2365,7 +2378,7 @@ const CONSULTAS = [
         dato:`Tu objetivo: ${o.emoji} ${o.nombre}.`,
         accion:`${o.descanso} entre series. En los básicos pesados, tira a la parte alta; en aislamientos puedes acortar.`,
         porque:"Descansos cortos recortan las repeticiones de las series siguientes y con ello el volumen efectivo. Con dos minutos o más, la fuerza y la hipertrofia salen mejor paradas, sobre todo en multiarticulares.",
-        fuente:"Grgic y cols. · revisión sobre intervalos de descanso · NSCA"
+        fuente:["descanso","nsca"]
       };
     }
   }
@@ -2516,7 +2529,15 @@ function abrirConsulta(id){
     <div class="cn-bloque porque">
       <span>Por qué</span>
       <p>${esc(r.porque)}</p>
-      ${r.fuente ? `<small>${esc(r.fuente)}</small>` : ""}
+      ${(r.fuente||[]).map(id=>{
+          const ref = REFS[id]; if(!ref) return "";
+          const url = urlRef(ref);
+          return url
+            ? `<a class="cn-ref" href="${url}" target="_blank" rel="noopener">
+                 <span class="et">${ref.pmc ? "Texto completo · PMC" : "Resumen · PubMed"}</span>
+                 ${esc(ref.cita)}</a>`
+            : `<div class="cn-ref libro">${esc(ref.cita)}</div>`;
+        }).join("")}
     </div>`;
   shutModals();
   document.getElementById("cnModal").classList.add("open");
