@@ -167,6 +167,10 @@
       <div class="panel" id="objPanel"></div>
     </section>
     <section>
+      <div class="stitle">🗓 Tu rutina</div>
+      <div class="panel" id="rutPanel"></div>
+    </section>
+    <section>
       <div class="stitle">☁️ Sincronización entre dispositivos</div>
       <div class="panel" id="syncPanel"></div>
     </section>
@@ -496,7 +500,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-6";
+const APP_VERSION = "2026.09.17-7";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -739,13 +743,123 @@ function progresionDe(e, seriesGrupo){
   };
 }
 
+/* ============================================================
+   PLANTILLAS DE RUTINA
+   Una rutina es una lista de días. Cada día dice qué músculos toca
+   y con cuántos ejercicios; los ejercicios y las series salen del
+   objetivo y de los días por semana que puedas entrenar.
+   ============================================================ */
+const EJ_POR_GRUPO = {
+  pecho:   ["Press banca","Press inclinado con mancuernas","Aperturas en polea","Fondos"],
+  espalda: ["Dominadas","Remo con barra","Jalón al pecho","Remo en polea"],
+  hombros: ["Press militar","Elevaciones laterales","Face pull"],
+  biceps:  ["Curl bíceps","Curl martillo"],
+  triceps: ["Extensión tríceps en polea","Press francés"],
+  pierna:  ["Sentadilla","Prensa","Peso muerto rumano","Curl femoral"],
+  gluteo:  ["Hip thrust","Zancadas"],
+  core:    ["Plancha","Abdominales en polea"]
+};
+
+/* El reparto de la semana. Cada día es [nombre, [[grupo, nº de ejercicios], …]] */
+const REPARTOS = {
+  2: [["Cuerpo completo A", [["pierna",2],["pecho",2],["espalda",2],["core",1]]],
+      ["Cuerpo completo B", [["gluteo",2],["espalda",2],["hombros",2],["biceps",1],["triceps",1]]]],
+  3: [["Empuje", [["pecho",3],["hombros",2],["triceps",2]]],
+      ["Tirón",  [["espalda",3],["biceps",2],["core",1]]],
+      ["Pierna", [["pierna",3],["gluteo",2],["core",1]]]],
+  4: [["Pecho y tríceps",  [["pecho",3],["triceps",3]]],
+      ["Espalda y bíceps", [["espalda",4],["biceps",2]]],
+      ["Pierna",           [["pierna",4],["gluteo",2]]],
+      ["Hombro y core",    [["hombros",3],["core",2]]]],
+  5: [["Pecho",   [["pecho",4],["core",1]]],
+      ["Espalda", [["espalda",4]]],
+      ["Pierna",  [["pierna",4],["gluteo",1]]],
+      ["Hombro",  [["hombros",3],["core",1]]],
+      ["Brazo",   [["biceps",2],["triceps",2]]]]
+};
+
+/* Rehabilitación no reparte por empuje/tirón: trabaja poco y a menudo. */
+const REPARTO_REHAB = [
+  ["Sesión A", [["pierna",2],["espalda",2],["core",2]]],
+  ["Sesión B", [["gluteo",2],["hombros",2],["core",2]]]
+];
+
+function armarRutina(diasSemana){
+  const o = objetivo();
+  const base = o.id === "rehab" ? REPARTO_REHAB : (REPARTOS[diasSemana] || REPARTOS[3]);
+
+  /* Cuántas veces a la semana toca cada músculo: eso reparte las series. */
+  const vecesGrupo = {};
+  base.forEach(([,gs])=> gs.forEach(([g])=> vecesGrupo[g] = (vecesGrupo[g]||0) + 1));
+
+  const dias = base.map(([nombre, gs], i)=>({
+    id: "d" + (i+1),
+    nombre,
+    ex: gs.flatMap(([g, n])=>{
+      const lista = EJ_POR_GRUPO[g] || [];
+      /* Se reparte el volumen del objetivo entre las veces que toca ese
+         músculo y sus ejercicios. Tope de 4: más series en un mismo
+         ejercicio aportan poco y alargan la sesión. */
+      const series = clamp(Math.round(o.volOpt / (vecesGrupo[g] * n)), 2, 4);
+      return lista.slice(0, n).map(name=>({name, grupo:g, series}));
+    })
+  }));
+
+  return {objetivo:o.id, diasSemana: o.id === "rehab" ? base.length : diasSemana,
+          dias, ultimo:"", creada: Date.now()};
+}
+
+const rutina = () => S.rutina && Array.isArray(S.rutina.dias) && S.rutina.dias.length ? S.rutina : null;
+
+/* Qué día toca hoy: el siguiente al último que cerraste. */
+function diaQueToca(){
+  const r = rutina(); if(!r) return null;
+  const i = r.dias.findIndex(d=>d.id === r.ultimo);
+  return r.dias[(i + 1) % r.dias.length];
+}
+
+/* La última vez que hiciste un ejercicio con ese nombre. */
+function ultimaVezEjercicio(nombre){
+  let k = shift(cur, -1);
+  const clave = String(nombre).trim().toLowerCase();
+  for(let i = 0; i < 120; i++){
+    const e = (S.logs[k]?.workout?.ex || [])
+      .find(x => String(x.name||"").trim().toLowerCase() === clave && seriesHechas(x));
+    if(e) return e;
+    k = shift(k, -1);
+  }
+  return null;
+}
+
 /* La propuesta completa para hoy. */
 function proponerSesion(){
-  const ant = ultimaSesion(cur);
-  if(!ant) return null;
   const semana = []; let k = shift(cur,-1);
   for(let i=0;i<7;i++){ semana.push(k); k = shift(k,-1); }
   const vol = seriesPorGrupo(semana);
+  const o = objetivo();
+  const r = rutina();
+
+  /* Con rutina, manda el día que toca; cada ejercicio progresa desde
+     la última vez que lo hiciste, y si es nuevo arranca en blanco. */
+  if(r){
+    const dia = diaQueToca();
+    const items = dia.ex.map(pl=>{
+      const ant = ultimaVezEjercicio(pl.name);
+      if(ant){
+        const p = progresionDe(ant, vol);
+        if(p) return Object.assign(p, {nuevo:false});
+      }
+      return {
+        name: pl.name, grupo: pl.grupo, meta: metaDef(), icono:"✦", nuevo:true,
+        motivo:`Primera vez: busca un peso que te deje a RIR ${o.rir} en ${o.repMin} repeticiones.`,
+        sets: Array.from({length: pl.series}, ()=>({w:"", r:String(o.repMin), rir:String(o.rir)}))
+      };
+    });
+    return {rutina:true, dia, items};
+  }
+
+  const ant = ultimaSesion(cur);
+  if(!ant) return null;
   const items = ant.ex.map(e=>progresionDe(e, vol)).filter(Boolean);
   return items.length ? {desde: ant.k, items} : null;
 }
@@ -2274,11 +2388,64 @@ function renderObjetivo(){
       la progresión se recalcula desde tu siguiente entrenamiento.</p>`;
 
   box.querySelectorAll("[data-obj]").forEach(b=> b.onclick = ()=>{
-    S.settings.objetivo = b.dataset.obj; save();
-    renderObjetivo(); renderStats();
+    S.settings.objetivo = b.dataset.obj;
+    if(rutina() && S.rutina.objetivo !== b.dataset.obj) S.rutina = null;   // se rehace con el nuevo objetivo
+    save();
+    renderObjetivo(); renderRutina(); renderStats();
     const o = objetivo();
     toast(`${o.emoji} Objetivo: ${o.nombre}`);
   });
+}
+
+/* La rutina se arma sola desde el objetivo y los días que puedas
+   entrenar. No es una talla única: rehabilitación reparte distinto. */
+function renderRutina(){
+  const box = document.getElementById("rutPanel");
+  if(!box) return;
+  const o = objetivo(), r = rutina();
+
+  if(!r){
+    const opciones = o.id === "rehab" ? [2] : [2,3,4,5];
+    box.innerHTML = `
+      <p style="font-size:13px;color:var(--tx2);margin:0 0 13px">
+        ${o.id === "rehab"
+          ? "Para rehabilitación armo dos sesiones cortas que puedes repetir a lo largo de la semana."
+          : "Dime cuántos días a la semana puedes entrenar y armo el reparto."}</p>
+      <div class="dsem">${opciones.map(n=>
+        `<button data-dias="${n}">${n} días</button>`).join("")}</div>`;
+    box.querySelectorAll("[data-dias]").forEach(b=> b.onclick = ()=>{
+      S.rutina = armarRutina(+b.dataset.dias); save();
+      renderRutina(); toast("🗓 Rutina lista");
+    });
+    return;
+  }
+
+  const toca = diaQueToca();
+  box.innerHTML = `
+    <div class="risk rk-ok" style="margin:0 0 14px">
+      <div class="lv" style="background:#22e07a1f">🗓</div>
+      <div><b style="color:#22e07a">Hoy toca: ${esc(toca.nombre)}</b>
+        <span>${r.dias.length} días · ${OBJETIVOS.find(x=>x.id===r.objetivo)?.nombre || ""}</span></div>
+    </div>
+    ${r.dias.map(d=>`
+      <div class="rutdia ${d.id === toca.id ? "on" : ""}">
+        <div class="rd-h"><b>${esc(d.nombre)}</b>
+          <span>${d.ex.reduce((a,e)=>a+e.series,0)} series</span></div>
+        <div class="rd-ex">${d.ex.map(e=>
+          `<span style="--g:${colorGrupo(e.grupo)}">${e.series}× ${esc(e.name)}</span>`).join("")}</div>
+      </div>`).join("")}
+    <button class="btn ghost" style="margin-top:12px" id="rutNueva">Rehacer la rutina</button>
+    <button class="btn danger" style="margin-top:8px" id="rutQuitar">Quitar la rutina</button>
+    <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
+      Al guardar un entrenamiento, la rutina avanza sola al día siguiente.</p>`;
+
+  document.getElementById("rutNueva").onclick = ()=>{
+    S.rutina = null; save(); renderRutina();
+  };
+  document.getElementById("rutQuitar").onclick = ()=>{
+    S.rutina = null; save(); renderRutina();
+    toast("Rutina quitada · la app vuelve a proponer desde tu última sesión");
+  };
 }
 
 function renderSyncPanel(){
@@ -2394,7 +2561,7 @@ function renderTurnos(){
   };
 }
 function renderSettings(){
-  renderObjetivo(); renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
+  renderObjetivo(); renderRutina(); renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
 
 /* ============================================================
    MODAL HÁBITO
@@ -2497,18 +2664,26 @@ function renderPropuesta(){
   box.classList.toggle("hidden", !p);
   if(!p) return;
 
-  const d = parseKey(p.desde);
+  let titulo, sub;
+  if(p.rutina){
+    titulo = `Hoy toca: ${p.dia.nombre}`;
+    sub = `${p.items.length} ejercicios · ${objetivo().emoji} ${objetivo().nombre}`;
+  }else{
+    const d = parseKey(p.desde);
+    titulo = "Tu próxima sesión";
+    sub = `Calculada desde la del ${d.getDate()} ${MESES[d.getMonth()]}`;
+  }
+
   box.innerHTML = `
     <div class="prop">
       <div class="prop-top">
         <span style="font-size:17px">⚡</span>
-        <div><b>Tu próxima sesión</b>
-          <span>Calculada desde la del ${d.getDate()} ${MESES[d.getMonth()]}</span></div>
+        <div><b>${esc(titulo)}</b><span>${esc(sub)}</span></div>
       </div>
       ${p.items.map(it=>`
         <div class="prop-ex">
           <div class="prop-h"><i>${it.icono}</i><b>${esc(it.name)}</b>
-            <span>${it.sets.length} × ${it.sets[0].r} · ${fmt(num(it.sets[0].w))} kg</span></div>
+            <span>${it.sets.length} × ${it.sets[0].r}${num(it.sets[0].w) ? " · "+fmt(num(it.sets[0].w))+" kg" : ""}</span></div>
           <p>${esc(it.motivo)}</p>
         </div>`).join("")}
       <button class="btn" id="propUsar" style="margin-top:12px">Usar esta sesión</button>
@@ -2518,6 +2693,7 @@ function renderPropuesta(){
   document.getElementById("propUsar").onclick = ()=>{
     const w = dayLog(cur).workout;
     w.ex = p.items.map(it=>({name:it.name, grupo:it.grupo, meta:it.meta, sets:it.sets.map(st=>({...st}))}));
+    if(p.rutina) w.dia = p.dia.id;      // para saber por dónde sigue la rutina
     save();
     box.classList.add("hidden");
     renderExercises(); updateWkTotal();
@@ -2687,6 +2863,11 @@ document.getElementById("evClose").onclick = cerrarEval;
 document.getElementById("evModal").onclick = e=>{ if(e.target.id === "evModal") cerrarEval(); };
 
 function saveWorkout(){
+  /* Si la sesión venía de la rutina y quedó algo hecho, ese día se da
+     por cerrado y la próxima vez toca el siguiente. */
+  const w0 = dayLog(cur).workout;
+  if(w0.dia && rutina() && w0.ex.some(seriesHechas)) S.rutina.ultimo = w0.dia;
+
   const l = dayLog(cur), w = l.workout;
   w.note = document.getElementById("wkNote").value;
   w.ex = w.ex.filter(e => e.name.trim() || exVolume(e)>0);
