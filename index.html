@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=2, user-scalable=yes, viewport-fit=cover">
-<meta name="theme-color" content="#0B1521">
+<meta name="theme-color" content="#f5f6f8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>Coach Ale · Registro personal</title>
@@ -121,6 +121,10 @@
       <div class="stitle">😴 Calidad de sueño · últimos 14 días</div>
       <div class="panel"><div class="chart" id="chartSleep"></div>
         <div class="hlbl" id="sleepAvg"></div></div>
+    </section>
+    <section>
+      <div class="stitle">Series por grupo muscular · últimos 7 días</div>
+      <div class="panel" id="volGrupos"></div>
     </section>
     <section>
       <div class="stitle">Por hábito · últimos 30 días</div>
@@ -473,7 +477,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-1";
+const APP_VERSION = "2026.09.17-2";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -536,6 +540,70 @@ const EX_PRESETS = ["Sentadilla","Press banca","Peso muerto","Dominadas","Remo c
   "Curl bíceps","Extensión tríceps","Prensa","Zancadas","Elevaciones laterales","Fondos","Hip thrust",
   "Jalón al pecho","Abdominales","Gemelos"];
 
+/* ============================================================
+   GRUPOS MUSCULARES Y VOLUMEN
+   Contar series por grupo dice más que los kilos totales: es la
+   dosis que de verdad manda en la hipertrofia. Los tramos vienen
+   de los referentes habituales de volumen semanal por músculo.
+   ============================================================ */
+const GRUPOS = [
+  {id:"pecho",   nombre:"Pecho",     color:"#38bdf8"},
+  {id:"espalda", nombre:"Espalda",   color:"#22e07a"},
+  {id:"hombros", nombre:"Hombros",   color:"#a78bfa"},
+  {id:"biceps",  nombre:"Bíceps",    color:"#fbbf24"},
+  {id:"triceps", nombre:"Tríceps",   color:"#fb7185"},
+  {id:"pierna",  nombre:"Pierna",    color:"#f97316"},
+  {id:"gluteo",  nombre:"Glúteo",    color:"#f472b6"},
+  {id:"core",    nombre:"Core",      color:"#94a3b8"},
+  {id:"otro",    nombre:"Otro",      color:"#64748b"}
+];
+const nombreGrupo = id => (GRUPOS.find(g=>g.id===id) || GRUPOS[GRUPOS.length-1]).nombre;
+const colorGrupo  = id => (GRUPOS.find(g=>g.id===id) || GRUPOS[GRUPOS.length-1]).color;
+
+/* Adivina el grupo por el nombre del ejercicio; siempre se puede corregir. */
+const PISTAS = [
+  [/press\s*(de)?\s*banca|pec|pecho|apertura|fondo|push\s*up|flexion/i, "pecho"],
+  [/domin|jal[oó]n|remo|pull\s*over|espalda|dorsal|face\s*pull/i,        "espalda"],
+  [/press\s*(militar|hombro)|elevaci[oó]n|hombro|deltoi|arnold/i,        "hombros"],
+  [/curl(?!\s*femoral)|b[ií]ceps|martillo/i,                              "biceps"],
+  [/tr[ií]ceps|extensi[oó]n\s*(de)?\s*tr|copa|katana|press\s*franc/i,   "triceps"],
+  [/sentadilla|prensa|zancada|cuadr[ií]|femoral|gemelo|pantorrilla|peso\s*muerto|split|bulgar|extensi[oó]n\s*de\s*pierna/i, "pierna"],
+  [/gl[uú]teo|hip\s*thrust|puente|patada/i,                               "gluteo"],
+  [/abdominal|plancha|core|crunch|oblicuo|elevaci[oó]n\s*de\s*piernas/i, "core"]
+];
+function adivinaGrupo(nombre){
+  const n = String(nombre||"").trim();
+  if(!n) return "otro";
+  for(const [re, id] of PISTAS) if(re.test(n)) return id;
+  return "otro";
+}
+const grupoDe = e => e.grupo || adivinaGrupo(e.name);
+
+/* Series efectivas de un ejercicio: las que tienen peso y repeticiones. */
+const seriesHechas = e => (e.sets||[]).filter(st=>num(st.w) && num(st.r)).length;
+
+/* Cuántas series por grupo en una ventana de días. */
+function seriesPorGrupo(dias){
+  const total = {};
+  dias.forEach(k=>{
+    (S.logs[k]?.workout?.ex || []).forEach(e=>{
+      const g = grupoDe(e), n = seriesHechas(e);
+      if(n) total[g] = (total[g]||0) + n;
+    });
+  });
+  return total;
+}
+
+/* Tramos de volumen semanal. Debajo del mínimo casi no hay estímulo;
+   pasado el límite el cuerpo ya no alcanza a recuperar. */
+const TRAMOS = [
+  {hasta: 5,        t:"Volumen bajo",      c:"#fb7185"},
+  {hasta: 9,        t:"Mínimo efectivo",   c:"#fbbf24"},
+  {hasta: 19,       t:"Volumen óptimo",    c:"#22e07a"},
+  {hasta: Infinity, t:"Límite recuperable",c:"#a78bfa"}
+];
+const tramoDe = n => TRAMOS.find(t => n <= t.hasta);
+
 let S = load();
 let cur = todayKey();
 let editing = null;
@@ -578,7 +646,8 @@ function load(){
         d.habits = (d.habits||[]).filter(h => h && h.type !== "food" && h.id !== "comida");
         d.v = 6;
       }
-      d.theme ||= "dark";
+      if(d.v < 7){ d.theme = "light"; d.v = 7; }       // la app pasa a fondo claro
+      d.theme ||= "light";
       d.settings = Object.assign({}, DEF_SETTINGS, d.settings||{});
       d.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  d.settings.rem||{});
       d.settings.wake = Object.assign({}, DEF_SETTINGS.wake, d.settings.wake||{});
@@ -604,12 +673,12 @@ function load(){
         crudo.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  crudo.settings.rem||{});
         crudo.settings.wake = Object.assign({}, DEF_SETTINGS.wake, crudo.settings.wake||{});
         crudo.settings.screens = Object.assign({}, DEF_SETTINGS.screens, crudo.settings.screens||{});
-        crudo.theme ||= "dark";
+        crudo.theme ||= "light";
         return crudo;
       }
     }catch(e2){}
   }
-  return {v:5, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"dark",
+  return {v:7, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
           salud: {...DEF_SALUD},
           settings: JSON.parse(JSON.stringify(DEF_SETTINGS))};
 }
@@ -1709,6 +1778,40 @@ document.getElementById("agModal").onclick = e=>{
 /* ============================================================
    PROGRESO
    ============================================================ */
+/* Cuánto trabajo recibió cada músculo esta semana y si esa dosis
+   se queda corta, está en el punto, o ya pide recortar. */
+function renderVolumenGrupos(){
+  const box = document.getElementById("volGrupos");
+  if(!box) return;
+  const semana = []; let k = todayKey();
+  for(let i=0;i<7;i++){ semana.push(k); k = shift(k,-1); }
+
+  const total = seriesPorGrupo(semana);
+  const filas = GRUPOS
+    .filter(g => total[g.id])
+    .sort((a,b)=> total[b.id] - total[a.id]);
+
+  if(!filas.length){
+    box.innerHTML = `<div class="empty">Aún no hay series registradas esta semana.<br>
+      Anota tus ejercicios en <b>Entrenar</b> y aquí verás el volumen de cada músculo.</div>`;
+    return;
+  }
+
+  const tope = Math.max(20, ...filas.map(g=>total[g.id]));
+  box.innerHTML = filas.map(g=>{
+    const n = total[g.id], tr = tramoDe(n);
+    return `<div class="vg">
+      <div class="vg-top"><b>${g.nombre}</b><span>${n} <i>series</i></span></div>
+      <div class="vg-bar"><i style="width:${Math.round(n/tope*100)}%;background:${tr.c}"></i></div>
+      <div class="vg-pie" style="color:${tr.c}">● ${tr.t}</div>
+    </div>`;
+  }).join("") + `<div class="hlbl" style="margin-top:14px">
+      <span>Menos de 6 · bajo</span><span style="flex:1"></span>
+      <b style="background:#fb7185"></b><b style="background:#fbbf24"></b>
+      <b style="background:#22e07a"></b><b style="background:#a78bfa"></b>
+      <span>20 o más · al límite</span></div>`;
+}
+
 function renderStats(){
   const days=[]; let k=todayKey();
   for(let i=0;i<30;i++){ days.push(k); k=shift(k,-1); }
@@ -1760,6 +1863,8 @@ function renderStats(){
   document.getElementById("sleepAvg").innerHTML = sleeps.length
     ? `<span>Promedio: <b style="width:auto;color:#a5b4fc;background:none">${avgSleep}/100</b> · ${fmt(avgHrs)} h por noche · ${sleeps.length} registros</span>`
     : `<span>Aún sin check-ins de sueño registrados.</span>`;
+
+  renderVolumenGrupos();
 
   document.getElementById("perHabit").innerHTML = S.habits.length ? S.habits.map(h=>{
     const s = days.reduce((a,d)=>a+progress(h,S.logs[d]?.values?.[h.id]||0),0);
@@ -2164,6 +2269,12 @@ function renderExercises(){
         <input list="exPresets" data-exn="${i}" value="${esc(e.name)}" placeholder="Nombre del ejercicio">
         <button class="exdel" data-exdel="${i}">✕</button>
       </div>
+      <div class="exgrp">
+        <select data-exg="${i}" style="--g:${colorGrupo(grupoDe(e))}">
+          ${GRUPOS.map(g=>`<option value="${g.id}" ${g.id===grupoDe(e)?"selected":""}>${g.nombre}</option>`).join("")}
+        </select>
+        <span data-exs="${i}">${seriesHechas(e)} ${seriesHechas(e)===1?"serie":"series"}</span>
+      </div>
       ${(e.sets||[]).map((st,j)=>`
         <div class="setrow">
           <div class="setn">${j+1}</div>
@@ -2180,7 +2291,19 @@ function renderExercises(){
 
   const L = document.getElementById("wkList");
   L.querySelectorAll("[data-exn]").forEach(inp=>inp.oninput=()=>{
-    w.ex[+inp.dataset.exn].name = inp.value; save();
+    const i = +inp.dataset.exn;
+    w.ex[i].name = inp.value;
+    /* Mientras no lo corrijas a mano, el grupo sigue al nombre. */
+    if(!w.ex[i].grupo){
+      const sel = L.querySelector(`[data-exg="${i}"]`);
+      if(sel){ sel.value = adivinaGrupo(inp.value); sel.style.setProperty("--g", colorGrupo(sel.value)); }
+    }
+    save();
+  });
+  L.querySelectorAll("[data-exg]").forEach(sel=>sel.onchange=()=>{
+    w.ex[+sel.dataset.exg].grupo = sel.value;
+    sel.style.setProperty("--g", colorGrupo(sel.value));
+    save();
   });
   L.querySelectorAll("[data-w],[data-r]").forEach(inp=>inp.oninput=()=>{
     const key = inp.dataset.w!==undefined ? "w":"r";
@@ -2189,6 +2312,8 @@ function renderExercises(){
     const st = w.ex[i].sets[j];
     L.querySelector(`[data-eq="${i}.${j}"]`).textContent = num(st.w)&&num(st.r) ? kg(num(st.w)*num(st.r))+" kg" : "";
     L.querySelector(`[data-sub="${i}"]`).textContent = exVolume(w.ex[i]) ? kg(exVolume(w.ex[i]))+" kg" : "";
+    const ns = seriesHechas(w.ex[i]), et = L.querySelector(`[data-exs="${i}"]`);
+    if(et) et.textContent = `${ns} ${ns===1?"serie":"series"}`;
     updateWkTotal(); save();
   });
   L.querySelectorAll("[data-adds]").forEach(b=>b.onclick=()=>{

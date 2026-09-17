@@ -203,6 +203,25 @@ section{margin:22px 0}
   color:var(--tx3);margin-top:10px;max-width:100%}
 .hlbl b{width:11px;height:11px;border-radius:3px;display:inline-block}
 
+/* ---------- Volumen por grupo muscular ---------- */
+.vg{padding:11px 0;border-bottom:1px solid var(--line)}
+.vg:last-of-type{border-bottom:none}
+.vg-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.vg-top b{font-size:14px;font-weight:700}
+.vg-top span{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+.vg-top span i{font-style:normal;font-size:11px;font-weight:600;color:var(--tx3)}
+.vg-bar{height:7px;border-radius:99px;background:var(--line);overflow:hidden;margin:7px 0 5px}
+.vg-bar i{display:block;height:100%;border-radius:99px;transition:width .45s cubic-bezier(.4,0,.2,1)}
+.vg-pie{font-size:11px;font-weight:700}
+
+/* El grupo muscular del ejercicio, dentro de la ficha de entrenamiento */
+.exgrp{display:flex;align-items:center;gap:9px;margin:2px 0 9px}
+.exgrp select{--g:var(--accent);font:inherit;font-size:12px;font-weight:700;
+  color:var(--g);background:color-mix(in srgb,var(--g) 14%,transparent);
+  border:1px solid color-mix(in srgb,var(--g) 34%,transparent);
+  border-radius:9px;padding:5px 8px;appearance:none;-webkit-appearance:none}
+.exgrp > span{font-size:11.5px;color:var(--tx3);font-weight:700}
+
 /* ---------- Tabs ---------- */
 nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:60;
   transform:translateZ(0);backface-visibility:hidden;
