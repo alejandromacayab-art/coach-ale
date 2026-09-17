@@ -311,6 +311,7 @@
       <div><b id="wkTotal">0 kg</b><span>Volumen total de la sesión</span></div>
       <div class="side" id="wkSide">0 ejercicios<br>0 series</div>
     </div>
+    <div id="wkProp" class="hidden"></div>
     <div id="wkList"></div>
     <button class="btn ghost" id="wkAdd">+ Añadir ejercicio</button>
     <datalist id="exPresets"></datalist>
@@ -490,7 +491,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-4";
+const APP_VERSION = "2026.09.17-5";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -620,6 +621,90 @@ const tramoDe = n => TRAMOS.find(t => n <= t.hasta);
 /* ---------- 1RM estimado ----------
    Fórmula de Epley. Las repeticiones que te quedaban en reserva (RIR)
    cuentan como repeticiones que podrías haber hecho. */
+/* ============================================================
+   PROGRESIÓN AUTOMÁTICA
+   Con lo que ya registras — peso, repeticiones, RIR, evaluación y
+   volumen semanal del grupo — la app puede proponer la sesión
+   siguiente en vez de dejarte la hoja en blanco.
+   ============================================================ */
+const META_DEF = {repMin:8, repMax:12, rir:2};   // doble progresión por defecto
+const metaDe = e => Object.assign({}, META_DEF, e.meta || {});
+
+/* Salto de carga: las piernas admiten escalones mayores que los brazos. */
+const saltoKg = grupo => (grupo === "pierna" || grupo === "gluteo") ? 5 : 2.5;
+
+/* La última sesión anterior a `desde` que tenga ejercicios anotados. */
+function ultimaSesion(desde){
+  let k = shift(desde || cur, -1);
+  for(let i = 0; i < 120; i++){
+    const ex = S.logs[k]?.workout?.ex || [];
+    if(ex.some(e => String(e.name||"").trim() && seriesHechas(e))) return {k, ex};
+    k = shift(k, -1);
+  }
+  return null;
+}
+
+/* Qué tocaría hacer hoy en un ejercicio, mirando cómo fue la última vez. */
+function progresionDe(e, seriesGrupo){
+  const m = metaDe(e);
+  const hechas = (e.sets||[]).filter(st=>num(st.w) && num(st.r));
+  if(!hechas.length) return null;
+
+  const peso   = Math.max(...hechas.map(st=>num(st.w)));
+  const topes  = hechas.filter(st=>num(st.w) === peso);
+  const repsMax = Math.max(...topes.map(st=>num(st.r)));
+  const repsMin = Math.min(...topes.map(st=>num(st.r)));
+  const rirProm = topes.reduce((a,st)=>a + (num(st.rir)||0), 0) / topes.length;
+
+  let nuevoPeso = peso, nuevasReps = repsMax, motivo, icono = "→";
+
+  if(repsMin >= m.repMax && rirProm >= m.rir - 0.5){
+    nuevoPeso = Math.round((peso + saltoKg(grupoDe(e))) * 2) / 2;
+    nuevasReps = m.repMin;
+    motivo = `Cerraste las ${m.repMax} repeticiones con reserva: sube a ${fmt(nuevoPeso)} kg y vuelve a ${m.repMin}.`;
+    icono = "⬆";
+  }else if(rirProm === 0 && repsMax < m.repMin){
+    nuevoPeso = Math.round(peso * 0.95 * 2) / 2;
+    nuevasReps = m.repMin;
+    motivo = `Te quedaste corto y sin reserva: baja a ${fmt(nuevoPeso)} kg y reconstruye.`;
+    icono = "⬇";
+  }else{
+    nuevasReps = Math.min(m.repMax, repsMax + 1);
+    motivo = nuevasReps > repsMax
+      ? `Mismo peso, una repetición más: ${nuevasReps}.`
+      : `Mantén ${fmt(peso)} kg × ${nuevasReps} y busca bajar el RIR.`;
+    icono = "→";
+  }
+
+  /* Cuántas series: lo dice la evaluación, con el techo del volumen semanal. */
+  let series = hechas.length;
+  const v = veredicto(e.ev);
+  let nota = "";
+  if(v){
+    const yaSemana = seriesGrupo[grupoDe(e)] || 0;
+    if(v.t === "Estímulo bajo" && yaSemana < 20){ series += 1; nota = " Y una serie más: el estímulo fue bajo."; }
+    else if(v.t === "Límite recuperable")        nota = " No añadas series: venías al límite.";
+    else if(v.t === "Fatiga sin estímulo")       nota = " Ojo: la última vez fue dolor sin estímulo. Revisa la técnica.";
+  }
+
+  return {
+    name: e.name, grupo: grupoDe(e), meta: m, icono,
+    motivo: motivo + nota,
+    sets: Array.from({length: series}, ()=>({w:String(nuevoPeso), r:String(nuevasReps), rir:String(m.rir)}))
+  };
+}
+
+/* La propuesta completa para hoy. */
+function proponerSesion(){
+  const ant = ultimaSesion(cur);
+  if(!ant) return null;
+  const semana = []; let k = shift(cur,-1);
+  for(let i=0;i<7;i++){ semana.push(k); k = shift(k,-1); }
+  const vol = seriesPorGrupo(semana);
+  const items = ant.ex.map(e=>progresionDe(e, vol)).filter(Boolean);
+  return items.length ? {desde: ant.k, items} : null;
+}
+
 function unoRM(st){
   const w = num(st.w), r = num(st.r);
   if(!w || !r) return 0;
@@ -2317,10 +2402,52 @@ function openWorkout(){
                      : `Sesión del ${d.getDate()} ${MESES[d.getMonth()]}.`;
   document.getElementById("exPresets").innerHTML = EX_PRESETS.map(e=>`<option value="${e}">`).join("");
   document.getElementById("wkNote").value = dayLog(cur).workout.note||"";
+  renderPropuesta();
   if(!dayLog(cur).workout.ex.length) addExercise(true);
   renderExercises();
   document.getElementById("wkModal").classList.add("open");
 }
+/* La propuesta solo aparece cuando el día está en blanco: si ya
+   empezaste a anotar, estorbaría más de lo que ayuda. */
+function renderPropuesta(){
+  const box = document.getElementById("wkProp");
+  const vacio = dayLog(cur).workout.ex.every(e=>!String(e.name||"").trim() && !seriesHechas(e));
+  const p = vacio ? proponerSesion() : null;
+  box.classList.toggle("hidden", !p);
+  if(!p) return;
+
+  const d = parseKey(p.desde);
+  box.innerHTML = `
+    <div class="prop">
+      <div class="prop-top">
+        <span style="font-size:17px">⚡</span>
+        <div><b>Tu próxima sesión</b>
+          <span>Calculada desde la del ${d.getDate()} ${MESES[d.getMonth()]}</span></div>
+      </div>
+      ${p.items.map(it=>`
+        <div class="prop-ex">
+          <div class="prop-h"><i>${it.icono}</i><b>${esc(it.name)}</b>
+            <span>${it.sets.length} × ${it.sets[0].r} · ${fmt(num(it.sets[0].w))} kg</span></div>
+          <p>${esc(it.motivo)}</p>
+        </div>`).join("")}
+      <button class="btn" id="propUsar" style="margin-top:12px">Usar esta sesión</button>
+      <button class="btn ghost" id="propNo" style="margin-top:8px">Empezar de cero</button>
+    </div>`;
+
+  document.getElementById("propUsar").onclick = ()=>{
+    const w = dayLog(cur).workout;
+    w.ex = p.items.map(it=>({name:it.name, grupo:it.grupo, meta:it.meta, sets:it.sets.map(st=>({...st}))}));
+    save();
+    box.classList.add("hidden");
+    renderExercises(); updateWkTotal();
+    toast("⚡ Sesión armada con la progresión");
+  };
+  document.getElementById("propNo").onclick = ()=>{
+    box.classList.add("hidden");
+    if(!dayLog(cur).workout.ex.length){ addExercise(true); renderExercises(); }
+  };
+}
+
 function addExercise(silent){
   dayLog(cur).workout.ex.push({name:"", sets:[{w:"",r:""}]});
   if(!silent) renderExercises();

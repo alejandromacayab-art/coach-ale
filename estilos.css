@@ -357,6 +357,22 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .setrow .fld.rir input{padding-right:30px;text-align:center}
 @media(max-width:400px){ .setrow .eq{display:none} }
 
+/* Propuesta de sesión progresiva */
+.prop{border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);
+  background:color-mix(in srgb,var(--accent) 8%,var(--card));
+  border-radius:15px;padding:13px;margin-bottom:12px}
+.prop-top{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.prop-top b{display:block;font-size:14.5px;letter-spacing:-.02em}
+.prop-top span{display:block;font-size:11.5px;color:var(--tx3)}
+.prop-ex{padding:9px 0;border-top:1px solid var(--line)}
+.prop-h{display:flex;align-items:baseline;gap:7px}
+.prop-h i{font-style:normal;font-size:13px;color:var(--accent);flex:none}
+.prop-h b{font-size:13.5px;font-weight:700;flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prop-h span{font-size:12px;font-weight:800;color:var(--tx2);flex:none;
+  font-variant-numeric:tabular-nums}
+.prop-ex p{margin:3px 0 0;font-size:11.5px;color:var(--tx3);line-height:1.4}
+
 /* Resumen y evaluación del ejercicio */
 .exmet{display:flex;gap:8px;margin-top:9px}
 .exmet div{flex:1;background:var(--card2);border:1px solid var(--line);border-radius:11px;
