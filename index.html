@@ -422,6 +422,15 @@
         <button id="lgIrCrear" style="color:var(--accent);font-weight:700">Crear mi cuenta</button>
         <button id="lgOlvide" style="color:var(--tx3)">Olvidé mi contraseña</button>
       </div>
+      <div id="lgCaido" class="hidden" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+        <div class="risk rk-warn" style="margin:0 0 12px">
+          <div class="lv" style="background:#fbbf241f">📡</div>
+          <div><b style="color:#fbbf24">No se llega al servidor</b>
+            <span>Tus registros de este teléfono están a salvo. Puedes seguir usando la app
+              y todo se sincroniza cuando el servidor vuelva.</span></div>
+        </div>
+        <button class="btn ghost" id="lgOffline">Seguir sin conexión</button>
+      </div>
     </div>
 
     <div id="lgCrear" class="hidden">
@@ -464,7 +473,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.08.26-20";
+const APP_VERSION = "2026.09.17-1";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -2375,6 +2384,7 @@ function aFilas(){
 }
 
 async function syncNow(manual){
+  if(modoSinNube){ if(manual) toast("Sin conexión con el servidor"); return; }
   if(!nubeOn() || !sesionUsuario || syncing) return;
   syncing = true;
   if(manual) toast("Sincronizando…");
@@ -2453,6 +2463,48 @@ function mostrarLogin(ver){
   document.body.style.overflow = ver ? "hidden" : "";
 }
 
+/* ¿Contesta el servidor? Una llamada corta basta para distinguir
+   "no has entrado" de "la base de datos no está disponible". */
+async function nubeResponde(){
+  try{
+    const corte = new AbortController();
+    const reloj = setTimeout(()=>corte.abort(), 6000);
+    const cfg = window.COACH_ALE_CONFIG || {};
+    await fetch(cfg.url + "/auth/v1/health",
+      {method:"GET", cache:"no-store", signal:corte.signal, headers:{apikey:cfg.key}});
+    clearTimeout(reloj);
+    return true;
+  }catch(e){ return false; }
+}
+
+/* Con el servidor caído, quien ya había entrado alguna vez en este
+   dispositivo sigue usando la app con sus datos locales. */
+function entrarSinConexion(){
+  modoSinNube = true;
+  mostrarLogin(false);
+  renderAll(); renderSettings();
+  avisarSinNube();
+}
+let modoSinNube = false;
+
+function avisarSinNube(){
+  if(document.getElementById("offBar")) return;
+  const bar = document.createElement("div");
+  bar.id = "offBar";
+  bar.className = "banner";
+  bar.innerHTML = `<div style="font-size:20px">📡</div>
+    <div class="t"><b>Sin conexión con el servidor</b>Estás trabajando en este teléfono.
+      Lo que anotes se sube solo cuando vuelva.</div>
+    <button id="offReintentar">Reintentar</button>`;
+  const vista = document.getElementById("view-hoy");
+  vista.insertBefore(bar, vista.firstChild);
+  document.getElementById("offReintentar").onclick = async ()=>{
+    toast("Probando…");
+    if(await nubeResponde()) location.reload();
+    else toast("El servidor sigue sin responder");
+  };
+}
+
 async function initSesion(){
   if(!nubeOn()){ mostrarLogin(false); return; }     // sin configurar: modo solo local
   try{
@@ -2463,10 +2515,24 @@ async function initSesion(){
       if(s && !antes){ mostrarLogin(false); await trasEntrar(); }
       if(!s) mostrarLogin(true);
     });
-    if(!sesionUsuario){ mostrarLogin(true); return; }
+    if(!sesionUsuario){ mostrarLogin(true); await revisarServidor(); return; }
     mostrarLogin(false);
     await trasEntrar();
-  }catch(e){ console.warn(e); mostrarLogin(true); }
+  }catch(e){
+    console.warn(e);
+    mostrarLogin(true);
+    await revisarServidor();
+  }
+}
+
+/* Si el servidor no contesta y aquí ya se había usado la app,
+   ofrecemos seguir sin conexión en vez de dejar la pantalla bloqueada. */
+async function revisarServidor(){
+  if(await nubeResponde()) return;
+  const yaUsada = Object.keys(S.logs || {}).length > 0;
+  const caja = document.getElementById("lgCaido");
+  if(caja) caja.classList.toggle("hidden", !yaUsada);
+  if(yaUsada) document.getElementById("lgOffline").onclick = entrarSinConexion;
 }
 
 async function trasEntrar(){
