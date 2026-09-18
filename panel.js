@@ -266,6 +266,17 @@ function bloqueEntreno(dias, perfil){
 
   const porGrupo = {}, veredictos = {};
   let series = 0, sesiones = 0;
+  /* Dos cosas que estaban en la ficha pero no aquí, y son las que explican
+     casi todo: cuánto durmió y qué escribió él mismo. */
+  const horas = [], notas = [];
+  semana.forEach(r=>{
+    const h = Number(r.datos?.sleep?.hours);
+    if(h) horas.push(h);
+    const nota = String(r.datos?.workout?.note || r.datos?.note || "").trim();
+    if(nota) notas.push({fecha:r.fecha, nota});
+  });
+  const sueno = horas.length
+    ? Math.round(horas.reduce((a,b)=>a+b,0) / horas.length * 10) / 10 : null;
   /* Adherencia: de las sesiones que el plan dejó escritas en estos días,
      cuántas se llegaron a hacer. Sin esto, un plan intacto y un plan
      cumplido se ven igual desde aquí. */
@@ -323,12 +334,25 @@ function bloqueEntreno(dias, perfil){
         planificadas ? ` Tenía ${planificadas} ${planificadas===1?"sesión":"sesiones"} en el plan.` : ""}</div></section>`;
 
   const avisos = [];
+  /* El sueño va primero: con menos de 7 h, recortar series es tratar el
+     síntoma. Es el mismo orden que sigue la consulta dentro de la app. */
+  if(sueno !== null && sueno < 7)
+    avisos.push(`😴 Durmiendo <b>${sueno} h</b> de media (${horas.length} noche${horas.length===1?"":"s"}): la recuperación manda antes que el programa.`);
   const pasados = orden.filter(g=>porGrupo[g] >= o.tope).map(nombreGrupo);
   if(pasados.length) avisos.push(`⚠️ Al límite de volumen: <b>${pasados.join(", ")}</b>.`);
   if(veredictos["Fatiga sin estímulo"])
     avisos.push(`⚠️ <b>${veredictos["Fatiga sin estímulo"]}</b> ejercicio(s) con dolor sin estímulo: revisar técnica.`);
-  if((veredictos["Límite recuperable"]||0) >= 3)
-    avisos.push(`🛑 <b>${veredictos["Límite recuperable"]}</b> ejercicios al límite: puede tocar descarga.`);
+  /* Antes hacía falta llegar a 3, contara las sesiones que contara: dos de dos
+     sesiones al límite se quedaban sin aviso justo cuando más avisa. */
+  const nLimite = veredictos["Límite recuperable"] || 0;
+  if(nLimite >= 3 || (nLimite >= 2 && nLimite >= sesiones))
+    avisos.push(`🛑 <b>${nLimite}</b> ejercicios al límite${
+      pasados.length ? "" : " con el volumen todavía por debajo del techo"}: ${
+      pasados.length ? "puede tocar descarga." : "revisar descanso entre series y cercanía al fallo."}`);
+  if(restan !== null && restan < 0)
+    avisos.push(`🔄 El plan del mes terminó hace <b>${-restan} días</b>: le toca pesarse y replanificar.`);
+  if(!perfil?.rutina?.dias?.length)
+    avisos.push(`🗓 <b>Sin rutina creada</b>: entrena sin plan y la app no puede proponerle progresión.`);
 
   return `
     <section>
@@ -345,6 +369,10 @@ function bloqueEntreno(dias, perfil){
         ${ciclo}
       </div>
       ${avisos.length ? `<div class="avisos">${avisos.map(a=>`<p>${a}</p>`).join("")}</div>` : ""}
+      ${notas.length ? `<div class="notasdep">
+        <b>📝 Lo que escribió esta semana</b>
+        ${notas.map(x=>`<p><i>${fechaCorta(x.fecha)}</i> “${esc(x.nota)}”</p>`).join("")}
+      </div>` : ""}
       ${orden.map(g=>{
         const n = porGrupo[g], c = colorGrupo(g);
         const estado = n >= o.tope ? "al límite" : n >= o.opt ? "óptimo" : n >= o.opt/2 ? "mínimo" : "bajo";

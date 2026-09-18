@@ -796,3 +796,11 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .pesodelta{display:flex;align-items:baseline;gap:8px;margin-top:9px;font-size:12.5px;color:var(--tx2)}
 .pesodelta b{font-size:15px;letter-spacing:-.02em;color:var(--tx)}
 .pl-dias span.pasado{opacity:.4;text-decoration:line-through}
+
+/* Lo que el deportista escribió, en la ficha del panel */
+.notasdep{margin:0 0 14px;padding:12px 14px;border-radius:13px;border:1px solid var(--line);
+  background:var(--card2)}
+.notasdep b{display:block;font-size:12.5px;margin-bottom:6px;color:var(--tx2)}
+.notasdep p{margin:0 0 5px;font-size:13px;line-height:1.45;color:var(--tx)}
+.notasdep p:last-child{margin-bottom:0}
+.notasdep i{font-style:normal;font-weight:700;color:var(--tx3);margin-right:6px}
