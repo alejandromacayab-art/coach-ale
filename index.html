@@ -561,7 +561,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-4";
+const APP_VERSION = "2026.09.18-5";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -888,9 +888,33 @@ const PATRONES = [
   [/curl|extensi[oó]n|elevaci[oó]n|apertura|pec\s*deck|face|franc[eé]s|pull\s*over|pullover|patada|encogimiento|crunch|pallof|p[aá]jaro/i,
                                                     {principiante:0.10, intermedio:0.18, avanzado:0.26}]
 ];
-function cargaInicial(nombre, grupo){
+/* Un peso de hace medio año ya no sirve para calcular cargas. */
+const DIAS_PESO = 120;
+function pesoCorporal(){
   const m = ultimaMedicion();
-  const peso = num(m?.peso);
+  const kgs = num(m?.peso);
+  if(!kgs) return null;
+  const dias = Math.abs(diasHasta(m.fecha));
+  return {kg: kgs, fecha: m.fecha, dias, viejo: dias > DIAS_PESO};
+}
+
+/* Guarda el peso de hoy sin pasar por el formulario completo de medición:
+   en el test y en la rutina solo hace falta el número. */
+function guardarPeso(valor){
+  const kgs = num(valor);
+  if(!kgs) return false;
+  const antes = cur, k = todayKey();
+  cur = k;
+  const c = dayLog(k).cuerpo || {};
+  dayLog(k).cuerpo = {...c, peso: kgs, at: Date.now()};
+  save();
+  cur = antes;
+  return true;
+}
+
+function cargaInicial(nombre, grupo){
+  const pc = pesoCorporal();
+  const peso = pc ? pc.kg : 0;
   const niv = nivelDeEntreno();
   if(!peso || !niv) return "";
   /* El equipamiento de la biblioteca manda sobre el nombre. "Sentadilla
@@ -1205,7 +1229,9 @@ function proponerSesion(){
         name: pl.name, grupo: pl.grupo, meta: metaDef(), icono:"✦", nuevo:true,
         motivo: w0
           ? `Primera vez. Empieza con ${fmt(num(w0))} kg, calculado desde tu peso corporal y tu nivel. Ajústalo si te queda corto o largo.`
-          : `Primera vez: busca un peso que te deje a RIR ${o.rir} en ${o.repMin} repeticiones.`,
+          : pesoCorporal()
+            ? `Primera vez: busca un peso que te deje a RIR ${o.rir} en ${o.repMin} repeticiones.`
+            : `Primera vez. Registra tu peso corporal y te digo con cuántos kilos empezar; mientras tanto, busca uno que te deje a RIR ${o.rir} en ${o.repMin} repeticiones.`,
         sets: Array.from({length: pl.series}, ()=>({w:w0, r:String(o.repMin), rir:String(o.rir)}))
       };
     });
@@ -1752,6 +1778,7 @@ setInterval(()=>{ remTick(); screensTick(); recorTick(); }, 60000);
    ============================================================ */
 const DIAS=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
 const MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const fechaLarga = k => { const d = parseKey(k); return `${d.getDate()} ${MESES[d.getMonth()]}`; };
 
 function renderDate(){
   const d = parseKey(cur), t = todayKey(), y = shift(t,-1);
@@ -1870,7 +1897,7 @@ function renderPista(){
   const pasos = [];
   if(!nivelDeEntreno())
     pasos.push({t:"Haz el test de nivel", s:"Seis preguntas para ajustar series y cargas", f:abrirTest});
-  else if(!ultimaMedicion())
+  else if(!pesoCorporal())
     pasos.push({t:"Registra tu peso", s:"Con él calculo con cuántos kilos empezar", f:()=>{ go("salud"); openMedida(null); }});
   else if(!rutina())
     pasos.push({t:"Crea tu rutina", s:"Dime cuántos días entrenas y la armo", f:()=>{ go("set");
@@ -3186,7 +3213,20 @@ function abrirPlan(){
   document.getElementById("plSub").textContent =
     `${r.dias.length} días por semana · ${o.emoji} ${o.nombre} · 4 semanas`;
 
-  document.getElementById("plCuerpo").innerHTML = plan.map(sem=>`
+  const pc = pesoCorporal();
+  const avisoPeso = !pc ? `
+    <div class="pesoq aviso" style="margin:0 0 14px">
+      <label>⚖️ Falta tu peso</label>
+      <p>El plan se escribirá sin kilos en los ejercicios que nunca has hecho.
+         Puedes aplicarlo igual y anotarlos tú, o registrar tu peso antes en
+         Salud y volver aquí.</p>
+    </div>` : pc.viejo ? `
+    <div class="pesoq aviso" style="margin:0 0 14px">
+      <label>⚖️ Tu peso es del ${fechaLarga(pc.fecha)}</label>
+      <p>Hace ${pc.dias} días. Las cargas de los ejercicios nuevos salen de ahí.</p>
+    </div>` : "";
+
+  document.getElementById("plCuerpo").innerHTML = avisoPeso + plan.map(sem=>`
     <div class="plsem ${sem.n === 4 ? "descarga" : ""}">
       <div class="pl-h">
         <b>Semana ${sem.n} · ${sem.t}</b>
@@ -3338,17 +3378,36 @@ function pintarTest(){
         <span>${niv.desc}</span>
         <p>${niv.nota}</p>
       </div>
+      ${(()=>{ const pc = pesoCorporal();
+        /* El peso se pide aquí y no en otra pantalla: es el otro dato que hace
+           falta para calcular cargas, y pedirlo después era un paso que casi
+           nadie daba. */
+        if(pc && !pc.viejo) return "";
+        return `
+        <div class="pesoq">
+          <label for="nvPeso">¿Cuánto pesas?</label>
+          <p>${pc
+            ? `Tu último peso es del ${fechaLarga(pc.fecha)}, hace ${pc.dias} días. Actualízalo y ajusto las cargas.`
+            : "Con tu peso calculo con cuántos kilos empezar cada ejercicio. Sin él, los planes salen sin kilaje."}</p>
+          <div class="pesof">
+            <input class="inp" id="nvPeso" inputmode="decimal" placeholder="${pc ? fmt(pc.kg) : "70"}"
+                   autocomplete="off"><span>kg</span>
+          </div>
+        </div>`; })()}
       <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
-        Podrás rehacerlo cuando quieras desde Ajustes. Si además registras tu peso
-        en Salud, la app te propondrá con cuántos kilos empezar cada ejercicio.</p>`;
+        Podrás rehacerlo cuando quieras desde Ajustes.</p>`;
     accion.textContent = "Guardar mi nivel";
+    accion.disabled = false;
     accion.onclick = ()=>{
       S.nivel = {id:niv.id, puntos, respuestas:{...nvResp}, fecha: todayKey()};
       if(rutina()) S.rutina = null;          // se rehace con el nivel nuevo
+      const campo = document.getElementById("nvPeso");
+      const guardado = campo && guardarPeso(campo.value);
       save();
       document.getElementById("nvModal").classList.remove("open");
-      renderSettings(); renderToday();
-      toast(`${niv.emoji} Nivel ${niv.nombre}`);
+      renderSettings(); renderToday(); renderSalud();
+      toast(guardado ? `${niv.emoji} Nivel ${niv.nombre} · ${fmt(num(campo.value))} kg`
+                     : `${niv.emoji} Nivel ${niv.nombre}`);
     };
     return;
   }
@@ -3400,7 +3459,20 @@ function renderRutina(){
   }
 
   const toca = diaQueToca();
+  const pc = pesoCorporal();
   box.innerHTML = `
+    ${!pc || pc.viejo ? `
+      <div class="pesoq aviso">
+        <label for="rutPeso">⚖️ ${pc ? "Tu peso está desactualizado" : "Falta tu peso"}</label>
+        <p>${pc
+          ? `El último es del ${fechaLarga(pc.fecha)}, hace ${pc.dias} días: las cargas que calculo salen de ahí.`
+          : "Sin él no puedo calcular con cuántos kilos empezar, y el plan del mes sale sin kilaje."}</p>
+        <div class="pesof">
+          <input class="inp" id="rutPeso" inputmode="decimal" placeholder="${pc ? fmt(pc.kg) : "70"}"
+                 autocomplete="off"><span>kg</span>
+          <button class="mini" id="rutPesoOk">Guardar</button>
+        </div>
+      </div>` : ""}
     <div class="risk rk-ok" style="margin:0 0 14px">
       <div class="lv" style="background:#22e07a1f">🗓</div>
       <div><b style="color:#22e07a">Hoy toca: ${esc(toca.nombre)}</b>
@@ -3421,6 +3493,14 @@ function renderRutina(){
 
   const pl = document.getElementById("rutPlan");
   if(pl) pl.onclick = abrirPlan;
+
+  const pOk = document.getElementById("rutPesoOk");
+  if(pOk) pOk.onclick = ()=>{
+    const campo = document.getElementById("rutPeso");
+    if(!guardarPeso(campo.value)){ toast("Escribe tu peso en kilos"); return; }
+    renderRutina(); renderToday(); renderSalud();
+    toast(`⚖️ ${fmt(num(campo.value))} kg registrados`);
+  };
 
   document.getElementById("rutNueva").onclick = ()=>{
     S.rutina = null; save(); renderRutina();
