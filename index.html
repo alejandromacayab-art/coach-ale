@@ -66,6 +66,7 @@
 
     <section>
       <div class="stitle">🏋️ Entrenamiento</div>
+      <button class="pista hidden" id="pistaCard"></button>
       <button class="entrenar" id="entrenarCard"></button>
     </section>
 
@@ -370,7 +371,6 @@
     <div id="wkProp" class="hidden"></div>
     <div id="wkList"></div>
     <button class="btn ghost" id="wkAdd">+ Añadir ejercicio</button>
-    <datalist id="exPresets"></datalist>
     <label class="f" style="margin-top:14px"><span>Notas de la sesión</span>
       <textarea class="inp" id="wkNote" rows="2" placeholder="Sensaciones, dolores, PRs…" style="resize:vertical"></textarea></label>
     <button class="btn" id="wkSave">Guardar entrenamiento</button>
@@ -561,7 +561,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.17-12";
+const APP_VERSION = "2026.09.18-1";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -652,10 +652,6 @@ const actKm  = v => (v && typeof v === "object") ? (Number(v.km)||0)  : 0;
 const actNorm = v => (v && typeof v === "object") ? v : {min:Number(v)||0, km:0};
 
 /* Ejercicios sugeridos para autocompletar */
-const EX_PRESETS = ["Sentadilla","Press banca","Peso muerto","Dominadas","Remo con barra","Press militar",
-  "Curl bíceps","Extensión tríceps","Prensa","Zancadas","Elevaciones laterales","Fondos","Hip thrust",
-  "Jalón al pecho","Abdominales","Gemelos"];
-
 /* ============================================================
    GRUPOS MUSCULARES Y VOLUMEN
    Contar series por grupo dice más que los kilos totales: es la
@@ -1547,7 +1543,6 @@ const b64ToU8 = b64 => {
   const raw = atob((b64 + pad).replace(/-/g,"+").replace(/_/g,"/"));
   return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
 };
-function pushReady(){ return !!(PUSH_PUBLIC_KEY && swReg && swReg.pushManager); }
 
 async function getSub(){
   if(!swReg || !swReg.pushManager) return null;
@@ -1618,11 +1613,6 @@ function fireReminder(manual){
   }
   return true;
 }
-function iconDataUrl(){
-  return "data:image/svg+xml,"+encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#000"/><text x="50" y="72" font-size="62" text-anchor="middle">🏋️</text></svg>`);
-}
-
 function remTick(){
   const r = S.settings.rem;
   if(!r.on) return;
@@ -1750,6 +1740,28 @@ const nombreDiaPlan = w => {
   return r?.dias.find(d=>d.id === w.dia)?.nombre || "Sesión de hoy";
 };
 
+/* El siguiente paso, cuando falta algo para que la app trabaje sola.
+   Se queda callada en cuanto tienes nivel, rutina y peso. */
+function renderPista(){
+  const b = document.getElementById("pistaCard");
+  if(!b) return;
+  const pasos = [];
+  if(!nivelDeEntreno())
+    pasos.push({t:"Haz el test de nivel", s:"Seis preguntas para ajustar series y cargas", f:abrirTest});
+  else if(!ultimaMedicion())
+    pasos.push({t:"Registra tu peso", s:"Con él calculo con cuántos kilos empezar", f:()=>{ go("salud"); openMedida(null); }});
+  else if(!rutina())
+    pasos.push({t:"Crea tu rutina", s:"Dime cuántos días entrenas y la armo", f:()=>{ go("set");
+      document.getElementById("rutPanel")?.scrollIntoView({behavior:"smooth", block:"center"}); }});
+
+  b.classList.toggle("hidden", !pasos.length);
+  if(!pasos.length) return;
+  const p = pasos[0];
+  b.innerHTML = `<span class="n">→</span>
+    <span class="tx"><b>${p.t}</b><span>${p.s}</span></span>`;
+  b.onclick = p.f;
+}
+
 /* La tarjeta grande de entrenamiento: lo que hoy toca, o lo que ya hiciste. */
 function renderEntrenar(){
   const b = document.getElementById("entrenarCard");
@@ -1779,6 +1791,12 @@ function renderEntrenar(){
   b.onclick = openWorkout;
 }
 
+/* Un check-in a medio guardar no puede tumbar la pantalla entera. */
+function escala(tabla, n){
+  const it = tabla[(Number(n)||0) - 1];
+  return it ? `${it.e} ${it.l}` : "–";
+}
+
 function renderSleepCard(){
   const l = dayLog(cur), s = l.sleep, box = document.getElementById("sleepCard");
   if(!s){
@@ -1798,8 +1816,8 @@ function renderSleepCard(){
       </div>
       <div class="sl-meta">
         <div><b>${fmt(s.hours)} h</b><span>Dormidas</span></div>
-        <div><b>${QUAL[s.quality-1].e} ${QUAL[s.quality-1].l}</b><span>Calidad</span></div>
-        <div><b>${FEEL[s.feel-1].e} ${FEEL[s.feel-1].l}</b><span>Energía</span></div>
+        <div><b>${escala(QUAL, s.quality)}</b><span>Calidad</span></div>
+        <div><b>${escala(FEEL, s.feel)}</b><span>Energía</span></div>
       </div>
       <button class="sl-cta" id="openSleep" style="background:var(--card2);color:var(--tx);border:1px solid var(--line)">Editar check-in</button>`;
   }
@@ -2035,11 +2053,12 @@ function recorTick(){
 
   if(cambio){
     const antes = cur; cur = t; save(); cur = antes;
-    if(!document.getElementById("view-hoy").classList.contains("hidden")) renderRecor();
+    if(document.getElementById("agModal").classList.contains("open")) renderRecor();
   }
 }
 
-function renderToday(){ renderDate(); renderSaludo(); renderSpot(); renderSleepCard(); renderCards(); renderEntrenar(); renderPreguntas(); }
+function renderToday(){ renderDate(); renderSaludo(); renderSpot(); renderSleepCard(); renderCards();
+  renderPista(); renderEntrenar(); renderPreguntas(); }
 
 /* ============================================================
    CHECK-IN DE SUEÑO
@@ -3513,7 +3532,6 @@ function openWorkout(){
   document.getElementById("wkSub").textContent =
     cur===todayKey() ? "Anota ejercicios, peso, repeticiones y series."
                      : `Sesión del ${d.getDate()} ${MESES[d.getMonth()]}.`;
-  document.getElementById("exPresets").innerHTML = EX_PRESETS.map(e=>`<option value="${e}">`).join("");
   document.getElementById("wkNote").value = dayLog(cur).workout.note||"";
   const o = objetivo();
   document.getElementById("wkObj").innerHTML =
@@ -3580,6 +3598,10 @@ function addExercise(silent){
 }
 function renderExercises(){
   const w = dayLog(cur).workout;
+  /* Redibujar la lista mandaba la ventana arriba del todo cada vez que
+     elegías un ejercicio o añadías una serie. */
+  const sheet = document.querySelector("#wkModal .sheet");
+  const scroll = sheet ? sheet.scrollTop : 0;
   document.getElementById("wkList").innerHTML = w.ex.map((e,i)=>`
     <div class="exbox">
       <div class="exhead">
@@ -3620,6 +3642,7 @@ function renderExercises(){
     </div>`).join("");
 
   const L = document.getElementById("wkList");
+  if(sheet) sheet.scrollTop = scroll;
   L.querySelectorAll("[data-exb]").forEach(b=> b.onclick = ()=> abrirBiblioteca(+b.dataset.exb));
   L.querySelectorAll("[data-exi]").forEach(b=> b.onclick = ()=> abrirFicha(w.ex[+b.dataset.exi].name));
   L.querySelectorAll("[data-exg]").forEach(sel=>sel.onchange=()=>{
