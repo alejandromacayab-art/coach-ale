@@ -221,17 +221,124 @@ function deltaTxt(actual, antes, mejorSube){
 /* ============================================================
    FICHA DE UN DEPORTISTA
    ============================================================ */
+/* ============================================================
+   ENTRENAMIENTO DEL DEPORTISTA
+   Lo que la app calcula en el teléfono, aquí resumido para ti:
+   cuánto volumen lleva cada músculo y qué dijeron sus evaluaciones.
+   ============================================================ */
+const GRUPOS_PANEL = {
+  pecho:{n:"Pecho",c:"#38bdf8"}, espalda:{n:"Espalda",c:"#22c55e"},
+  hombros:{n:"Hombros",c:"#a78bfa"}, biceps:{n:"Bíceps",c:"#f59e0b"},
+  triceps:{n:"Tríceps",c:"#fb7185"}, pierna:{n:"Pierna",c:"#f97316"},
+  gluteo:{n:"Glúteo",c:"#ec4899"}, core:{n:"Core",c:"#64748b"},
+  otro:{n:"Otro",c:"#94a3b8"}
+};
+const nombreGrupo = g => (GRUPOS_PANEL[g] || GRUPOS_PANEL.otro).n;
+const colorGrupo  = g => (GRUPOS_PANEL[g] || GRUPOS_PANEL.otro).c;
+
+const OBJETIVOS_PANEL = {
+  hipertrofia:{n:"Hipertrofia", e:"💪", opt:14, tope:20},
+  fuerza:{n:"Fuerza", e:"🏋️", opt:10, tope:14},
+  resistencia:{n:"Resistencia muscular", e:"🔁", opt:12, tope:18},
+  grasa:{n:"Pérdida de grasa", e:"🔥", opt:12, tope:16},
+  rehab:{n:"Rehabilitación", e:"🩺", opt:8, tope:12}
+};
+const NIVELES_PANEL = {principiante:"🌱 Principiante", intermedio:"💪 Intermedio", avanzado:"🔥 Avanzado"};
+
+/* Mismo criterio que en la app, para que los dos digan lo mismo. */
+function veredictoDe(ev){
+  if(!ev) return null;
+  const t = Number(ev.tension)||0, p = Number(ev.pump)||0, d = Number(ev.doms)||0;
+  const n = t + p + d;
+  if(d >= 2 && t <= 1) return {t:"Fatiga sin estímulo", e:"⚠️", c:"#fb7185", n};
+  if(n <= 3) return {t:"Estímulo bajo", e:"↗", c:"#38bdf8", n};
+  if(n <= 6) return {t:"Volumen óptimo", e:"✅", c:"#22c55e", n};
+  return {t:"Límite recuperable", e:"🛑", c:"#a78bfa", n};
+}
+
+const seriesHechasP = e => (e.sets||[]).filter(x=>Number(x.w) && Number(x.r)).length;
+
+function bloqueEntreno(dias, perfil){
+  const limite = hoyKey(new Date(Date.now() - 7*86400000));
+  const semana = dias.filter(r => r.fecha > limite);
+
+  const porGrupo = {}, veredictos = {};
+  let series = 0, sesiones = 0;
+  semana.forEach(r=>{
+    let hubo = false;
+    (r.datos?.workout?.ex || []).forEach(e=>{
+      const n = seriesHechasP(e);
+      if(!n) return;
+      hubo = true; series += n;
+      const g = e.grupo || "otro";
+      porGrupo[g] = (porGrupo[g]||0) + n;
+      const v = veredictoDe(e.ev);
+      if(v) veredictos[v.t] = (veredictos[v.t]||0) + 1;
+    });
+    if(hubo) sesiones++;
+  });
+
+  const o = OBJETIVOS_PANEL[perfil?.objetivo] || OBJETIVOS_PANEL.hipertrofia;
+  const orden = Object.keys(porGrupo).sort((a,b)=> porGrupo[b] - porGrupo[a]);
+  const tope = Math.max(o.tope, ...orden.map(g=>porGrupo[g]), 1);
+
+  const cabecera = `
+    <div class="chips" style="margin-bottom:12px">
+      <span class="pill">${o.e} ${o.n}</span>
+      ${perfil?.nivel?.id ? `<span class="pill">${NIVELES_PANEL[perfil.nivel.id] || esc(perfil.nivel.id)}</span>` : ""}
+      ${perfil?.rutina?.dias?.length
+        ? `<span class="pill">🗓 ${perfil.rutina.dias.length} días · ${esc(perfil.rutina.dias.map(d=>d.nombre).join(" · "))}</span>`
+        : `<span class="pill" style="color:#f59e0b">Sin rutina creada</span>`}
+    </div>`;
+
+  if(!series) return `
+    <section><div class="stitle">🏋️ Entrenamiento · últimos 7 días</div>
+      ${cabecera}
+      <div class="empty">Sin series registradas esta semana.</div></section>`;
+
+  const avisos = [];
+  const pasados = orden.filter(g=>porGrupo[g] >= o.tope).map(nombreGrupo);
+  if(pasados.length) avisos.push(`⚠️ Al límite de volumen: <b>${pasados.join(", ")}</b>.`);
+  if(veredictos["Fatiga sin estímulo"])
+    avisos.push(`⚠️ <b>${veredictos["Fatiga sin estímulo"]}</b> ejercicio(s) con dolor sin estímulo: revisar técnica.`);
+  if((veredictos["Límite recuperable"]||0) >= 3)
+    avisos.push(`🛑 <b>${veredictos["Límite recuperable"]}</b> ejercicios al límite: puede tocar descarga.`);
+
+  return `
+    <section>
+      <div class="stitle">🏋️ Entrenamiento · últimos 7 días</div>
+      ${cabecera}
+      <div class="chips" style="margin-bottom:14px">
+        <span class="pill">${sesiones} ${sesiones===1?"sesión":"sesiones"}</span>
+        <span class="pill">${series} series</span>
+      </div>
+      ${avisos.length ? `<div class="avisos">${avisos.map(a=>`<p>${a}</p>`).join("")}</div>` : ""}
+      ${orden.map(g=>{
+        const n = porGrupo[g], c = colorGrupo(g);
+        const estado = n >= o.tope ? "al límite" : n >= o.opt ? "óptimo" : n >= o.opt/2 ? "mínimo" : "bajo";
+        return `<div class="vg">
+          <div class="vg-top"><b>${nombreGrupo(g)}</b><span>${n} series · ${estado}</span></div>
+          <div class="vg-bar"><i style="width:${Math.round(n/tope*100)}%;background:${c}"></i></div>
+        </div>`;
+      }).join("")}
+      ${Object.keys(veredictos).length ? `<div class="chips" style="margin-top:12px">${
+        Object.entries(veredictos).map(([t,n])=>`<span class="pill">${esc(t)}: ${n}</span>`).join("")}</div>` : ""}
+    </section>`;
+}
+
 async function verAtleta(id){
   const a = atletas.find(x=>x.id === id);
   const mismaFicha = vista.tipo === "ficha" && vista.id === id;
   vista = {tipo:"ficha", id};
   if(!mismaFicha) $("main").innerHTML = `<div class="empty">Cargando ficha…</div>`;
-  let dias = [], salud = null, documentos = [], docsError = "";
+  let dias = [], salud = null, documentos = [], docsError = "", perfilEntreno = null;
   try{
     const desde = new Date(); desde.setDate(desde.getDate()-45);
     dias = await Nube.diasDe(id, hoyKey(desde));
     const cfg = await Nube.configDe(id);
     salud = cfg?.salud || null;
+    perfilEntreno = {nivel: cfg?.nivel || null, rutina: cfg?.rutina || null,
+                     objetivo: cfg?.settings?.objetivo || "hipertrofia"};
   }catch(e){ $("main").innerHTML = `<div class="empty">${esc(Nube.traduce(e.message))}</div>`; return; }
   try{ documentos = await Nube.docs(id); }
   catch(e){ docsError = Nube.traduce(e.message); }
@@ -340,6 +447,8 @@ async function verAtleta(id){
         <input type="file" id="docFile" accept="application/pdf,image/png,image/jpeg,image/webp" style="display:none">`}
     </section>
 
+    ${bloqueEntreno(dias, perfilEntreno)}
+
     <section>
       <div class="stitle">Registro día a día</div>
       ${dias.length ? dias.map(r=>{
@@ -354,9 +463,15 @@ async function verAtleta(id){
             ${act(d) ? `<span class="pill" style="color:#fb923c">🏃 ${act(d)} min${actKm(d)?` · ${actKm(d)} km`:""}</span>` : ""}
             ${v ? `<span class="pill" style="color:#4ade80">🏋️ ${kg(v)} kg</span>` : ""}
           </div>
-          ${ejercicios.map(e=>`<div class="ex"><b>${esc(e.name||"Ejercicio")}</b> · ${
-            (e.sets||[]).filter(x=>Number(x.w)&&Number(x.r))
-              .map(x=>`${x.w}×${x.r}`).join("  ·  ")}</div>`).join("")}
+          ${ejercicios.map(e=>{
+            const v = veredictoDe(e.ev);
+            return `<div class="ex"><b>${esc(e.name||"Ejercicio")}</b>${
+              e.grupo ? ` <i style="font-style:normal;color:${colorGrupo(e.grupo)}">${nombreGrupo(e.grupo)}</i>` : ""} · ${
+              (e.sets||[]).filter(x=>Number(x.w)&&Number(x.r))
+                .map(x=>`${x.w}×${x.r}${x.rir!==""&&x.rir!=null?` <span style="color:var(--tx3)">@${x.rir}</span>`:""}`)
+                .join("  ·  ")}${
+              v ? ` <span class="pill" style="color:${v.c};margin-left:4px">${v.e} ${v.n}/9</span>` : ""}</div>`;
+          }).join("")}
           ${acts.length ? `<div class="ex">${acts.map(([k,v])=>
               `${esc(k)} <b>${mn(v)}′</b>${km2(v)?` · <b>${km2(v)} km</b>`:""}`).join(" · ")}</div>` : ""}
           ${d.workout?.note ? `<div class="ex" style="color:var(--tx3);font-style:italic">“${esc(d.workout.note)}”</div>` : ""}

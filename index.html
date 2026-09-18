@@ -561,7 +561,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-1";
+const APP_VERSION = "2026.09.18-2";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1252,7 +1252,10 @@ const _sig = {};
 const sigOf = o => { const {mt, ...r} = o||{}; return JSON.stringify(r); };
 function touch(){
   const now = Date.now();
-  const meta = JSON.stringify({h:S.habits, s:S.settings, t:S.theme, sa:S.salud});
+  /* La firma decide qué se considera "configuración cambiada". Si el nivel
+     y la rutina no entran aquí, se guardan en el teléfono pero nunca suben. */
+  const meta = JSON.stringify({h:S.habits, s:S.settings, t:S.theme, sa:S.salud,
+                               n:S.nivel, r:S.rutina});
   if(_sig.meta !== undefined && _sig.meta !== meta) S.metaMt = now;
   _sig.meta = meta;
   const l = S.logs[cur];
@@ -3918,7 +3921,8 @@ function aFilas(){
     dias.push({fecha:f, datos, mt: mt||0});
   }
   return {
-    config: {datos:{habits:S.habits, settings:S.settings, theme:S.theme, salud:S.salud, v:S.v}, mt: S.metaMt||0},
+    config: {datos:{habits:S.habits, settings:S.settings, theme:S.theme, salud:S.salud,
+                    nivel:S.nivel, rutina:S.rutina, v:S.v}, mt: S.metaMt||0},
     dias
   };
 }
@@ -3960,6 +3964,10 @@ async function syncNow(manual){
       S.settings = Object.assign({}, S.settings, rc.datos.settings || {});
       if(rc.datos.salud) S.salud = Object.assign({}, DEF_SALUD, rc.datos.salud);
       if(rc.datos.theme) S.theme = rc.datos.theme;
+      /* El nivel y la rutina también viajan: si no, se perdían al cambiar
+         de teléfono o al reinstalar, y con ellos el plan del mes. */
+      if("nivel"  in rc.datos) S.nivel  = rc.datos.nivel;
+      if("rutina" in rc.datos) S.rutina = rc.datos.rutina;
       S.metaMt = rc.mt; cambio = true;
       if(rc.corregida) subirConfig = aFilas().config;
     }else if(!rc || (S.metaMt||0) > (rc.mt||0)){
