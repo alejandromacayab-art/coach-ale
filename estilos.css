@@ -475,7 +475,12 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .exhead input:focus{border-bottom-color:var(--accent)}
 .exdel{color:var(--tx3);font-size:16px;padding:4px 6px}
 .setrow{display:flex;align-items:center;gap:7px;margin-bottom:7px}
-.setn{width:22px;flex:none;font-size:11px;font-weight:800;color:var(--tx3);text-align:center}
+.setn{width:22px;height:22px;flex:none;font-size:11px;font-weight:800;color:var(--tx3);text-align:center;
+  background:none;border:0;padding:0;border-radius:50%;cursor:pointer}
+/* Serie prevista por el plan: está escrita, pero todavía no la has hecho. */
+.setrow.prop .setn{color:var(--accent);border:1px dashed color-mix(in srgb,var(--accent) 45%,transparent)}
+.setrow.prop .fld input{border-style:dashed;color:var(--tx3)}
+.setrow.prop .eq{font-weight:600;opacity:.7}
 .setrow .fld{flex:1;position:relative}
 .setrow .fld input{width:100%;padding:9px 34px 9px 11px;border-radius:11px;border:1px solid var(--line);
   background:var(--card2);outline:none;font-size:15px;font-weight:700;text-align:left}

@@ -4,3 +4,4 @@ push/subscriptions.json
 index.backup.html
 push/.vapid.json
 push/CLAVES-SECRETAS.txt
+.claude/

@@ -561,7 +561,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-2";
+const APP_VERSION = "2026.09.18-3";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -691,8 +691,14 @@ function adivinaGrupo(nombre){
 }
 const grupoDe = e => e.grupo || fichaEjercicio(e.name)?.g || adivinaGrupo(e.name);
 
+/* Una serie propuesta (st.p) trae peso y repeticiones sugeridos, pero nadie
+   la ha levantado todavía: no cuenta como hecha hasta que la confirmes. Sin
+   esta distinción, aplicar el plan del mes marcaba como entrenados veinte
+   días futuros. */
+const hecha = st => !st.p && num(st.w) > 0 && num(st.r) > 0;
+
 /* Series efectivas de un ejercicio: las que tienen peso y repeticiones. */
-const seriesHechas = e => (e.sets||[]).filter(st=>num(st.w) && num(st.r)).length;
+const seriesHechas = e => (e.sets||[]).filter(hecha).length;
 
 /* Cuántas series por grupo en una ventana de días. */
 function seriesPorGrupo(dias){
@@ -755,7 +761,7 @@ function ultimaSesion(desde){
 /* Qué tocaría hacer hoy en un ejercicio, mirando cómo fue la última vez. */
 function progresionDe(e, seriesGrupo){
   const m = metaDe(e);
-  const hechas = (e.sets||[]).filter(st=>num(st.w) && num(st.r));
+  const hechas = (e.sets||[]).filter(hecha);
   if(!hechas.length) return null;
 
   const peso   = Math.max(...hechas.map(st=>num(st.w)));
@@ -971,10 +977,10 @@ const rutina = () => S.rutina && Array.isArray(S.rutina.dias) && S.rutina.dias.l
    nivel, y solo decide cuánto volumen lleva cada semana.
    ============================================================ */
 const SEMANAS_PLAN = [
-  {n:1, factor:0.85, t:"Adaptación",  d:"Algo menos de volumen y una repetición más en reserva. Aquí se afina la técnica y se toman referencias."},
-  {n:2, factor:1.00, t:"Carga",       d:"El volumen de tu rutina, al RIR que marca tu objetivo. Sube el peso donde cerraste el rango."},
-  {n:3, factor:1.15, t:"Carga alta",  d:"La semana más dura del mes. Llega a tu RIR objetivo en las últimas series de cada ejercicio."},
-  {n:4, factor:0.55, t:"Descarga",    d:"Mismo peso, la mitad de las series. No es perder el tiempo: es cuando el cuerpo asimila las tres semanas anteriores."}
+  {n:1, factor:0.85, carga:0.95, t:"Adaptación",  d:"Algo menos de volumen y una repetición más en reserva. Aquí se afina la técnica y se toman referencias."},
+  {n:2, factor:1.00, carga:1.00, t:"Carga",       d:"El volumen de tu rutina, al RIR que marca tu objetivo. Sube el peso donde cerraste el rango."},
+  {n:3, factor:1.15, carga:1.05, t:"Carga alta",  d:"La semana más dura del mes. Llega a tu RIR objetivo en las últimas series de cada ejercicio."},
+  {n:4, factor:0.55, carga:1.00, t:"Descarga",    d:"Mismo peso, la mitad de las series. No es perder el tiempo: es cuando el cuerpo asimila las tres semanas anteriores."}
 ];
 
 /* Los días de entrenamiento del mes, repartidos de lunes a domingo
@@ -1045,14 +1051,23 @@ function aplicarPlan(){
     if(yaHecho) return;                           // ni un día ya entrenado
     l.workout = {
       ex: ses.ex.map(e=>{
-        const w0 = cargaInicial(e.name, e.grupo);
+        /* El peso del plan sale de la última vez que de verdad hiciste ese
+           ejercicio, no de la estimación de principiante: a quien ya lleva
+           meses entrenando le salían cargas ridículamente bajas. */
+        const ant = ultimaVezEjercicio(e.name);
+        const base = ant ? mejorPeso(ant) : num(cargaInicial(e.name, e.grupo));
+        const w0 = base ? fmt(Math.round(base * sem.carga * 2) / 2) : "";
         return {name:e.name, grupo:e.grupo, meta:metaDef(),
                 sets: Array.from({length:e.series}, ()=>(
-                  {w:w0, r:String(o.repMin), rir:String(sem.n === 1 ? o.rir + 1 : o.rir)}))};
+                  {w:w0, r:String(o.repMin), rir:String(sem.n === 1 ? o.rir + 1 : o.rir), p:1}))};
       }),
       dia: ses.dia.id,
       plan: {semana: sem.n, tipo: sem.t}
     };
+    /* Un día recién creado no tiene marca de tiempo, y sin ella la nube lo
+       descarta frente a cualquier versión anterior: el plan se quedaría en
+       este teléfono. Lo acabamos de escribir, así que la marca es ahora. */
+    l.mt = Date.now();
     save();
     n++;
   }));
@@ -1081,6 +1096,11 @@ function ultimaVezEjercicio(nombre){
     k = shift(k, -1);
   }
   return null;
+}
+
+/* El peso más alto que moviste en un ejercicio ya registrado. */
+function mejorPeso(e){
+  return Math.max(0, ...(e.sets||[]).filter(hecha).map(st=>num(st.w)));
 }
 
 /* La propuesta completa para hoy. */
@@ -1121,7 +1141,7 @@ function proponerSesion(){
 
 function unoRM(st){
   const w = num(st.w), r = num(st.r);
-  if(!w || !r) return 0;
+  if(!w || !r || st.p) return 0;
   const rr = r + (num(st.rir) || 0);
   return w * (1 + rr/30);
 }
@@ -1207,6 +1227,18 @@ function load(){
         d.v = 6;
       }
       if(d.v < 7){ d.theme = "light"; d.v = 7; }       // la app pasa a fondo claro
+      if(d.v < 8){                                     // las series del plan dejan de contar como hechas
+        /* Hasta ahora el plan del mes escribía peso y repeticiones sin marca,
+           y la app las daba por levantadas: días que nadie entrenó aparecían
+           como sesiones completas. Marcamos como previstas las que dejó el
+           plan y nunca se guardaron desde la ventana de entrenamiento. */
+        for(const k in d.logs){
+          const w = d.logs[k]?.workout;
+          if(!w || !w.plan || w.volume) continue;
+          (w.ex||[]).forEach(e=>(e.sets||[]).forEach(st=>{ st.p = 1; }));
+        }
+        d.v = 8;
+      }
       d.theme ||= "light";
       d.settings = Object.assign({}, DEF_SETTINGS, d.settings||{});
       d.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  d.settings.rem||{});
@@ -1242,7 +1274,7 @@ function load(){
       }
     }catch(e2){}
   }
-  return {v:7, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
+  return {v:8, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
           salud: {...DEF_SALUD},
           settings: JSON.parse(JSON.stringify(DEF_SETTINGS))};
 }
@@ -1774,19 +1806,23 @@ function renderEntrenar(){
   const o = objetivo(), r = rutina();
   const toca = r ? diaQueToca() : null;
 
+  /* Series que el plan dejó escritas y aún no has marcado. */
+  const previstas = (w.ex||[]).reduce((a,e)=>a + (e.sets||[]).filter(st=>st.p).length, 0);
+
   if(series){
     b.className = "entrenar hecho";
     b.innerHTML = `
       <span class="ic">✅</span>
       <span class="tx"><b>${kg(vol)} kg movidos</b>
-        <span>${series} series · ${(w.ex||[]).filter(seriesHechas).length} ejercicios</span></span>
-      <span class="go">Seguir ›</span>`;
+        <span>${series} series${previstas ? ` de ${series + previstas}` : ""} · ${
+          (w.ex||[]).filter(seriesHechas).length} ejercicios</span></span>
+      <span class="go">${previstas ? "Seguir ›" : "Ver ›"}</span>`;
   }else{
     b.className = "entrenar";
     b.innerHTML = `
       <span class="ic">🏋️</span>
       <span class="tx"><b>${w.plan ? esc(nombreDiaPlan(w)) : toca ? "Hoy toca: " + esc(toca.nombre) : "Registrar entrenamiento"}</b>
-        <span>${w.plan ? `Semana ${w.plan.semana} · ${esc(w.plan.tipo)} · ${(w.ex||[]).length} ejercicios`
+        <span>${w.plan ? `Semana ${w.plan.semana} · ${esc(w.plan.tipo)} · ${(w.ex||[]).length} ejercicios · ${previstas} series`
                 : toca ? `${toca.ex.length} ejercicios · ${o.emoji} ${o.nombre}`
                        : "Anota ejercicios, peso, repeticiones y RIR"}</span></span>
       <span class="go">Empezar ›</span>`;
@@ -2471,7 +2507,7 @@ function rirMedio(ds){
   let suma = 0, n = 0;
   ds.forEach(k=>(S.logs[k]?.workout?.ex || []).forEach(e=>
     (e.sets||[]).forEach(st=>{
-      if(num(st.w) && num(st.r) && st.rir !== "" && st.rir != null){ suma += num(st.rir); n++; }
+      if(hecha(st) && st.rir !== "" && st.rir != null){ suma += num(st.rir); n++; }
     })));
   return n ? {medio: Math.round(suma/n*10)/10, n} : null;
 }
@@ -3511,9 +3547,9 @@ function closeModal(){ document.getElementById("modal").classList.remove("open")
    ENTRENAMIENTO
    ============================================================ */
 const num = v => { const n = parseFloat(String(v).replace(",",".")); return isFinite(n)&&n>0 ? n : 0; };
-const exVolume = ex => (ex.sets||[]).reduce((a,s)=> a + num(s.w)*num(s.r), 0);
+const exVolume = ex => (ex.sets||[]).reduce((a,s)=> a + (hecha(s) ? num(s.w)*num(s.r) : 0), 0);
 const wkVolume = w => (w?.ex||[]).reduce((a,e)=> a + exVolume(e), 0);
-const wkSets   = w => (w?.ex||[]).reduce((a,e)=> a + (e.sets||[]).filter(s=>num(s.w)&&num(s.r)).length, 0);
+const wkSets   = w => (w?.ex||[]).reduce((a,e)=> a + seriesHechas(e), 0);
 const wkExN    = w => (w?.ex||[]).filter(e=>exVolume(e)>0).length;
 const kg = n => Math.round(n).toLocaleString("es-CL");
 
@@ -3582,12 +3618,13 @@ function renderPropuesta(){
 
   document.getElementById("propUsar").onclick = ()=>{
     const w = dayLog(cur).workout;
-    w.ex = p.items.map(it=>({name:it.name, grupo:it.grupo, meta:it.meta, sets:it.sets.map(st=>({...st}))}));
+    w.ex = p.items.map(it=>({name:it.name, grupo:it.grupo, meta:it.meta,
+                             sets:it.sets.map(st=>({...st, p:1}))}));
     if(p.rutina) w.dia = p.dia.id;      // para saber por dónde sigue la rutina
     save();
     box.classList.add("hidden");
     renderExercises(); updateWkTotal();
-    toast("⚡ Sesión armada con la progresión");
+    toast("⚡ Sesión armada · marca cada serie al terminarla");
   };
   document.getElementById("propNo").onclick = ()=>{
     box.classList.add("hidden");
@@ -3623,12 +3660,12 @@ function renderExercises(){
         <span data-exs="${i}">${seriesHechas(e)} ${seriesHechas(e)===1?"serie":"series"}</span>
       </div>
       ${(e.sets||[]).map((st,j)=>`
-        <div class="setrow">
-          <div class="setn">${j+1}</div>
+        <div class="setrow${st.p ? " prop" : ""}">
+          <button class="setn" data-sok="${i}.${j}" title="${st.p ? "Marcar serie hecha" : "Serie hecha"}">${st.p ? "○" : j+1}</button>
           <div class="fld"><input inputmode="decimal" data-w="${i}.${j}" value="${esc(st.w)}" placeholder="0"><span>kg</span></div>
           <div class="fld"><input inputmode="numeric" data-r="${i}.${j}" value="${esc(st.r)}" placeholder="0"><span>reps</span></div>
           <div class="fld rir"><input inputmode="numeric" data-rir="${i}.${j}" value="${esc(st.rir ?? "")}" placeholder="–"><span>rir</span></div>
-          <div class="eq" data-eq="${i}.${j}">${num(st.w)&&num(st.r)?kg(num(st.w)*num(st.r))+" kg":""}</div>
+          <div class="eq" data-eq="${i}.${j}">${hecha(st)?kg(num(st.w)*num(st.r))+" kg":st.p?"prevista":""}</div>
           <button class="exdel" data-sdel="${i}.${j}">✕</button>
         </div>`).join("")}
       <div class="exfoot">
@@ -3658,7 +3695,8 @@ function renderExercises(){
     const [i,j] = (inp.dataset.w ?? inp.dataset.r ?? inp.dataset.rir).split(".").map(Number);
     w.ex[i].sets[j][key] = inp.value;
     const st = w.ex[i].sets[j];
-    L.querySelector(`[data-eq="${i}.${j}"]`).textContent = num(st.w)&&num(st.r) ? kg(num(st.w)*num(st.r))+" kg" : "";
+    if(st.p){ delete st.p; confirmarFila(L, i, j); }   // tocarla ya es hacerla
+    L.querySelector(`[data-eq="${i}.${j}"]`).textContent = hecha(st) ? kg(num(st.w)*num(st.r))+" kg" : "";
     L.querySelector(`[data-sub="${i}"]`).textContent = exVolume(w.ex[i]) ? kg(exVolume(w.ex[i]))+" kg" : "";
     const ns = seriesHechas(w.ex[i]), et = L.querySelector(`[data-exs="${i}"]`);
     if(et) et.textContent = `${ns} ${ns===1?"serie":"series"}`;
@@ -3667,10 +3705,16 @@ function renderExercises(){
     if(vo) vo.textContent = exVolume(w.ex[i]) ? kg(exVolume(w.ex[i]))+" kg" : "–";
     updateWkTotal(); save();
   });
+  L.querySelectorAll("[data-sok]").forEach(b=>b.onclick=()=>{
+    const [i,j] = b.dataset.sok.split(".").map(Number);
+    const st = w.ex[i].sets[j];
+    if(!st.p) return;
+    delete st.p; confirmarFila(L, i, j); save();
+  });
   L.querySelectorAll("[data-ev]").forEach(b=>b.onclick=()=>openEval(+b.dataset.ev));
   L.querySelectorAll("[data-adds]").forEach(b=>b.onclick=()=>{
     const i=+b.dataset.adds, prev = w.ex[i].sets[w.ex[i].sets.length-1];
-    w.ex[i].sets.push({w:prev?prev.w:"", r:prev?prev.r:"", rir:prev?prev.rir:""});  // repite la última serie
+    w.ex[i].sets.push({w:prev?prev.w:"", r:prev?prev.r:"", rir:prev?prev.rir:"", ...(prev?.p?{p:1}:{})});  // repite la última serie
     save(); renderExercises();
   });
   L.querySelectorAll("[data-sdel]").forEach(b=>b.onclick=()=>{
@@ -3684,6 +3728,26 @@ function renderExercises(){
   });
   updateWkTotal();
 }
+/* Pasa una fila de "prevista" a "hecha" sin redibujar la lista entera:
+   redibujarla mientras escribes te saca del campo. */
+function confirmarFila(L, i, j){
+  const fila = L.querySelector(`[data-sok="${i}.${j}"]`);
+  if(!fila) return;
+  fila.textContent = j + 1;
+  fila.closest(".setrow")?.classList.remove("prop");
+  const e = dayLog(cur).workout.ex[i], ns = seriesHechas(e);
+  const et = L.querySelector(`[data-exs="${i}"]`);
+  if(et) et.textContent = `${ns} ${ns===1?"serie":"series"}`;
+  const sub = L.querySelector(`[data-sub="${i}"]`);
+  if(sub) sub.textContent = exVolume(e) ? kg(exVolume(e))+" kg" : "";
+  const rm = L.querySelector(`[data-rm="${i}"]`), vo = L.querySelector(`[data-vol="${i}"]`);
+  if(rm) rm.textContent = exUnoRM(e) ? kg(exUnoRM(e))+" kg" : "–";
+  if(vo) vo.textContent = exVolume(e) ? kg(exVolume(e))+" kg" : "–";
+  const eq = L.querySelector(`[data-eq="${i}.${j}"]`), st = e.sets[j];
+  if(eq) eq.textContent = hecha(st) ? kg(num(st.w)*num(st.r))+" kg" : "";
+  updateWkTotal();
+}
+
 function updateWkTotal(){
   const w = dayLog(cur).workout, v = wkVolume(w);
   document.getElementById("wkTotal").textContent = kg(v)+" kg";

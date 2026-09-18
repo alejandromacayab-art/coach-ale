@@ -256,7 +256,9 @@ function veredictoDe(ev){
   return {t:"Límite recuperable", e:"🛑", c:"#a78bfa", n};
 }
 
-const seriesHechasP = e => (e.sets||[]).filter(x=>Number(x.w) && Number(x.r)).length;
+/* Igual que en la app: una serie con la marca p es la que dejó escrita el
+   plan del mes, todavía sin hacer. No cuenta como entrenada. */
+const seriesHechasP = e => (e.sets||[]).filter(x=>!x.p && Number(x.w) && Number(x.r)).length;
 
 function bloqueEntreno(dias, perfil){
   const limite = hoyKey(new Date(Date.now() - 7*86400000));
@@ -264,6 +266,19 @@ function bloqueEntreno(dias, perfil){
 
   const porGrupo = {}, veredictos = {};
   let series = 0, sesiones = 0;
+  /* Adherencia: de las sesiones que el plan dejó escritas en estos días,
+     cuántas se llegaron a hacer. Sin esto, un plan intacto y un plan
+     cumplido se ven igual desde aquí. */
+  let planificadas = 0, cumplidas = 0, proxima = null;
+  const hoy = hoyKey();
+  dias.forEach(r=>{
+    const w = r.datos?.workout;
+    if(!w?.plan) return;
+    if(r.fecha > hoy){ if(!proxima || r.fecha < proxima.fecha) proxima = {fecha:r.fecha, w}; return; }
+    if(r.fecha <= limite) return;
+    planificadas++;
+    if((w.ex||[]).some(e=>seriesHechasP(e))) cumplidas++;
+  });
   semana.forEach(r=>{
     let hubo = false;
     (r.datos?.workout?.ex || []).forEach(e=>{
@@ -294,7 +309,8 @@ function bloqueEntreno(dias, perfil){
   if(!series) return `
     <section><div class="stitle">🏋️ Entrenamiento · últimos 7 días</div>
       ${cabecera}
-      <div class="empty">Sin series registradas esta semana.</div></section>`;
+      <div class="empty">Sin series registradas esta semana.${
+        planificadas ? ` Tenía ${planificadas} ${planificadas===1?"sesión":"sesiones"} en el plan.` : ""}</div></section>`;
 
   const avisos = [];
   const pasados = orden.filter(g=>porGrupo[g] >= o.tope).map(nombreGrupo);
@@ -311,6 +327,11 @@ function bloqueEntreno(dias, perfil){
       <div class="chips" style="margin-bottom:14px">
         <span class="pill">${sesiones} ${sesiones===1?"sesión":"sesiones"}</span>
         <span class="pill">${series} series</span>
+        ${planificadas ? `<span class="pill" style="color:${
+          cumplidas === planificadas ? "#22c55e" : cumplidas ? "#f59e0b" : "#f87171"}">Plan: ${
+          cumplidas} de ${planificadas} cumplidas</span>` : ""}
+        ${proxima ? `<span class="pill">Próxima: ${fechaCorta(proxima.fecha)} · semana ${
+          proxima.w.plan.semana} · ${esc(proxima.w.plan.tipo)}</span>` : ""}
       </div>
       ${avisos.length ? `<div class="avisos">${avisos.map(a=>`<p>${a}</p>`).join("")}</div>` : ""}
       ${orden.map(g=>{
@@ -453,7 +474,7 @@ async function verAtleta(id){
       <div class="stitle">Registro día a día</div>
       ${dias.length ? dias.map(r=>{
         const d = r.datos||{}, v = vol(d), s = d.sleep;
-        const ejercicios = (d.workout?.ex||[]).filter(e=>(e.sets||[]).some(x=>Number(x.w)&&Number(x.r)));
+        const ejercicios = (d.workout?.ex||[]).filter(e=>seriesHechasP(e));
         const acts = Object.entries(d.actividad?.items||{}).filter(([,v])=>mn(v)>0||km2(v)>0);
         if(!v && !s && !ejercicios.length && !d.note && !acts.length) return "";
         return `<div class="dcard">
@@ -467,7 +488,7 @@ async function verAtleta(id){
             const v = veredictoDe(e.ev);
             return `<div class="ex"><b>${esc(e.name||"Ejercicio")}</b>${
               e.grupo ? ` <i style="font-style:normal;color:${colorGrupo(e.grupo)}">${nombreGrupo(e.grupo)}</i>` : ""} · ${
-              (e.sets||[]).filter(x=>Number(x.w)&&Number(x.r))
+              (e.sets||[]).filter(x=>!x.p && Number(x.w) && Number(x.r))
                 .map(x=>`${x.w}×${x.r}${x.rir!==""&&x.rir!=null?` <span style="color:var(--tx3)">@${x.rir}</span>`:""}`)
                 .join("  ·  ")}${
               v ? ` <span class="pill" style="color:${v.c};margin-left:4px">${v.e} ${v.n}/9</span>` : ""}</div>`;
