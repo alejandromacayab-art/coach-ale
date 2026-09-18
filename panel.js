@@ -39,6 +39,33 @@ function estadoActividad(dias){
 }
 function colorSueno(n){ return !n ? "#6f7887" : n >= 70 ? "#22e07a" : n >= 50 ? "#fbbf24" : "#fb7185"; }
 
+/* Quién necesita que le escribas hoy. La lista mostraba números de todos por
+   igual y en el orden que viniera: con diez deportistas había que abrir diez
+   fichas para descubrir cuál se había caído. Se calcula con lo que ya trae la
+   lista, sin una consulta más por persona. */
+function atencion(a){
+  const d = diasDesde(a.ultimo_registro);
+  const porSemana = (Number(a.sesiones_30d)||0) / 30 * 7;
+  const sue = Number(a.sueno_30d) || 0;
+  const m = [];
+  let nivel = 0;
+
+  if(d === null){ m.push("nunca entró"); nivel = 3; }
+  else if(d >= 7){ m.push(`${d} días sin registrar`); nivel = 3; }
+  else if(d >= 4){ m.push(`${d} días sin registrar`); nivel = 2; }
+
+  /* Con menos de 10 días de registro todavía no hay con qué juzgar la
+     frecuencia: un deportista de esta semana no "entrena poco". */
+  if((a.dias_con_registro||0) >= 10 && porSemana < 2){
+    m.push(`${porSemana.toFixed(1)} sesiones/semana`); nivel = Math.max(nivel, 2);
+  }
+  if(sue && sue < 50){ m.push("duerme mal"); nivel = Math.max(nivel, 2); }
+  else if(sue && sue < 70){ m.push("sueño justo"); nivel = Math.max(nivel, 1); }
+
+  return {nivel, m};
+}
+const COLOR_ATN = ["#22e07a", "#fbbf24", "#f59e0b", "#fb7185"];
+
 /* ============================================================
    LISTA DE DEPORTISTAS
    ============================================================ */
@@ -56,6 +83,13 @@ async function verLista(){
   const sueMed  = conSue.length ? Math.round(conSue.reduce((a,x)=>a+Number(x.sueno_30d),0)/conSue.length) : 0;
   const activos = atletas.filter(x=>{ const d=diasDesde(x.ultimo_registro); return d!==null && d<=3; }).length;
 
+  /* Primero quien más lo necesita, y a igual urgencia el que lleva más tiempo
+     sin aparecer. Antes mandaba el orden en que viniera de la base. */
+  atletas.forEach(a=>{ a._atn = atencion(a); });
+  atletas.sort((x,y)=> y._atn.nivel - x._atn.nivel ||
+    (diasDesde(y.ultimo_registro) ?? 999) - (diasDesde(x.ultimo_registro) ?? 999));
+  const requieren = atletas.filter(a=>a._atn.nivel >= 2).length;
+
   $("main").innerHTML = `
     <section>
       <div class="stitle">Resumen del grupo · últimos 30 días</div>
@@ -65,6 +99,7 @@ async function verLista(){
         <div class="stat"><b>${kg(kgTot)}</b><span>Kg movidos entre todos</span></div>
         <div class="stat"><b>${ses}</b><span>Sesiones de fuerza</span></div>
         <div class="stat"><b style="color:${colorSueno(sueMed)}">${sueMed||"–"}</b><span>Sueño promedio</span></div>
+        <div class="stat"><b style="color:${requieren?"#fb7185":"#22e07a"}">${requieren}</b><span>Piden atención</span></div>
       </div>
     </section>
 
@@ -82,12 +117,18 @@ async function verLista(){
           <tbody>
             ${atletas.map(a=>{
               const d = diasDesde(a.ultimo_registro), act = estadoActividad(d);
-              return `<tr data-id="${a.id}">
+              const atn = a._atn || atencion(a);
+              return `<tr data-id="${a.id}" class="${atn.nivel >= 2 ? "urge" : ""}">
                 <td><div class="who"><div class="ava">${esc(iniciales(a.nombre))}</div>
                   <div style="min-width:0"><b>${esc(a.nombre||a.correo)}</b>
                   <span>${esc(a.correo||"")}</span></div></div></td>
+
                 <td><span class="num" style="color:${act.c}">${act.t}</span>
-                    <div class="sub">${a.dias_con_registro||0} días con registro</div></td>
+                    <div class="sub">${a.dias_con_registro||0} días con registro</div>
+                    ${atn.m.length ? `<div class="atns">${atn.m
+                      .filter(x=>!/días sin registrar|nunca entró/.test(x))
+                      .map(x=>`<span class="atn" style="--c:${COLOR_ATN[atn.nivel]}">${esc(x)}</span>`)
+                      .join("")}</div>` : ""}</td>
                 <td class="ocultar-movil"><span class="num">${kg(a.kg_30d)}</span> <span class="sub">kg</span></td>
                 <td class="ocultar-movil"><span class="num">${a.sesiones_30d||0}</span>
                     <div class="sub">${((a.sesiones_30d||0)/30*7).toFixed(1)}/sem</div></td>

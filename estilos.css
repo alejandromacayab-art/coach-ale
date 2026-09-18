@@ -804,3 +804,18 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 .notasdep p{margin:0 0 5px;font-size:13px;line-height:1.45;color:var(--tx)}
 .notasdep p:last-child{margin-bottom:0}
 .notasdep i{font-style:normal;font-weight:700;color:var(--tx3);margin-right:6px}
+
+/* Quién pide atención, en la lista del panel */
+.atn{display:inline-block;font-size:11px;font-weight:700;line-height:1.3;
+  padding:3px 8px;border-radius:999px;margin:0 4px 3px 0;white-space:nowrap;
+  color:var(--c,#fbbf24);background:color-mix(in srgb,var(--c,#fbbf24) 14%,transparent);
+  border:1px solid color-mix(in srgb,var(--c,#fbbf24) 34%,transparent)}
+.atns{margin-top:4px}
+.tabla tr.urge td:first-child{box-shadow:inset 3px 0 0 #fb7185}
+
+/* La tabla del panel marca dos columnas para esconder en el teléfono, pero la
+   regla no existía: en pantalla estrecha había que arrastrar la tabla de lado
+   para llegar al sueño. */
+@media (max-width:640px){
+  .tabla th.ocultar-movil, .tabla td.ocultar-movil{display:none}
+}
