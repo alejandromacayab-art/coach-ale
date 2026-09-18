@@ -562,7 +562,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-7";
+const APP_VERSION = "2026.09.18-8";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -2221,7 +2221,7 @@ function agregarRecor(){
   document.getElementById("recorHora").value = "";
   renderRecor();
   pedirPermisoRecor();
-  toast("⏰ Te aviso 60 y 30 minutos antes");
+  toast("⏰ Te aviso 60 y 30 minutos antes, al abrir la app");
 }
 
 function borrarRecor(id){
@@ -2273,20 +2273,48 @@ function recorTick(){
   const ahora = nowMin();
   let cambio = false;
 
+  /* Un aviso se da como notificación si hay permiso, y si no como aviso en
+     pantalla: sin permiso el recordatorio no puede desaparecer en silencio. */
+  const avisar = (r, titulo, m)=>{
+    const cuerpo = `${r.txt} · a las ${r.hora}`;
+    if(notifState() === "granted")
+      showNotif(titulo, {body:cuerpo, icon:"icons/icon-192.png", tag:"recor-"+r.id+"-"+m});
+    else toast(`${titulo} · ${r.txt}`);
+  };
+
   lista.forEach(r=>{
     const faltan = hm(r.hora) - ahora;
+    r.av = r.av || {};
+
+    /* La hora ya pasó: los avisos se dan por consumidos. Si no, al abrir la
+       app por la noche saltaría un recordatorio de esta mañana. */
+    if(faltan <= 0){
+      AVISOS.forEach(m=>{ if(r.av[m] === undefined){ r.av[m] = 0; cambio = true; } });
+      return;
+    }
+
+    /* Con la app abierta: al cruzar el umbral, con margen por si el minuto
+       exacto cayó entre dos comprobaciones. */
+    let disparado = false;
     AVISOS.forEach(m=>{
-      if(r.av?.[m]) return;
-      /* Se dispara al cruzar el umbral, con margen por si la app estaba cerrada. */
+      if(r.av[m] !== undefined) return;
       if(faltan <= m && faltan > m - GRACIA){
-        r.av = r.av || {}; r.av[m] = Date.now(); cambio = true;
-        const titulo = m === 60 ? "⏰ Falta 1 hora" : "⏰ Faltan 30 minutos";
-        const cuerpo = `${r.txt} · a las ${r.hora}`;
-        if(notifState() === "granted")
-          showNotif(titulo, {body:cuerpo, icon:"icons/icon-192.png", tag:"recor-"+r.id+"-"+m});
-        else toast(`${titulo} · ${r.txt}`);
+        r.av[m] = Date.now(); cambio = true; disparado = true;
+        avisar(r, m === 60 ? "⏰ Falta 1 hora" : "⏰ Faltan 30 minutos", m);
       }
     });
+    if(disparado) return;
+
+    /* Con la app cerrada los umbrales pasan sin que nadie los mire. Al abrirla
+       recuperamos los avisos perdidos, en un solo mensaje y con el tiempo que
+       queda de verdad: decir "falta una hora" cuando faltan doce minutos sería
+       peor que no decir nada. */
+    const perdidos = AVISOS.filter(m => r.av[m] === undefined && faltan <= m - GRACIA);
+    if(perdidos.length){
+      perdidos.forEach(m=>{ r.av[m] = Date.now(); });
+      cambio = true;
+      avisar(r, faltan === 1 ? "⏰ Falta 1 minuto" : `⏰ Faltan ${faltan} minutos`, perdidos[0]);
+    }
   });
 
   if(cambio){
@@ -2770,10 +2798,20 @@ const CONSULTAS = [
         accion = `Sí estás progresando: de ${fmt(pesos[pesos.length-1])} a ${fmt(pesos[0])} kg. Sigue con la doble progresión.`;
         porque = "Subir carga o repeticiones de forma sostenida es la señal de progreso que importa; el resto son detalles.";
         fuente = ["nsca"];
-      }else if(alLimite >= 2){
+      }else if(alLimite >= 2 && su && su.horas < 7){
+        /* Recortar series a quien apenas hace volumen y duerme seis horas es
+           tratar el síntoma. Primero la recuperación, después el programa. */
+        accion = `Antes de tocar las series, sube el sueño: vas en ${fmt(su.horas)} h. Mantén ${nombreGrupo(g)} en ${ser} series y el mismo peso esta semana.`;
+        porque = `Marcas "límite recuperable" en ${alLimite} de tus últimas sesiones, pero con ${ser} series semanales de ${nombreGrupo(g)} el problema no es la dosis de entrenamiento: es lo que te está costando recuperarla. Dormir por debajo de 7 h deteriora la recuperación, la fuerza y la calidad de las sesiones.`;
+        fuente = ["sueno","volumen"];
+      }else if(alLimite >= 2 && ser >= o.volOpt){
         accion = `Baja una o dos series de ${nombreGrupo(g)} durante una semana y mantén el peso. No sumes carga todavía.`;
         porque = `Vienes marcando "límite recuperable" en ${alLimite} de tus últimas sesiones y llevas ${ser} series semanales de ${nombreGrupo(g)}. Más volumen sobre una recuperación que ya no alcanza no produce más músculo: el estancamiento es de recuperación, no de estímulo.`;
         fuente = ["volumen","dosis"];
+      }else if(alLimite >= 2){
+        accion = `Mantén ${nombreGrupo(g)} en ${ser} series y el mismo peso una semana más, sin añadir nada.`;
+        porque = `Marcas "límite recuperable" en ${alLimite} de tus últimas sesiones con solo ${ser} series semanales de ${nombreGrupo(g)}. Con tan poco volumen el problema no es la dosis: revisa descanso entre series, técnica y si estás llegando demasiado cerca del fallo.`;
+        fuente = ["fallo","descanso"];
       }else if(bajo >= 1 && ser < o.volTope){
         accion = `Añade 1–2 series semanales a ${nombreGrupo(g)}. Vas en ${ser} y tu objetivo trabaja bien hasta ${o.volTope}.`;
         porque = "El volumen tiene una relación dosis-respuesta con la hipertrofia: por debajo de unas 10 series semanales por músculo, subirlas suele mejorar los resultados.";
@@ -2799,16 +2837,25 @@ const CONSULTAS = [
       const o = objetivo();
       const gs = GRUPOS.filter(g=>ser[g.id]);
       if(!gs.length) return null;
-      const bajos = gs.filter(g=>ser[g.id] < o.volBajo).map(g=>`${g.nombre} (${ser[g.id]})`);
-      const altos = gs.filter(g=>ser[g.id] >= o.volTope).map(g=>`${g.nombre} (${ser[g.id]})`);
+      /* Los mismos tramos que usa Progreso. Antes solo se marcaba "bajo" por
+         debajo del mínimo, así que un músculo en 6 series —el suelo del
+         objetivo, no el punto— salía como "en rango, no añadas series". */
+      const etiq = g => `${g.nombre} (${ser[g.id]})`;
+      const bajos  = gs.filter(g=>ser[g.id] < o.volBajo).map(etiq);
+      const cortos = gs.filter(g=>ser[g.id] >= o.volBajo && ser[g.id] < o.volOpt).map(etiq);
+      const altos  = gs.filter(g=>ser[g.id] >= o.volTope).map(etiq);
+      const enPunto = gs.filter(g=>ser[g.id] >= o.volOpt && ser[g.id] < o.volTope).map(etiq);
+      const subir = bajos.concat(cortos);
       return {
         titulo:"Volumen semanal",
         dato: gs.map(g=>`${g.nombre} ${ser[g.id]}`).join(" · "),
         accion: altos.length
-          ? `Frena en ${altos.join(", ")}: ya estás en el techo de tu objetivo. ${bajos.length ? `Sube en cambio ${bajos.join(", ")}.` : "En el resto, mantén."}`
+          ? `Frena en ${altos.join(", ")}: ya estás en el techo de tu objetivo. ${subir.length ? `Sube en cambio ${subir.join(", ")}.` : "En el resto, mantén."}`
           : bajos.length
-            ? `Añade 1–2 series semanales a ${bajos.join(", ")}. En el resto, mantén y deja que la evaluación decida.`
-            : "Estás en rango en todos los grupos. Mantén y sube carga, no series.",
+            ? `Añade 2 series semanales a ${bajos.join(", ")}: estás por debajo del mínimo que deja algo.${cortos.length ? ` Y 1–2 más a ${cortos.join(", ")}.` : ""}`
+            : cortos.length
+              ? `Añade 1–2 series semanales a ${cortos.join(", ")}: estás en el mínimo efectivo, no en el punto óptimo (${o.volOpt}).${enPunto.length ? ` ${enPunto.join(", ")} sí están en rango: ahí mantén.` : ""}`
+              : "Estás en el rango óptimo en todos los grupos. Mantén las series y sube carga.",
         porque: `Tu objetivo (${o.emoji} ${o.nombre}) trabaja bien entre ${o.volOpt} y ${o.volTope} series semanales por músculo. Por debajo de ~10 hay margen claro de mejora; pasado el techo, las series extra aportan cada vez menos y cuestan recuperación.`,
         fuente:["volumen","dosis"]
       };
@@ -5186,7 +5233,7 @@ document.addEventListener("visibilitychange",()=>{
     syncNow(false);
     return;
   }
-  maybeAskSleep(); remTick(); screensTick(); syncNow(false);
+  maybeAskSleep(); remTick(); screensTick(); recorTick(); syncNow(false);
 });
 addEventListener("pagehide", ()=>{ clearTimeout(syncTimer); syncNow(false); });
 
@@ -5213,6 +5260,7 @@ setInterval(()=>syncNow(false), 300000);
 maybeAskSleep();
 remTick();
 screensTick();
+recorTick();
 </script>
 </body>
 </html>
