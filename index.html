@@ -562,7 +562,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-6";
+const APP_VERSION = "2026.09.18-7";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -720,16 +720,19 @@ function seriesPorGrupo(dias){
 
 /* Tramos de volumen semanal. Debajo del mínimo casi no hay estímulo;
    pasado el límite el cuerpo ya no alcanza a recuperar. */
-function tramos(){
-  const o = objetivo();
+/* Los tramos de la literatura son SEMANALES. Al mirar un mes hay que
+   escalarlos: 30 series de pierna en cuatro semanas son 7,5 por semana —
+   volumen bajo— y se estaban leyendo como "límite recuperable". */
+function tramos(semanas){
+  const o = objetivo(), f = Math.max(1, semanas || 1);
   return [
-    {hasta: o.volBajo - 1,  t:"Volumen bajo",       c:"#fb7185"},
-    {hasta: o.volOpt - 1,   t:"Mínimo efectivo",    c:"#fbbf24"},
-    {hasta: o.volTope - 1,  t:"Volumen óptimo",     c:"#22e07a"},
-    {hasta: Infinity,       t:"Límite recuperable", c:"#a78bfa"}
+    {hasta: o.volBajo * f - 1,  t:"Volumen bajo",       c:"#fb7185"},
+    {hasta: o.volOpt  * f - 1,  t:"Mínimo efectivo",    c:"#fbbf24"},
+    {hasta: o.volTope * f - 1,  t:"Volumen óptimo",     c:"#22e07a"},
+    {hasta: Infinity,           t:"Límite recuperable", c:"#a78bfa"}
   ];
 }
-const tramoDe = n => tramos().find(t => n <= t.hasta);
+const tramoDe = (n, semanas) => tramos(semanas).find(t => n <= t.hasta);
 
 /* ---------- 1RM estimado ----------
    Fórmula de Epley. Las repeticiones que te quedaban en reserva (RIR)
@@ -774,25 +777,41 @@ function progresionDe(e, seriesGrupo){
   const topes  = hechas.filter(st=>num(st.w) === peso);
   const repsMax = Math.max(...topes.map(st=>num(st.r)));
   const repsMin = Math.min(...topes.map(st=>num(st.r)));
-  const rirProm = topes.reduce((a,st)=>a + (num(st.rir)||0), 0) / topes.length;
+
+  /* El RIR es opcional, y dejarlo en blanco no significa "llegué al fallo".
+     Tratarlo como un 0 hacía que quien no lo anotaba nunca subiera de peso:
+     la condición para subir pedía reserva, y sin reserva anotada no se
+     cumplía jamás. Si no hay ninguno escrito, progresamos solo por
+     repeticiones, que es la doble progresión de toda la vida. */
+  const conRir = topes.filter(st=>st.rir !== "" && st.rir != null && isFinite(parseFloat(st.rir)));
+  const hayRir = conRir.length > 0;
+  const rirProm = hayRir
+    ? conRir.reduce((a,st)=>a + (num(st.rir)||0), 0) / conRir.length
+    : null;
 
   let nuevoPeso = peso, nuevasReps = repsMax, motivo, icono = "→";
 
-  if(repsMin >= m.repMax && rirProm >= m.rir - 0.5){
+  if(repsMin >= m.repMax && (!hayRir || rirProm >= m.rir - 0.5)){
     nuevoPeso = Math.round((peso + saltoKg(grupoDe(e))) * 2) / 2;
     nuevasReps = m.repMin;
-    motivo = `Cerraste las ${m.repMax} repeticiones con reserva: sube a ${fmt(nuevoPeso)} kg y vuelve a ${m.repMin}.`;
+    motivo = `Cerraste ${repsMin >= m.repMax && repsMin > m.repMax ? repsMin : m.repMax} repeticiones${
+      hayRir ? " con reserva" : ""}: sube a ${fmt(nuevoPeso)} kg y vuelve a ${m.repMin}.`;
     icono = "⬆";
-  }else if(rirProm === 0 && repsMax < m.repMin){
+  }else if(hayRir && rirProm === 0 && repsMax < m.repMin){
     nuevoPeso = Math.round(peso * 0.95 * 2) / 2;
     nuevasReps = m.repMin;
     motivo = `Te quedaste corto y sin reserva: baja a ${fmt(nuevoPeso)} kg y reconstruye.`;
     icono = "⬇";
+  }else if(repsMin >= m.repMax){
+    /* Llegaste arriba del rango pero sin reserva: el peso todavía no sube. */
+    nuevasReps = m.repMax;
+    motivo = rirProm === 0
+      ? `Llegaste a ${m.repMax} pero al fallo. Repite ${fmt(peso)} kg × ${m.repMax} y sube cuando te sobre una repetición.`
+      : `Llegaste a ${m.repMax} con RIR ${fmt(rirProm)}. Consolida ${fmt(peso)} kg antes de subir.`;
+    icono = "→";
   }else{
     nuevasReps = Math.min(m.repMax, repsMax + 1);
-    motivo = nuevasReps > repsMax
-      ? `Mismo peso, una repetición más: ${nuevasReps}.`
-      : `Mantén ${fmt(peso)} kg × ${nuevasReps} y busca bajar el RIR.`;
+    motivo = `Mismo peso, una repetición más: ${nuevasReps}.`;
     icono = "→";
   }
 
@@ -1422,6 +1441,17 @@ function load(){
    tiempo, para que al fusionar dos dispositivos nunca gane una versión vacía. */
 const _sig = {};
 const sigOf = o => { const {mt, ...r} = o||{}; return JSON.stringify(r); };
+/* Al arrancar sembramos las firmas con lo que hay guardado. Sin esto no
+   podíamos distinguir "no ha cambiado nada" de "es la primera vez que lo
+   tocamos", y por prudencia no se marcaba nada: un día editado una sola vez
+   se quedaba con marca 0 y la nube lo descartaba frente a cualquier versión
+   anterior de esa misma fecha. */
+function sembrarFirmas(){
+  _sig.meta = JSON.stringify({h:S.habits, s:S.settings, t:S.theme, sa:S.salud,
+                              n:S.nivel, r:S.rutina});
+  for(const k in S.logs) _sig[k] = sigOf(S.logs[k]);
+}
+
 function touch(){
   const now = Date.now();
   /* La firma decide qué se considera "configuración cambiada". Si el nivel
@@ -1433,10 +1463,15 @@ function touch(){
   const l = S.logs[cur];
   if(l){
     const d = sigOf(l);
-    if(_sig[cur] !== undefined && _sig[cur] !== d) l.mt = now;
+    /* Cambió, o tiene contenido y aún no tiene marca. Un día recién creado y
+       todavía vacío no se marca: marcarlo lo haría ganar en la nube contra
+       una versión buena de esa fecha. */
+    if((_sig[cur] !== undefined && _sig[cur] !== d) || (!l.mt && tieneAlgo(cur))) l.mt = now;
     _sig[cur] = d;
   }
 }
+sembrarFirmas();          // ya existen _sig y sigOf: ahora sí
+
 const save = () => {
   touch();
   try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("No se pudo guardar"); }
@@ -2376,13 +2411,18 @@ function moverMes(n){
   mesVista = {y:d.getFullYear(), m:d.getMonth()};
   renderHist();
 }
-const notasDe = k => Object.values(S.logs[k]?.agenda || {}).filter(v => String(v).trim()).length;
-const tieneAlgo = k => {
+function notasDe(k){ return Object.values(S.logs[k]?.agenda || {}).filter(v => String(v).trim()).length; }
+/* Declaradas, no const: touch() las usa y se ejecuta antes de llegar aquí. */
+function tieneAlgo(k){
   const l = S.logs[k];
   if(!l) return false;
-  return !!(notasDe(k) || String(l.note||"").trim() || l.sleep || l.cuerpo ||
+  /* El entrenamiento faltaba aquí: un día en el que solo entrenaste salía
+     como vacío en el calendario y no contaba en los días con registro. */
+  const entreno = (l.workout?.ex || []).some(seriesHechas);
+  const actividad = Object.values(l.actividad?.items || {}).some(v => actMin(v) > 0 || actKm(v) > 0);
+  return !!(entreno || actividad || notasDe(k) || String(l.note||"").trim() || l.sleep || l.cuerpo ||
             Object.keys(l.values||{}).some(x => Number(l.values[x])));
-};
+}
 
 function renderHist(){
   const {y,m} = mesActual();
@@ -2602,19 +2642,30 @@ function renderVolumenGrupos(dias){
   }
 
   const o = objetivo();
-  const tope = Math.max(o.volTope, ...filas.map(g=>total[g.id]));
+  /* Cuántas semanas cubre la ventana que se está mirando. */
+  const sem = Math.max(1, Math.round(dias.length / 7));
+  /* Un solo día no se puede juzgar con un tramo semanal: da "bajo" siempre.
+     Ahí mostramos las series y nada más. */
+  const juzgar = dias.length >= 5;
+  const tope = Math.max(juzgar ? o.volTope * sem : 1, ...filas.map(g=>total[g.id]));
   box.innerHTML = filas.map(g=>{
-    const n = total[g.id], tr = tramoDe(n);
+    const n = total[g.id], tr = juzgar ? tramoDe(n, sem) : null;
     return `<div class="vg">
-      <div class="vg-top"><b>${g.nombre}</b><span>${n} <i>series</i></span></div>
-      <div class="vg-bar"><i style="width:${Math.round(n/tope*100)}%;background:${tr.c}"></i></div>
-      <div class="vg-pie" style="color:${tr.c}">● ${tr.t}</div>
+      <div class="vg-top"><b>${g.nombre}</b><span>${n} <i>series</i>${
+        sem > 1 ? ` <i>· ${fmt(Math.round(n/sem*10)/10)}/sem</i>` : ""}</span></div>
+      <div class="vg-bar"><i style="width:${Math.round(n/tope*100)}%;background:${tr ? tr.c : "var(--accent)"}"></i></div>
+      ${tr ? `<div class="vg-pie" style="color:${tr.c}">● ${tr.t}</div>` : ""}
     </div>`;
-  }).join("") + `<div class="hlbl" style="margin-top:14px">
-      <span>Menos de ${o.volBajo} · bajo</span><span style="flex:1"></span>
+  }).join("") + (!juzgar ? `<p style="font-size:11.5px;color:var(--tx3);margin:10px 0 0">
+      El volumen se juzga por semana, no por sesión: mira el periodo Semana o Mes
+      para saber si la dosis de cada músculo está en el punto.</p>` : "")
+    + (!juzgar ? "" : `<div class="hlbl" style="margin-top:14px">
+      <span>Menos de ${o.volBajo * sem} · bajo</span><span style="flex:1"></span>
       <b style="background:#fb7185"></b><b style="background:#fbbf24"></b>
       <b style="background:#22e07a"></b><b style="background:#a78bfa"></b>
-      <span>${o.volTope} o más · al límite</span></div>`;
+      <span>${o.volTope * sem} o más · al límite</span></div>`)
+    + (juzgar && sem > 1 ? `<p style="font-size:11.5px;color:var(--tx3);margin:8px 0 0">
+        Los tramos son los semanales del objetivo multiplicados por las ${sem} semanas del periodo.</p>` : "");
 }
 
 /* ============================================================
