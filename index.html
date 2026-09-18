@@ -562,7 +562,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-8";
+const APP_VERSION = "2026.09.18-9";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1213,6 +1213,27 @@ function aplicarPlan(){
   S.rutina.plan = {creado: Date.now(), desde: todayKey(),
                    hasta: fechas[fechas.length - 1] || todayKey()};
   save();
+  return n;
+}
+
+/* Al tirar la rutina hay que tirar también lo que el plan dejó escrito en el
+   calendario. Si no, quedan sesiones futuras con las repeticiones y el RIR del
+   objetivo anterior, y la app ya ni siquiera sabe que están ahí. Los días que
+   ya entrenaste no se tocan. */
+function limpiarPlanFuturo(){
+  const hoy = todayKey(), antes = cur;
+  let n = 0;
+  for(const k in S.logs){
+    if(k < hoy) continue;
+    const w = S.logs[k].workout;
+    if(!w || !w.plan) continue;
+    if((w.ex||[]).some(seriesHechas)) continue;      // ahí ya entrenaste
+    cur = k;
+    S.logs[k].workout = {ex:[]};
+    S.logs[k].mt = Date.now();                       // para que el borrado también viaje
+    n++;
+  }
+  cur = antes;
   return n;
 }
 
@@ -3345,11 +3366,17 @@ function renderObjetivo(){
 
   box.querySelectorAll("[data-obj]").forEach(b=> b.onclick = ()=>{
     S.settings.objetivo = b.dataset.obj;
-    if(rutina() && S.rutina.objetivo !== b.dataset.obj) S.rutina = null;   // se rehace con el nuevo objetivo
+    let limpiadas = 0;
+    if(rutina() && S.rutina.objetivo !== b.dataset.obj){
+      limpiadas = limpiarPlanFuturo();          // no valen: son de otro objetivo
+      S.rutina = null;                          // se rehace con el nuevo objetivo
+    }
     save();
-    renderObjetivo(); renderRutina(); renderStats();
+    renderObjetivo(); renderRutina(); renderStats(); renderToday();
     const o = objetivo();
-    toast(`${o.emoji} Objetivo: ${o.nombre}`);
+    toast(limpiadas
+      ? `${o.emoji} Objetivo: ${o.nombre} · ${limpiadas} sesiones planificadas retiradas`
+      : `${o.emoji} Objetivo: ${o.nombre}`);
   });
 }
 
@@ -3589,7 +3616,7 @@ function pintarTest(){
     accion.disabled = false;
     accion.onclick = ()=>{
       S.nivel = {id:niv.id, puntos, respuestas:{...nvResp}, fecha: todayKey()};
-      if(rutina()) S.rutina = null;          // se rehace con el nivel nuevo
+      if(rutina()){ limpiarPlanFuturo(); S.rutina = null; }   // se rehace con el nivel nuevo
       const campo = document.getElementById("nvPeso");
       const guardado = campo && guardarPeso(campo.value);
       save();
@@ -3692,11 +3719,15 @@ function renderRutina(){
   };
 
   document.getElementById("rutNueva").onclick = ()=>{
-    S.rutina = null; save(); renderRutina();
+    const n = limpiarPlanFuturo();
+    S.rutina = null; save(); renderRutina(); renderToday();
+    if(n) toast(`${n} sesiones planificadas retiradas: arma la rutina y vuelve a planificar`);
   };
   document.getElementById("rutQuitar").onclick = ()=>{
-    S.rutina = null; save(); renderRutina();
-    toast("Rutina quitada · la app vuelve a proponer desde tu última sesión");
+    const n = limpiarPlanFuturo();
+    S.rutina = null; save(); renderRutina(); renderToday();
+    toast(n ? `Rutina quitada · ${n} sesiones planificadas retiradas`
+            : "Rutina quitada · la app vuelve a proponer desde tu última sesión");
   };
 }
 

@@ -1,18 +1,35 @@
 {
   "name": "Coach Ale · Registro personal",
   "short_name": "Coach Ale",
-  "description": "Coach Ale · Entrenamiento online. Registro diario de hábitos, entrenamiento, alimentación y sueño.",
+  "description": "Coach Ale · Entrenamiento online. Registro de entrenamiento, hábitos y sueño, con tu progresión calculada.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0B1521",
-  "theme_color": "#0B1521",
+  "background_color": "#f5f6f8",
+  "theme_color": "#f5f6f8",
   "lang": "es",
-  "categories": ["health", "lifestyle", "productivity"],
+  "categories": [
+    "health",
+    "lifestyle",
+    "productivity"
+  ],
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

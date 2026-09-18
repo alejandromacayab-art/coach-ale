@@ -2,17 +2,26 @@
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "coachale-v70";
+const CACHE = "coachale-v71";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
-  "./assets/symbol-dark.png", "./assets/symbol-light.png", "./assets/logo-dark.png",
+  "./icons/maskable-512.png",
+  "./assets/symbol-dark.png", "./assets/symbol-light.png",
+  "./assets/logo-dark.png", "./assets/logo-light.png",
   "./estilos.css", "./zoom.js", "./ejercicios.js", "./config.js", "./nube.js", "./vendor/supabase.js",
   "./panel.html", "./panel.js"
 ];
 
+/* Uno a uno, y no con addAll: addAll es todo o nada, así que un solo archivo
+   que falle dejaba el service worker sin instalar y la app sin modo offline
+   entero. Mejor guardar lo que se pueda y seguir. */
 self.addEventListener("install", e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c=>
+    Promise.all(SHELL.map(u => c.add(u).catch(err=>{
+      console.warn("No se pudo guardar en caché:", u, err && err.message);
+    })))
+  ).then(()=>self.skipWaiting()));
 });
 self.addEventListener("activate", e=>{
   e.waitUntil(caches.keys()
