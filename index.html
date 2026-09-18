@@ -561,7 +561,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-3";
+const APP_VERSION = "2026.09.18-4";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -674,14 +674,19 @@ const colorGrupo  = id => (GRUPOS.find(g=>g.id===id) || GRUPOS[GRUPOS.length-1])
 
 /* Adivina el grupo por el nombre del ejercicio; siempre se puede corregir. */
 const PISTAS = [
-  [/press\s*(de)?\s*banca|pec|pecho|apertura|fondo|push\s*up|flexion/i, "pecho"],
-  [/domin|jal[oó]n|remo|pull\s*over|espalda|dorsal|face\s*pull/i,        "espalda"],
-  [/press\s*(militar|hombro)|elevaci[oó]n|hombro|deltoi|arnold/i,        "hombros"],
-  [/curl(?!\s*femoral)|b[ií]ceps|martillo/i,                              "biceps"],
-  [/tr[ií]ceps|extensi[oó]n\s*(de)?\s*tr|copa|katana|press\s*franc/i,   "triceps"],
-  [/sentadilla|prensa|zancada|cuadr[ií]|femoral|gemelo|pantorrilla|peso\s*muerto|split|bulgar|extensi[oó]n\s*de\s*pierna/i, "pierna"],
-  [/gl[uú]teo|hip\s*thrust|puente|patada/i,                               "gluteo"],
-  [/abdominal|plancha|core|crunch|oblicuo|elevaci[oó]n\s*de\s*piernas/i, "core"]
+  /* El core va primero por una razón tonta pero real: "abdominal" contiene
+     "domin", y con la espalda delante cualquier abdominal acababa ahí. */
+  [/abdominal|plancha|core|crunch|oblicuo|pallof|rueda|hollow|elevaci[oó]n\s*de\s*piernas/i, "core"],
+  [/gl[uú]teo|hip\s*thrust|puente|abducci[oó]n|patada\s*de\s*gl|peso\s*muerto\s*sumo/i, "gluteo"],
+  [/sentadilla|prensa|zancada|cu[aá]dr|femoral|gemelo|talones|pantorrilla|rumano|piernas?\s*r[ií]gidas|split|bulgar|hack|extensi[oó]n\s*de\s*(pierna|rodilla)/i, "pierna"],
+  /* Antes que pecho: los fondos en banco y el press con agarre cerrado son
+     de tríceps aunque lleven "fondo" y "press banca" en el nombre. */
+  [/tr[ií]ceps|extensi[oó]n\s*(de)?\s*tr|copa|katana|press\s*franc|agarre\s*cerrado|fondos?\s*en\s*banco/i, "triceps"],
+  [/curl(?!\s*femoral)|b[ií]ceps|martillo|predicador/i,                   "biceps"],
+  [/press\s*(militar|hombro)|elevaci[oó]n\w*\s*(lateral|frontal|posterior)|p[aá]jaro|hombro|deltoi|arnold|encogimiento/i, "hombros"],
+  /* Antes que pecho: el jalón al pecho es espalda, no pecho. */
+  [/domin|jal[oó]n|remo|pull\s*over|pullover|espalda|dorsal|face\s*pull|peso\s*muerto/i, "espalda"],
+  [/press\s*(de)?\s*banca|press\s*(inclinado|declinado)|pec|pecho|apertura|fondo|push\s*up|flexi[oó]n/i, "pecho"]
 ];
 function adivinaGrupo(nombre){
   const n = String(nombre||"").trim();
@@ -863,31 +868,105 @@ function nivelPorPuntos(p){
    Múltiplos orientativos del peso corporal para una serie de 8-10
    repeticiones cómodas. Son un punto de partida para la primera
    sesión, no una marca a batir: la app ajusta desde ahí. */
+/* Mancuernas: el número es por mano, así que el múltiplo es mucho menor. */
+const MANCUERNA = {principiante:0.12, intermedio:0.22, avanzado:0.32};
 const PATRONES = [
   /* Peso corporal: aquí la carga la pones tú (o el lastre), no un múltiplo. */
-  [/domin|fondo|plancha|abdominal|puente|flexi[oó]n/i, null],
-  /* Mancuernas: el número es por mano, así que el múltiplo es mucho menor. */
-  [/mancuerna/i,                                   {principiante:0.12, intermedio:0.22, avanzado:0.32}],
-  [/sentadilla|prensa|split|bulgar/i,              {principiante:0.50, intermedio:0.90, avanzado:1.30}],
+  [/domin|fondo|plancha|abdominal|puente|flexi[oó]n|rueda|elevaci[oó]n\s*de\s*piernas/i, null],
+  [/mancuerna/i,                                   MANCUERNA],
+  [/sentadilla|prensa|hack|split|bulgar/i,         {principiante:0.50, intermedio:0.90, avanzado:1.30}],
   [/peso\s*muerto|rumano|hip\s*thrust/i,           {principiante:0.60, intermedio:1.00, avanzado:1.50}],
-  [/press\s*banca|press\s*inclinado/i,             {principiante:0.35, intermedio:0.65, avanzado:0.95}],
+  [/press\s*(de)?\s*banca|press\s*(inclinado|declinado)|agarre\s*cerrado/i,
+                                                    {principiante:0.35, intermedio:0.65, avanzado:0.95}],
   [/remo|jal[oó]n/i,                                {principiante:0.35, intermedio:0.60, avanzado:0.85}],
-  [/press\s*militar|press\s*hombro/i,              {principiante:0.25, intermedio:0.45, avanzado:0.65}],
-  [/curl|extensi[oó]n|elevaci[oó]n|apertura|face|franc[eé]s|pull\s*over|patada/i,
-                                                    {principiante:0.10, intermedio:0.18, avanzado:0.26}],
-  [/zancada|femoral|gemelo/i,                       {principiante:0.25, intermedio:0.45, avanzado:0.70}]
+  [/press\s*(militar|hombro)|arnold/i,             {principiante:0.25, intermedio:0.45, avanzado:0.65}],
+  /* Máquinas de una sola articulación: el respaldo y las poleas permiten
+     bastante más carga de la que sugiere un ejercicio de aislamiento. */
+  [/extensi[oó]n\s*de\s*(cu[aá]dr|pierna|rodilla)|curl\s*femoral|abducci[oó]n|talones|gemelo|pantorrilla/i,
+                                                    {principiante:0.30, intermedio:0.50, avanzado:0.75}],
+  [/zancada/i,                                      {principiante:0.25, intermedio:0.45, avanzado:0.70}],
+  [/curl|extensi[oó]n|elevaci[oó]n|apertura|pec\s*deck|face|franc[eé]s|pull\s*over|pullover|patada|encogimiento|crunch|pallof|p[aá]jaro/i,
+                                                    {principiante:0.10, intermedio:0.18, avanzado:0.26}]
 ];
 function cargaInicial(nombre, grupo){
   const m = ultimaMedicion();
   const peso = num(m?.peso);
   const niv = nivelDeEntreno();
   if(!peso || !niv) return "";
-  const par = PATRONES.find(([re])=>re.test(String(nombre||"")));
-  if(!par || !par[1]) return "";          // sin patrón, o ejercicio con tu propio peso
-  const factor = par[1][niv.id];
+  /* El equipamiento de la biblioteca manda sobre el nombre. "Sentadilla
+     búlgara" es con mancuernas aunque el nombre no lo diga (y proponía 72 kg
+     por mano), y "Elevación de piernas colgado" no lleva peso aunque lo
+     parezca. Solo si el ejercicio no está en la biblioteca miramos el texto. */
+  const eq = fichaEjercicio(nombre)?.eq || "";
+  if(/peso\s*corporal/i.test(eq)) return "";
+  const tabla = /mancuerna/i.test(eq)
+    ? MANCUERNA
+    : (PATRONES.find(([re])=>re.test(String(nombre||"")))||[])[1];
+  if(!tabla) return "";                   // sin patrón, o ejercicio con tu propio peso
+  const factor = tabla[niv.id];
   if(!factor) return "";
   /* Redondeado al medio kilo: es el disco más fino de cualquier gimnasio. */
   return String(Math.max(1, Math.round(peso * factor * 2) / 2));
+}
+
+/* Nombres viejos de la biblioteca y cómo se llaman ahora. La app busca "la
+   última vez que hiciste este ejercicio" comparando el nombre, así que sin
+   esta tabla un cambio de nombre te borraría el historial de ese ejercicio. */
+const RENOMBRES = {
+  "press declinado": "Press declinado con barra",
+  "pec deck": "Aperturas en máquina (pec deck)",
+  "flexiones": "Flexiones de brazos",
+  "remo t": "Remo en barra T",
+  "pull over en polea": "Pullover en polea",
+  "pájaros / posterior": "Elevaciones posteriores (pájaros)",
+  "curl predicador": "Curl predicador (banca Scott)",
+  "extensión tríceps en polea": "Extensión de tríceps en polea",
+  "extensión sobre la cabeza en polea": "Extensión de tríceps sobre la cabeza",
+  "press cerrado": "Press banca agarre cerrado",
+  "prensa": "Prensa de piernas",
+  "hack squat": "Sentadilla hack",
+  "zancadas": "Zancadas con mancuernas",
+  "extensión de pierna": "Extensión de cuádriceps",
+  "gemelos de pie": "Elevación de talones de pie",
+  "gemelos sentado": "Elevación de talones sentado",
+  "abducción en máquina": "Abducción de cadera en máquina",
+  "elevación de piernas colgado": "Elevación de piernas colgado en barra"
+};
+
+/* Cómo se llama cada ejercicio en el gimnasio. Son solo para buscar: el
+   nombre que se guarda sigue siendo uno. Los nombres viejos entran solos
+   desde RENOMBRES, para que nadie deje de encontrar lo que ya usaba. */
+const SINONIMOS = {
+  "Elevación de talones de pie": ["gemelos", "pantorrillas"],
+  "Elevación de talones sentado": ["gemelos", "pantorrillas"],
+  "Extensión de cuádriceps": ["extensión de pierna", "cuádriceps", "silla"],
+  "Curl femoral tumbado": ["isquios", "femoral"],
+  "Aperturas en máquina (pec deck)": ["pec deck", "contractor", "mariposa"],
+  "Sentadilla hack": ["hack", "hack squat"],
+  "Prensa de piernas": ["prensa", "leg press"],
+  "Flexiones de brazos": ["flexiones", "lagartijas", "push up"],
+  "Zancadas con mancuernas": ["zancadas", "estocadas", "lunges"],
+  "Elevaciones posteriores (pájaros)": ["pájaros", "deltoides posterior", "posterior"],
+  "Press banca agarre cerrado": ["press cerrado", "agarre cerrado"],
+  "Abducción de cadera en máquina": ["abductores", "abducción"],
+  "Elevación de piernas colgado en barra": ["elevación de piernas", "colgado"],
+  "Pullover en polea": ["pull over", "pullover"],
+  "Curl predicador (banca Scott)": ["scott", "predicador"],
+  "Remo en barra T": ["remo t", "barra t"],
+  "Hip thrust": ["empuje de cadera", "glúteo"],
+  "Face pull": ["jalón a la cara", "posterior"],
+  "Dominadas supinas": ["chin up"],
+  "Fondos en paralelas": ["dips"],
+  "Peso muerto rumano": ["rumano", "piernas rígidas"],
+  "Sentadilla búlgara": ["búlgara", "split"]
+};
+
+/* Los nombres anteriores también buscan: quien escribía "prensa" la sigue
+   encontrando aunque ahora se llame "Prensa de piernas". */
+function buscaPor(nombre){
+  const lista = [nombre.toLowerCase(), ...(SINONIMOS[nombre] || [])];
+  for(const viejo in RENOMBRES) if(RENOMBRES[viejo] === nombre) lista.push(viejo);
+  return lista.join(" · ");
 }
 
 /* La biblioteca (ejercicios.js) es la fuente: las plantillas eligen de ahí. */
@@ -1239,6 +1318,14 @@ function load(){
         }
         d.v = 8;
       }
+      if(d.v < 9){                                     // nombres de ejercicios al día
+        const nuevo = x => RENOMBRES[String(x||"").trim().toLowerCase()] || x;
+        for(const k in d.logs)
+          (d.logs[k]?.workout?.ex || []).forEach(e=>{ e.name = nuevo(e.name); });
+        (d.rutina?.dias || []).forEach(dia =>
+          (dia.ex || []).forEach(e=>{ e.name = nuevo(e.name); }));
+        d.v = 9;
+      }
       d.theme ||= "light";
       d.settings = Object.assign({}, DEF_SETTINGS, d.settings||{});
       d.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  d.settings.rem||{});
@@ -1274,7 +1361,7 @@ function load(){
       }
     }catch(e2){}
   }
-  return {v:8, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
+  return {v:9, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
           salud: {...DEF_SALUD},
           settings: JSON.parse(JSON.stringify(DEF_SETTINGS))};
 }
@@ -3155,7 +3242,7 @@ function pintarBiblioteca(){
   const t = bibTexto.trim().toLowerCase();
   const filtrados = BIBLIO.filter(x =>
     (!bibGrupo || x.g === bibGrupo) &&
-    (!t || x.n.toLowerCase().includes(t) || x.eq.toLowerCase().includes(t)));
+    (!t || buscaPor(x.n).includes(t) || x.eq.toLowerCase().includes(t)));
 
   document.getElementById("bibLista").innerHTML = filtrados.length
     ? filtrados.map(x=>`
