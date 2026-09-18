@@ -67,6 +67,7 @@
     <section>
       <div class="stitle">🏋️ Entrenamiento</div>
       <button class="pista hidden" id="pistaCard"></button>
+      <button class="cierre hidden" id="cierreCard"></button>
       <button class="entrenar" id="entrenarCard"></button>
     </section>
 
@@ -561,7 +562,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-5";
+const APP_VERSION = "2026.09.18-6";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -888,14 +889,25 @@ const PATRONES = [
   [/curl|extensi[oó]n|elevaci[oó]n|apertura|pec\s*deck|face|franc[eé]s|pull\s*over|pullover|patada|encogimiento|crunch|pallof|p[aá]jaro/i,
                                                     {principiante:0.10, intermedio:0.18, avanzado:0.26}]
 ];
-/* Un peso de hace medio año ya no sirve para calcular cargas. */
-const DIAS_PESO = 120;
+/* El ciclo de entrenamiento dura cuatro semanas, así que un peso de más de
+   un ciclo y medio ya no representa a la persona que va a entrenar. */
+const DIAS_PESO = 45;
 function pesoCorporal(){
   const m = ultimaMedicion();
   const kgs = num(m?.peso);
   if(!kgs) return null;
   const dias = Math.abs(diasHasta(m.fecha));
   return {kg: kgs, fecha: m.fecha, dias, viejo: dias > DIAS_PESO};
+}
+
+/* El peso registrado más cerca de una fecha, sin salirse de la ventana. */
+function pesoCerca(fecha, margen){
+  let mejor = null;
+  mediciones().forEach(m=>{
+    const d = Math.abs(diasHasta(m.fecha) - diasHasta(fecha));
+    if(d <= margen && (!mejor || d < mejor.d)) mejor = {d, kg: num(m.peso), fecha: m.fecha};
+  });
+  return mejor;
 }
 
 /* Guarda el peso de hoy sin pasar por el formulario completo de medición:
@@ -1176,9 +1188,24 @@ function aplicarPlan(){
   }));
 
   cur = antes;
-  S.rutina.plan = {creado: Date.now(), desde: todayKey()};
+  /* Guardamos hasta dónde llega el ciclo: al pasar la última sesión toca
+     pesarse otra vez, y el mes siguiente se calcula con ese peso. */
+  const fechas = plan.flatMap(sem => sem.sesiones.map(x => x.fecha)).sort();
+  S.rutina.plan = {creado: Date.now(), desde: todayKey(),
+                   hasta: fechas[fechas.length - 1] || todayKey()};
   save();
   return n;
+}
+
+/* En qué punto del ciclo de cuatro semanas estás. Cerrado quiere decir que
+   la última sesión planificada ya pasó: es el momento de pesarse y armar el
+   mes siguiente con el peso nuevo. */
+function estadoPlan(){
+  const pl = rutina()?.plan;
+  if(!pl || !pl.hasta) return null;
+  const faltan = diasHasta(pl.hasta);
+  return {desde: pl.desde, hasta: pl.hasta, faltan,
+          cerrado: faltan < 0, ultimaSemana: faltan >= 0 && faltan <= 6};
 }
 
 /* Qué día toca hoy: el siguiente al último que cerraste. */
@@ -1911,6 +1938,29 @@ function renderPista(){
   b.onclick = p.f;
 }
 
+/* Cierre del ciclo: cuando la cuarta semana termina, lo primero no es armar
+   el mes siguiente sino pesarse. Con el peso nuevo cambian las cargas de
+   partida de todo lo que aún no has hecho. */
+function renderCierre(){
+  const b = document.getElementById("cierreCard");
+  if(!b) return;
+  const est = estadoPlan();
+  const mostrar = est && (est.cerrado || est.ultimaSemana) && cur === todayKey();
+  b.classList.toggle("hidden", !mostrar);
+  if(!mostrar) return;
+
+  const pc = pesoCorporal();
+  const pesado = pc && diasHasta(pc.fecha) >= diasHasta(est.hasta) - 6;  // ya te pesaste en el cierre
+  b.innerHTML = `
+    <span class="ic">${est.cerrado ? "🔄" : "📅"}</span>
+    <span class="tx"><b>${est.cerrado ? "Mes terminado" : "Última semana del mes"}</b>
+      <span>${est.cerrado
+        ? (pesado ? "Ya tienes tu peso nuevo. Arma el mes siguiente." : "Pésate y armo el siguiente con tu peso nuevo.")
+        : `La descarga acaba el ${fechaLarga(est.hasta)}. Al terminar toca pesarse.`}</span></span>
+    <span class="go">${est.cerrado ? "Cerrar mes ›" : "Ver plan ›"}</span>`;
+  b.onclick = abrirPlan;
+}
+
 /* La tarjeta grande de entrenamiento: lo que hoy toca, o lo que ya hiciste. */
 function renderEntrenar(){
   const b = document.getElementById("entrenarCard");
@@ -2211,6 +2261,7 @@ function recorTick(){
 }
 
 function renderToday(){ renderDate(); renderSaludo(); renderSpot(); renderSleepCard(); renderCards();
+  renderCierre();
   renderPista(); renderEntrenar(); renderPreguntas(); }
 
 /* ============================================================
@@ -3214,28 +3265,44 @@ function abrirPlan(){
     `${r.dias.length} días por semana · ${o.emoji} ${o.nombre} · 4 semanas`;
 
   const pc = pesoCorporal();
-  const avisoPeso = !pc ? `
-    <div class="pesoq aviso" style="margin:0 0 14px">
-      <label>⚖️ Falta tu peso</label>
-      <p>El plan se escribirá sin kilos en los ejercicios que nunca has hecho.
-         Puedes aplicarlo igual y anotarlos tú, o registrar tu peso antes en
-         Salud y volver aquí.</p>
-    </div>` : pc.viejo ? `
-    <div class="pesoq aviso" style="margin:0 0 14px">
-      <label>⚖️ Tu peso es del ${fechaLarga(pc.fecha)}</label>
-      <p>Hace ${pc.dias} días. Las cargas de los ejercicios nuevos salen de ahí.</p>
-    </div>` : "";
+  const est = estadoPlan();
+  /* Te pesaste dentro de la semana de cierre: el peso ya es el del mes nuevo. */
+  const alDia = pc && est && diasHasta(pc.fecha) >= diasHasta(est.hasta) - 6;
+  const cierre = est && est.cerrado && !alDia;
+
+  /* El peso se pide aquí, antes de aplicar, porque de él salen las cargas de
+     partida del mes entero. Al cerrar un ciclo es el primer paso del
+     siguiente, no un recordatorio suelto. */
+  const pedir = cierre || !pc || pc.viejo;
+  const avisoPeso = !pedir ? "" : `
+    <div class="pesoq ${cierre ? "" : "aviso"}" style="margin:0 0 14px">
+      <label for="plPeso">⚖️ ${cierre ? "Cierras el mes: ¿cuánto pesas ahora?"
+                            : pc ? `Tu peso es del ${fechaLarga(pc.fecha)}` : "Falta tu peso"}</label>
+      <p>${cierre
+        ? `Han pasado cuatro semanas desde que armaste el anterior. Con tu peso de hoy recalculo las cargas de partida del mes que empieza.`
+        : pc ? `Hace ${pc.dias} días. Las cargas de los ejercicios nuevos salen de ahí.`
+             : "Sin él, el plan se escribe sin kilos en los ejercicios que nunca has hecho. Puedes aplicarlo igual y anotarlos tú."}</p>
+      <div class="pesof">
+        <input class="inp" id="plPeso" inputmode="decimal" placeholder="${pc ? fmt(pc.kg) : "70"}"
+               autocomplete="off"><span>kg</span>
+      </div>
+      <div class="pesodelta" id="plDelta"></div>
+    </div>`;
 
   document.getElementById("plCuerpo").innerHTML = avisoPeso + plan.map(sem=>`
     <div class="plsem ${sem.n === 4 ? "descarga" : ""}">
       <div class="pl-h">
         <b>Semana ${sem.n} · ${sem.t}</b>
-        <span>${sem.series} series</span>
+        <span>${sem.sesiones.filter(x=>x.fecha >= todayKey()).reduce((a,x)=>a+x.series,0)} series</span>
       </div>
       <p>${sem.d}</p>
       <div class="pl-dias">${sem.sesiones.map(ses=>{
         const f = parseKey(ses.fecha);
-        return `<span><i>${DIAS[f.getDay()].slice(0,3)} ${f.getDate()}</i>${esc(ses.dia.nombre)}</span>`;
+        /* Un plan que empieza el lunes de esta semana lista días que ya
+           pasaron. No se escriben, así que tampoco se prometen. */
+        const pasado = ses.fecha < todayKey();
+        return `<span class="${pasado ? "pasado" : ""}" ${pasado ? 'title="Ya pasó: no se escribirá"' : ""}>
+          <i>${DIAS[f.getDay()].slice(0,3)} ${f.getDate()}</i>${esc(ses.dia.nombre)}</span>`;
       }).join("")}</div>
     </div>`).join("") + `
     <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
@@ -3243,14 +3310,38 @@ function abrirPlan(){
       pesos. Los días que ya entrenaste no se tocan, y puedes cambiar lo que
       quieras dentro de cada sesión.</p>`;
 
+  const campo = document.getElementById("plPeso");
+  if(campo && est){
+    /* Lo que de verdad cierra el mes: cuánto se movió el peso en estas cuatro
+       semanas. El número solo, sin comparación, no dice nada. */
+    const inicio = pesoCerca(est.desde, 10);
+    const delta = document.getElementById("plDelta");
+    const pintar = ()=>{
+      const ahora = num(campo.value) || (pc && !cierre ? pc.kg : 0);
+      if(!inicio || !ahora){ delta.innerHTML = ""; return; }
+      const d = Math.round((ahora - inicio.kg) * 10) / 10;
+      const signo = d > 0 ? "+" : "";
+      const color = Math.abs(d) < 0.5 ? "var(--tx2)" : d > 0 ? "#22c55e" : "#f59e0b";
+      delta.innerHTML = `<b style="color:${color}">${signo}${fmt(d)} kg</b>
+        <span>desde el ${fechaLarga(inicio.fecha)}, cuando empezó este mes (${fmt(inicio.kg)} kg)</span>`;
+    };
+    campo.oninput = pintar;
+    pintar();
+  }
+
   document.getElementById("plModal").classList.add("open");
 }
 
 document.getElementById("plAplicar").onclick = ()=>{
+  /* El peso primero: si lo guardamos después, el plan ya se habría escrito
+     con las cargas viejas. */
+  const campo = document.getElementById("plPeso");
+  const pesado = campo && guardarPeso(campo.value);
   const n = aplicarPlan();
   document.getElementById("plModal").classList.remove("open");
-  renderToday(); renderRutina();
-  toast(n ? `📅 ${n} sesiones escritas en tu calendario` : "No había días libres que planificar");
+  renderToday(); renderRutina(); renderSalud();
+  toast(n ? `📅 ${n} sesiones escritas${pesado ? ` · ${fmt(num(campo.value))} kg` : ""}`
+          : "No había días libres que planificar");
 };
 document.getElementById("plClose").onclick = ()=> document.getElementById("plModal").classList.remove("open");
 document.getElementById("plModal").onclick = e=>{ if(e.target.id === "plModal") document.getElementById("plModal").classList.remove("open"); };

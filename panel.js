@@ -293,6 +293,15 @@ function bloqueEntreno(dias, perfil){
     if(hubo) sesiones++;
   });
 
+  /* En qué punto del ciclo de cuatro semanas va, y si ya le tocaba cerrarlo:
+     al cerrar se pesa otra vez y el mes siguiente se calcula con ese peso. */
+  const pl = perfil?.rutina?.plan;
+  const restan = pl?.hasta ? -diasDesde(pl.hasta) : null;
+  const ciclo = !pl?.hasta ? ""
+    : restan < 0
+      ? `<span class="pill" style="color:#f59e0b">Mes cerrado hace ${-restan} d · toca pesarse y replanificar</span>`
+      : `<span class="pill">Mes hasta ${fechaCorta(pl.hasta)} · ${restan} d</span>`;
+
   const o = OBJETIVOS_PANEL[perfil?.objetivo] || OBJETIVOS_PANEL.hipertrofia;
   const orden = Object.keys(porGrupo).sort((a,b)=> porGrupo[b] - porGrupo[a]);
   const tope = Math.max(o.tope, ...orden.map(g=>porGrupo[g]), 1);
@@ -309,6 +318,7 @@ function bloqueEntreno(dias, perfil){
   if(!series) return `
     <section><div class="stitle">🏋️ Entrenamiento · últimos 7 días</div>
       ${cabecera}
+      ${ciclo ? `<div class="chips" style="margin-bottom:12px">${ciclo}</div>` : ""}
       <div class="empty">Sin series registradas esta semana.${
         planificadas ? ` Tenía ${planificadas} ${planificadas===1?"sesión":"sesiones"} en el plan.` : ""}</div></section>`;
 
@@ -332,6 +342,7 @@ function bloqueEntreno(dias, perfil){
           cumplidas} de ${planificadas} cumplidas</span>` : ""}
         ${proxima ? `<span class="pill">Próxima: ${fechaCorta(proxima.fecha)} · semana ${
           proxima.w.plan.semana} · ${esc(proxima.w.plan.tipo)}</span>` : ""}
+        ${ciclo}
       </div>
       ${avisos.length ? `<div class="avisos">${avisos.map(a=>`<p>${a}</p>`).join("")}</div>` : ""}
       ${orden.map(g=>{
@@ -550,9 +561,19 @@ async function pintarInvitaciones(){
           <div class="m">${i.usada ? "✅" : "⏳"}</div>
           <div class="t"><b>${esc(i.nombre||i.correo)}</b>
             <span>${esc(i.correo)} · ${i.usada ? "ya entró" : "pendiente"}</span></div>
+          ${i.usada ? "" : `<button class="mini" data-enviar="${esc(i.correo)}"
+            data-nombre="${esc(i.nombre||"")}">Enviar</button>`}
           <button class="mini" data-quitar="${esc(i.correo)}">Quitar</button>
         </div>`).join("")
     : `<div class="empty" style="padding:18px">Sin nombres reservados.</div>`;
+  document.querySelectorAll("[data-enviar]").forEach(b=>b.onclick=async ()=>{
+    const texto = mensajeInvitacion(b.dataset.enviar, b.dataset.nombre);
+    if(navigator.share){
+      try{ await navigator.share({text: texto}); return; }
+      catch(e){ if(e.name === "AbortError") return; }
+    }
+    window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank", "noopener");
+  });
   document.querySelectorAll("[data-quitar]").forEach(b=>b.onclick=async ()=>{
     if(!confirm(`¿Quitar la invitación de ${b.dataset.quitar}?`)) return;
     try{ await Nube.quitarInvitacion(b.dataset.quitar); toast("Invitación quitada"); pintarInvitaciones(); }
@@ -568,6 +589,26 @@ $("invSave").onclick = async ()=>{
     toast("Nombre reservado para ese correo.");
     await pintarInvitaciones();
   }catch(e){ toast(Nube.traduce(e.message)); }
+};
+/* El enlace solo no basta: el deportista tiene que crear la cuenta con el
+   mismo correo que reservaste, o no aparece en tu lista. El mensaje lo dice
+   por ti, que es donde se perdía la mitad de las invitaciones. */
+function mensajeInvitacion(correo, nombre){
+  const url = document.getElementById("enlaceReg").textContent.trim();
+  const hola = nombre ? `Hola ${nombre}! ` : "Hola! ";
+  return `${hola}Te dejo el acceso a mi app de entrenamiento:\n\n${url}\n\n` +
+    `Entra, pulsa "Crear mi cuenta"${correo ? ` y regístrate con este correo: ${correo}` : ""}. ` +
+    `Desde ahí registras tus entrenamientos y yo los veo para ajustarte la rutina.`;
+}
+
+document.getElementById("compartirEnlace").onclick = async ()=>{
+  const correo = $("invMail").value.trim(), nombre = $("invName").value.trim();
+  const texto = mensajeInvitacion(correo, nombre);
+  if(navigator.share){
+    try{ await navigator.share({text: texto}); return; }
+    catch(e){ if(e.name === "AbortError") return; }
+  }
+  window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank", "noopener");
 };
 document.getElementById("copiarEnlace").onclick = async ()=>{
   const t = document.getElementById("enlaceReg").textContent.trim();
