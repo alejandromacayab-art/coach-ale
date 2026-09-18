@@ -199,10 +199,7 @@
         <button class="btn ghost" style="margin-top:9px" id="impBtn">⬆︎ Importar copia de seguridad</button>
         <input type="file" id="impFile" accept="application/json" class="hidden">
         <button class="btn danger" style="margin-top:9px" id="wipeBtn">Borrar todos los datos</button>
-        <p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
-          Todo se guarda solo en este navegador. Nada se envía a internet.
-          Exporta de vez en cuando para no perder tu historial.
-        </p>
+        <p style="font-size:12px;color:var(--tx3);margin:12px 0 0" id="dondeViven"></p>
       </div>
     </section>
   </div>
@@ -562,7 +559,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-11";
+const APP_VERSION = "2026.09.18-12";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -3761,6 +3758,16 @@ function renderNivel(){
   if(a) a.onclick = abrirTest;
 }
 
+/* Decir "nada se envía a internet" cuando la app sincroniza con una cuenta y
+   tu entrenador ve tus registros no es un matiz: es falso. */
+function renderDondeViven(){
+  const p = document.getElementById("dondeViven");
+  if(!p) return;
+  p.textContent = (nubeOn() && sesionUsuario)
+    ? "Tus registros se guardan en este teléfono y en tu cuenta, y tu entrenador puede verlos. Exporta de vez en cuando para tener una copia tuya."
+    : "Sin cuenta, todo se guarda solo en este navegador. Exporta de vez en cuando para no perder tu historial.";
+}
+
 function renderSyncPanel(){
   const box = document.getElementById("syncPanel");
   if(!box) return;
@@ -3874,7 +3881,8 @@ function renderTurnos(){
   };
 }
 function renderSettings(){
-  renderObjetivo(); renderNivel(); renderRutina(); renderSyncPanel(); renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
+  renderObjetivo(); renderNivel(); renderRutina(); renderSyncPanel(); renderDondeViven();
+  renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
 
 /* ============================================================
    MODAL HÁBITO
@@ -4440,7 +4448,7 @@ async function syncNow(manual){
     if(manual) toast("No se pudo sincronizar: " + syncErr);
   }finally{
     syncing = false;
-    renderSyncPanel();
+    renderSyncPanel(); renderDondeViven();
   }
 }
 
@@ -5227,17 +5235,43 @@ document.getElementById("impFile").onchange=e=>{
     try{
       const d=JSON.parse(r.result);
       if(!d.habits||!d.logs) throw new Error("formato");
-      if(!confirm("Esto reemplazará tus datos actuales. ¿Continuar?")) return;
+      const enNube = nubeOn() && sesionUsuario && !modoSinNube;
+      if(!confirm(enNube
+        ? "Esto reemplazará tus datos actuales, aquí y en tu cuenta. ¿Continuar?"
+        : "Esto reemplazará tus datos actuales. ¿Continuar?")) return;
       localStorage.setItem(KEY, JSON.stringify(d));
-      S = load(); applyTheme(); renderAll(); renderSettings(); toast("Datos importados");
+      S = load();
+      /* Lo importado tiene que ganarle a lo que hay en la nube. Sin marcas de
+         tiempo nuevas, la copia de la nube volvía a bajar encima y el importar
+         no servía de nada. */
+      const ahora = Date.now();
+      S.metaMt = ahora;
+      for(const f in S.logs) S.logs[f].mt = ahora;
+      localStorage.setItem(KEY, JSON.stringify(S));
+      sembrarFirmas();
+      applyTheme(); renderAll(); renderSettings();
+      toast("Datos importados");
+      if(enNube) syncNow(false);
     }catch(err){ alert("Archivo no válido."); }
   };
   r.readAsText(f); e.target.value="";
 };
-document.getElementById("wipeBtn").onclick=()=>{
-  if(!confirm("Se borrarán TODOS tus registros. ¿Seguro?")) return;
+document.getElementById("wipeBtn").onclick=async ()=>{
+  /* Con sesión iniciada, borrar solo aquí no borraba nada: a los cinco
+     minutos la nube devolvía todo. Dos avisos prometiendo que no se puede
+     deshacer, y se deshacía solo. */
+  const enNube = nubeOn() && sesionUsuario && !modoSinNube;
+  if(!confirm(enNube
+    ? "Se borrarán TODOS tus registros, en este teléfono y en tu cuenta. ¿Seguro?"
+    : "Se borrarán TODOS tus registros de este teléfono. ¿Seguro?")) return;
   if(!confirm("Esta acción no se puede deshacer. ¿Confirmas?")) return;
-  localStorage.removeItem(KEY); S=load(); cur=todayKey(); applyTheme(); renderAll(); renderSettings(); toast("Datos borrados");
+  if(enNube){
+    try{ await Nube.borrarTodo(); }
+    catch(e){ toast("No se pudo borrar en tu cuenta: " + Nube.traduce(e.message)); return; }
+  }
+  localStorage.removeItem(KEY); S=load(); sembrarFirmas(); cur=todayKey();
+  applyTheme(); renderAll(); renderSettings();
+  toast(enNube ? "Datos borrados aquí y en tu cuenta" : "Datos borrados");
 };
 
 function applyTheme(){

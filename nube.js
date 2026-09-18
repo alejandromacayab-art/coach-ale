@@ -114,6 +114,19 @@ async function subir({config, dias}){
   }
 }
 
+/* Borra en la nube todo lo de la persona que está en sesión. Solo sus propias
+   filas: la política de la base ya lo restringe a user_id = auth.uid(). No
+   toca la cuenta ni los documentos, solo los registros diarios y la
+   configuración, que es lo que representa "borrar mis datos" en la app. */
+async function borrarTodo(){
+  if(!sb) throw new Error("Sin conexión con la base de datos.");
+  const u = await usuario(); if(!u) throw new Error("Sin sesión");
+  const d = await sb.from("dias").delete().eq("user_id", u.id);
+  if(d.error) throw new Error(traduce(d.error.message));
+  const c = await sb.from("config").delete().eq("user_id", u.id);
+  if(c.error) throw new Error(traduce(c.error.message));
+}
+
 /* ---------------- entrenador ---------------- */
 async function misAtletas(){
   if(!sb) return [];
@@ -260,6 +273,7 @@ global.Nube = {
   activa, cliente:()=>sb, sesion, usuario, salir, alCambiarSesion,
   entrar, registrarse, recuperar, cambiarClave,
   miPerfil, ponerNombre, bajar, subir,
+  borrarTodo,
   misAtletas, diasDe, configDe, invitaciones, invitar, quitarInvitacion,
   docs, subirDoc, urlDoc, borrarDoc, nombresDe,
   escuchar, dejarDeEscuchar, traduce
