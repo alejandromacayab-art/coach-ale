@@ -559,7 +559,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-13";
+const APP_VERSION = "2026.09.18-14";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -4900,6 +4900,25 @@ function campoHTML(c){
     <input class="inp" data-fc="${c.k}" placeholder="${c.ph||""}" value="${esc(v)}"></label>`;
 }
 
+/* Tocar fuera cierra la ventana, que es lo que pediste en toda la app. Pero
+   en un formulario largo eso se llevaba por delante todo lo escrito sin
+   preguntar. Guardamos el estado al abrir y solo avisamos si de verdad
+   cambió algo. */
+const _formSnap = {};
+const valoresForm = sel => [...document.querySelectorAll(sel)].map(el=>el.value).join("\u0001");
+function marcarForm(id, sel){ _formSnap[id] = valoresForm(sel); }
+function cierreSeguro(id, sel, cerrar){
+  const m = document.getElementById(id);
+  if(!m) return;
+  m.onclick = e=>{
+    if(e.target.id !== id) return;
+    const cambio = _formSnap[id] !== undefined && _formSnap[id] !== valoresForm(sel);
+    if(cambio && !confirm("Escribiste cosas que no has guardado. ¿Salir y perderlas?")) return;
+    delete _formSnap[id];
+    cerrar();
+  };
+}
+
 function openFicha(id){
   shutModals();
   const med = id === "fichaMedica", secs = med ? FICHA_MED : FICHA_NUT;
@@ -4914,14 +4933,23 @@ function openFicha(id){
     + (med ? `<p class="fcnota" style="margin-top:6px">Esta ficha organiza información, no
         la evalúa: no reemplaza un examen médico ni una autorización deportiva.</p>` : "");
   document.getElementById("fichaModal").classList.add("open");
+  marcarForm("fichaModal", "#fcCampos [data-fc]");
 }
-document.getElementById("fcCancel").onclick = ()=>
+cierreSeguro("fichaModal", "#fcCampos [data-fc]",
+  ()=> document.getElementById("fichaModal").classList.remove("open"));
+document.getElementById("fcCancel").onclick = ()=>{
+  const cambio = _formSnap.fichaModal !== undefined &&
+                 _formSnap.fichaModal !== valoresForm("#fcCampos [data-fc]");
+  if(cambio && !confirm("Escribiste cosas que no has guardado. ¿Salir y perderlas?")) return;
+  delete _formSnap.fichaModal;
   document.getElementById("fichaModal").classList.remove("open");
+};
 document.getElementById("fcSave").onclick = ()=>{
   document.querySelectorAll("#fcCampos [data-fc]").forEach(el=>{
     S.salud[el.dataset.fc] = el.value.trim();
   });
   save();
+  delete _formSnap.fichaModal;
   document.getElementById("fichaModal").classList.remove("open");
   renderFichas();
   toast("Ficha guardada");
@@ -4957,10 +4985,19 @@ function openMedida(fecha){
   document.getElementById("mdDel").classList.toggle("hidden", !m);
   calcMed();
   document.getElementById("medModal").classList.add("open");
+  marcarForm("medModal", "#medModal .inp");
 }
+cierreSeguro("medModal", "#medModal .inp",
+  ()=> document.getElementById("medModal").classList.remove("open"));
 ["mdPeso","mdGrasa","mdMusculo"].forEach(id=> document.getElementById(id).oninput = calcMed);
 document.getElementById("addMedida").onclick = ()=> openMedida(null);
-document.getElementById("mdCancel").onclick  = ()=> document.getElementById("medModal").classList.remove("open");
+document.getElementById("mdCancel").onclick = ()=>{
+  const cambio = _formSnap.medModal !== undefined &&
+                 _formSnap.medModal !== valoresForm("#medModal .inp");
+  if(cambio && !confirm("Escribiste cosas que no has guardado. ¿Salir y perderlas?")) return;
+  delete _formSnap.medModal;
+  document.getElementById("medModal").classList.remove("open");
+};
 document.getElementById("mdSave").onclick = ()=>{
   const fecha = document.getElementById("mdDate").value;
   const peso  = num(document.getElementById("mdPeso").value);
@@ -4977,6 +5014,7 @@ document.getElementById("mdSave").onclick = ()=>{
                           nota: document.getElementById("mdNota").value.trim()};
   save();
   cur = antes;
+  delete _formSnap.medModal;
   document.getElementById("medModal").classList.remove("open");
   renderSalud();
   toast(`⚖️ ${fmt(peso)} kg registrados`);
@@ -4989,6 +5027,7 @@ document.getElementById("mdDel").onclick = ()=>{
   if(S.logs[medEditando]) delete S.logs[medEditando].cuerpo;
   save();
   cur = antes;
+  delete _formSnap.medModal;
   document.getElementById("medModal").classList.remove("open");
   renderSalud();
   toast("Medición borrada");
@@ -5069,12 +5108,21 @@ document.getElementById("docFile").onchange = e=>{
   document.querySelectorAll("#dcTipo [data-tp]").forEach(b=>
     b.classList.toggle("on", b.dataset.tp === "medico"));
   document.getElementById("docModal").classList.add("open");
+  marcarForm("docModal", "#docModal .inp");
 };
+cierreSeguro("docModal", "#docModal .inp", ()=>{
+  docArchivo = null;
+  document.getElementById("docModal").classList.remove("open");
+});
 document.querySelectorAll("#dcTipo [data-tp]").forEach(b=> b.onclick = ()=>{
   document.querySelectorAll("#dcTipo [data-tp]").forEach(x=>x.classList.remove("on"));
   b.classList.add("on");
 });
 document.getElementById("dcCancel").onclick = ()=>{
+  const cambio = _formSnap.docModal !== undefined &&
+                 _formSnap.docModal !== valoresForm("#docModal .inp");
+  if(cambio && !confirm("Escribiste cosas que no has guardado. ¿Salir y perderlas?")) return;
+  delete _formSnap.docModal;
   docArchivo = null;
   document.getElementById("docModal").classList.remove("open");
 };
@@ -5092,6 +5140,7 @@ document.getElementById("dcSave").onclick = async ()=>{
       notas: document.getElementById("dcNotas").value.trim()
     });
     docArchivo = null;
+    delete _formSnap.docModal;
     document.getElementById("docModal").classList.remove("open");
     toast("Documento subido");
     renderDocs();
