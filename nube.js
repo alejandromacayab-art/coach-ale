@@ -127,6 +127,26 @@ async function borrarTodo(){
   if(c.error) throw new Error(traduce(c.error.message));
 }
 
+/* ---------------- avisos con la app cerrada ----------------
+   El dispositivo guarda aquí su suscripción de Web Push. El envío corre
+   desde GitHub Actions con la clave de servicio y recorre la tabla: por eso
+   ya no hace falta copiar ninguna suscripción a mano. */
+async function guardarSuscripcion(sub){
+  if(!sb || !sub) return;
+  const u = await usuario(); if(!u) return;
+  const s = typeof sub.toJSON === "function" ? sub.toJSON() : sub;
+  const {error} = await sb.from("suscripciones").upsert({
+    user_id: u.id, endpoint: s.endpoint, datos: s,
+    agente: (navigator.userAgent || "").slice(0, 180)
+  }, {onConflict: "endpoint"});
+  if(error) throw new Error(traduce(error.message));
+}
+async function borrarSuscripcion(endpoint){
+  if(!sb || !endpoint) return;
+  const {error} = await sb.from("suscripciones").delete().eq("endpoint", endpoint);
+  if(error) throw new Error(traduce(error.message));
+}
+
 /* ---------------- entrenador ---------------- */
 async function misAtletas(){
   if(!sb) return [];
@@ -273,7 +293,7 @@ global.Nube = {
   activa, cliente:()=>sb, sesion, usuario, salir, alCambiarSesion,
   entrar, registrarse, recuperar, cambiarClave,
   miPerfil, ponerNombre, bajar, subir,
-  borrarTodo,
+  borrarTodo, guardarSuscripcion, borrarSuscripcion,
   misAtletas, diasDe, configDe, invitaciones, invitar, quitarInvitacion,
   docs, subirDoc, urlDoc, borrarDoc, nombresDe,
   escuchar, dejarDeEscuchar, traduce

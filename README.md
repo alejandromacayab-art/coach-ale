@@ -85,19 +85,36 @@ En el repo, **Settings → Secrets and variables → Actions → New repository 
 
 ---
 
-## Paso 4 · Activar las alertas y registrar el dispositivo
+## Paso 4 · Activar los avisos
 
-1. Dentro de la app: **Ajustes → App en el celular → 🔔 Activar alertas en este dispositivo**.
-   Acepta el permiso que pide iOS.
-2. Toca **Copiar suscripción**.
-3. Envíate ese texto (por correo o notas) y créalo como un tercer secreto en GitHub:
+Cada persona lo hace en su propio teléfono, una sola vez:
+
+**Ajustes → App en el celular → 🔔 Activar avisos en este dispositivo**, y aceptar
+el permiso que pide el teléfono. La suscripción se guarda sola en su cuenta; no hay
+que copiar ni pegar nada.
+
+Para que el servidor pueda leerlas y enviar, hace falta prepararlo una vez:
+
+1. **Supabase → SQL Editor**: pegar y ejecutar `base-de-datos/suscripciones.sql`.
+2. **Supabase → Project Settings → API**: copiar la *Project URL* y la clave
+   **`service_role`**.
+3. **GitHub → Settings → Secrets and variables → Actions**, añadir dos secretos:
 
 | Secreto | Valor |
 |---|---|
-| `PUSH_SUBSCRIPTION` | el texto copiado (empieza con `{"endpoint":`) |
+| `SUPABASE_URL` | la Project URL (`https://xxxx.supabase.co`) |
+| `SUPABASE_SERVICE_KEY` | la clave `service_role` |
 
-> Si quieres alertas en varios dispositivos, repite el paso en cada uno y guarda
-> todas las suscripciones juntas en un array: `[{...},{...}]`.
+> La clave `service_role` salta todas las reglas de acceso de la base: **solo**
+> puede vivir en los secretos de GitHub. Nunca en el repositorio, nunca en
+> `config.js`, nunca en el navegador.
+
+### El secreto antiguo
+
+`PUSH_SUBSCRIPTION` sigue funcionando para los avisos generales del entrenador
+—hábitos, pantallas, sueño— que no dependen de ninguna cuenta. Se llena copiando
+la suscripción desde **Ajustes → App en el celular**, opción que solo aparece
+cuando entras como entrenador. Si no lo pones, el resto funciona igual.
 
 ---
 

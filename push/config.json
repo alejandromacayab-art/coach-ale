@@ -14,5 +14,9 @@
   "sueno": {
     "activo": true,
     "hora": "08:00"
+  },
+  "entreno": {
+    "activo": true,
+    "hora": "17:00"
   }
 }

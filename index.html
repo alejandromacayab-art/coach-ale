@@ -564,7 +564,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.19-4";
+const APP_VERSION = "2026.09.19-5";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1845,7 +1845,14 @@ async function subscribePush(){
       applicationServerKey: b64ToU8(PUSH_PUBLIC_KEY)
     });
     S.settings.rem.on = true; save();
-    toast("📲 Alertas del celular activadas");
+    /* Sin guardarla en la cuenta, el servidor no sabe a quién avisar: era
+       justo lo que obligaba a copiar el JSON a mano. */
+    try{
+      if(nubeOn() && sesionUsuario && !modoSinNube) await Nube.guardarSuscripcion(sub);
+      toast("📲 Avisos activados en este dispositivo");
+    }catch(e){
+      toast("Avisos activados aquí, pero no se pudieron registrar en tu cuenta");
+    }
     return sub;
   }catch(e){
     toast("No se pudo suscribir: "+(e.message||e));
@@ -2317,7 +2324,7 @@ function agregarRecor(){
   document.getElementById("recorHora").value = "";
   renderRecor();
   pedirPermisoRecor();
-  toast("⏰ Te aviso 60 y 30 minutos antes, al abrir la app");
+  toast("⏰ Te aviso 60 y 30 minutos antes");
 }
 
 function borrarRecor(id){
@@ -3369,12 +3376,12 @@ async function renderInstall(){
          <li>Abre esta página en <b>Safari</b> (no sirve Chrome en iPhone).</li>
          <li>Toca el botón <b>Compartir</b> ⬆︎ de abajo.</li>
          <li>Elige <b>Agregar a pantalla de inicio</b>.</li>
-         <li>Ábrela desde el icono de Coach Ale${esCoach ? " y vuelve aquí a activar las alertas" : ""}.</li>
+         <li>Ábrela desde el icono de Coach Ale y vuelve aquí a activar los avisos.</li>
        </ol>`
     : `<ol class="steps">
          <li>Toca el menú <b>⋮</b> del navegador.</li>
          <li>Elige <b>Instalar aplicación</b> o <b>Agregar a pantalla principal</b>.</li>
-         <li>Ábrela desde el icono de Coach Ale${esCoach ? " y activa las alertas" : ""}.</li>
+         <li>Ábrela desde el icono de Coach Ale y activa los avisos.</li>
        </ol>`;
 
   /* El envío desde el servidor está montado con una sola suscripción, la del
@@ -3390,9 +3397,7 @@ async function renderInstall(){
     : sub
       ? `<div class="risk rk-ok" style="margin:14px 0 0"><div class="lv" style="background:#22e07a1f">🔔</div>
            <div><b style="color:#22e07a">Avisos activados en este dispositivo</b>
-             <span>${esCoach
-               ? "Llegan aunque la app esté cerrada."
-               : "Los recordatorios que creas aparecen al abrir la app. Los avisos con la app cerrada todavía no están activados para deportistas."}</span></div></div>
+             <span>Tus recordatorios y el aviso del día de entrenamiento llegan aunque la app esté cerrada.</span></div></div>
          ${esCoach ? `<button class="btn ghost" style="margin-top:10px" id="copySub">Copiar suscripción (para el servidor)</button>` : ""}
          <button class="btn danger" style="margin-top:8px" id="unsub">Desactivar los avisos</button>
          ${esCoach ? `<div class="code" id="subCode">${esc(JSON.stringify(sub))}</div>` : ""}`
@@ -3400,8 +3405,7 @@ async function renderInstall(){
            🔔 Activar avisos en este dispositivo</button>
          <p style="font-size:12px;color:var(--tx3);margin:10px 0 0">
            ${!swOK ? "Esperando al service worker… recarga la página si no aparece."
-             : esCoach ? "Después de activarlas, copia la suscripción y pégala como secreto en el repositorio."
-             : "Para que los recordatorios que creas te avisen a la hora, con la app abierta."}</p>`;
+             : "Para que tus recordatorios te lleguen a la hora aunque tengas la app cerrada."}</p>`;
 
   const pie = `<p style="font-size:11.5px;color:var(--tx3);margin:16px 0 0;text-align:center">
       Coach Ale · versión ${APP_VERSION}${swOK?" · sin conexión disponible":""}
@@ -3420,8 +3424,13 @@ async function renderInstall(){
   const un = document.getElementById("unsub");
   if(un) un.onclick = async ()=>{
     const sb = await getSub();
-    if(sb) await sb.unsubscribe();
-    toast("Alertas del celular desactivadas"); renderInstall();
+    if(sb){
+      const ep = sb.endpoint;
+      await sb.unsubscribe();
+      try{ if(nubeOn() && sesionUsuario && !modoSinNube) await Nube.borrarSuscripcion(ep); }
+      catch(e){}
+    }
+    toast("Avisos desactivados en este dispositivo"); renderInstall();
   };
   const ds = document.getElementById("doSub");
   if(ds) ds.onclick = async ()=>{ await subscribePush(); renderInstall(); renderRem(); };

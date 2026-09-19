@@ -2,7 +2,7 @@
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "coachale-v80";
+const CACHE = "coachale-v81";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
@@ -109,9 +109,11 @@ self.addEventListener("push", e=>{
     const st = await readState();
     const fresh = st && st.date === hoyKey();
 
-    /* Si hay un recordatorio importante cerca, manda ese: pesa más que
-       el resumen de hábitos que tocaba en este horario. */
-    const cerca = fresh ? recordatorioCercano(st.recor) : null;
+    /* Si el aviso ya viene armado desde el servidor —un recordatorio, el día
+       de entrenamiento— se respeta tal cual: allá se calculó con los datos de
+       la persona y con el tiempo que falta de verdad. Esto de abajo solo
+       enriquece el recordatorio genérico de hábitos. */
+    const cerca = (kind === "habits" && fresh) ? recordatorioCercano(st.recor) : null;
     if(cerca){
       await self.registration.showNotification(
         cerca.faltan <= 35 ? "⏰ Faltan 30 minutos" : "⏰ Falta 1 hora",
@@ -139,7 +141,9 @@ self.addEventListener("push", e=>{
       body,
       icon: "./icons/icon-192.png",
       badge: "./icons/icon-192.png",
-      tag: "bienestar-" + kind,
+      /* El servidor manda su propia etiqueta: dos recordatorios distintos en
+         la misma franja tienen que salir como dos avisos, no pisarse. */
+      tag: data.tag || ("bienestar-" + kind),
       renotify: true,
       data: {url: "./index.html"}
     });
