@@ -230,7 +230,8 @@ section{margin:22px 0}
 /* Ficha del ejercicio */
 .fidibujo{text-align:center;background:var(--card2);border:1px solid var(--line);
   border-radius:15px;padding:14px 10px 10px;margin-bottom:12px}
-.fidibujo .cuerpo{width:100%;max-width:280px;height:auto}
+.fidibujo .cuerpo{width:100%;max-width:300px;height:auto;display:block;margin:0 auto;
+  color:var(--tx)}   /* el cuerpo, neutro: el color es solo del músculo */
 .fidibujo span{display:block;font-size:10.5px;color:var(--tx3);margin-top:4px}
 .fibloque{border-radius:13px;padding:12px 13px;margin-bottom:10px;border:1px solid var(--line)}
 .fibloque span{display:block;font-size:9.5px;font-weight:800;text-transform:uppercase;
