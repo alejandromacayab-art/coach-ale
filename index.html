@@ -559,7 +559,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-12";
+const APP_VERSION = "2026.09.18-13";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1405,13 +1405,22 @@ function load(){
           const w = d.logs[k]?.workout;
           if(!w || !w.plan || w.volume) continue;
           (w.ex||[]).forEach(e=>(e.sets||[]).forEach(st=>{ st.p = 1; }));
+          /* Un día que la migración cambia tiene que viajar. Sin marca nueva,
+             la copia de la nube —sin migrar— le gana y deshace el arreglo. */
+          d.logs[k].mt = Date.now();
         }
         d.v = 8;
       }
       if(d.v < 9){                                     // nombres de ejercicios al día
         const nuevo = x => RENOMBRES[String(x||"").trim().toLowerCase()] || x;
-        for(const k in d.logs)
-          (d.logs[k]?.workout?.ex || []).forEach(e=>{ e.name = nuevo(e.name); });
+        for(const k in d.logs){
+          let cambio = false;
+          (d.logs[k]?.workout?.ex || []).forEach(e=>{
+            const n2 = nuevo(e.name);
+            if(n2 !== e.name){ e.name = n2; cambio = true; }
+          });
+          if(cambio) d.logs[k].mt = Date.now();
+        }
         (d.rutina?.dias || []).forEach(dia =>
           (dia.ex || []).forEach(e=>{ e.name = nuevo(e.name); }));
         d.v = 9;
@@ -1884,7 +1893,8 @@ function renderSaludo(){
   crudo = (crudo.split(" ")[0] || "").slice(0,18);
 
   const nombre = crudo ? crudo[0].toUpperCase() + crudo.slice(1) : "Tu registro";
-  document.getElementById("saludoTxt").textContent = parte;
+  /* Sin nombre la coma quedaba colgando: "Buenas noches, / Tu registro". */
+  document.getElementById("saludoTxt").textContent = crudo ? parte : parte.replace(",", "");
   document.getElementById("saludoNom").textContent = nombre;
   document.getElementById("avaIni").textContent = crudo ? crudo[0].toUpperCase() : "·";
 }
@@ -1905,15 +1915,33 @@ function renderSpot(){
   const mAhora = mediaDe(semana), mAntes = mediaDe(previa);
   const dif = mAhora - mAntes;
 
-  const rumbo = dif >= 4 ? {t:"↗ SUBIENDO", c:"#22e07a"}
-              : dif <= -4 ? {t:"↘ BAJANDO",  c:"#fb7185"}
-                          : {t:"→ ESTABLE",  c:"#38bdf8"};
-  const titular = dif >= 4 ? "Vas de menos a más"
+  const rumbo0 = dif >= 4 ? {t:"↗ SUBIENDO", c:"#22e07a"}
+               : dif <= -4 ? {t:"↘ BAJANDO",  c:"#fb7185"}
+                           : {t:"→ ESTABLE",  c:"#38bdf8"};
+  /* Con la semana en blanco no hay tendencia que contar. Decirle a quien
+     acaba de instalar la app que tiene una "semana pareja" de 0 puntos no
+     informa de nada y desanima. */
+  const registrados = semana.filter(tieneAlgo).length;
+  const estreno = registrados === 0;
+  /* Con dos o tres días sueltos la tendencia es ruido: marcar "SUBIENDO"
+     mientras el texto dice que aún no se puede saber se contradecía solo. */
+  const pocos = registrados > 0 && registrados < 3;
+  const rumbo = estreno ? {t:"✦ EMPEZANDO", c:"#a78bfa"}
+              : pocos  ? {t:"✦ ARRANCANDO", c:"#a78bfa"}
+                       : rumbo0;
+
+  const titular = estreno ? "Empieza por aquí"
+                : pocos ? "Tomando carrera"
+                : dif >= 4 ? "Vas de menos a más"
                 : dif <= -4 ? "Vienes aflojando"
                 : mAhora >= DIA_BUENO ? "Te mantienes arriba" : "Semana pareja";
-  const frase = mAntes
-    ? `Tu puntaje medio pasó de ${mAntes} a ${mAhora} en siete días.`
-    : `Tu puntaje medio de la semana es ${mAhora}.`;
+  const frase = estreno
+    ? "Tu primer registro pone en marcha todo lo demás: el puntaje, la progresión y los informes."
+    : registrados < 3
+      ? `Llevas ${registrados} día${registrados===1?"":"s"} registrado${registrados===1?"":"s"}: con una semana entera podré decirte si subes o bajas.`
+      : mAntes
+        ? `Tu puntaje medio pasó de ${mAntes} a ${mAhora} en siete días.`
+        : `Tu puntaje medio de la semana es ${mAhora}.`;
 
   /* Curva sobre una caja de 150×46, con el último día marcado. */
   const puntos = semana.map((k,i)=>{
@@ -3869,8 +3897,12 @@ function renderTurnos(){
   document.querySelectorAll("[data-tdel]").forEach(b=> b.onclick = ()=>{
     const i = +b.dataset.tdel, x = t.tipos[i];
     if(!confirm(`¿Quitar el turno "${x.nombre}"? Los días que lo tuvieran quedarán sin turno.`)) return;
-    Object.values(S.logs).forEach(l=>{ if(l.turno === x.id) l.turno = ""; });
-    t.tipos.splice(i,1); save(); renderTurnos();
+    const ahora = Date.now();          // cada día tocado tiene que viajar, no solo el de hoy
+    for(const k in S.logs){
+      const l = S.logs[k];
+      if(l.turno === x.id){ l.turno = ""; l.mt = ahora; }
+    }
+    t.tipos.splice(i,1); save(); renderTurnos(); renderHist();
   });
   document.getElementById("turnoAdd").onclick = ()=>{
     if(t.tipos.length >= 8){ toast("Ocho turnos son suficientes"); return; }
@@ -5217,7 +5249,13 @@ document.getElementById("fDel").onclick=()=>{
   if(!confirm(`¿Eliminar "${editing.name}"? Se borrará también su historial.`)) return;
   const id = editing.id;
   S.habits = S.habits.filter(h=>h.id!==id);
-  Object.values(S.logs).forEach(l=>{ if(l.values) delete l.values[id]; });
+  /* save() solo marca el día que estás viendo. Sin marcar cada día tocado, el
+     historial se borraba aquí y seguía intacto en la nube. */
+  const ahora = Date.now();
+  for(const k in S.logs){
+    const l = S.logs[k];
+    if(l.values && id in l.values){ delete l.values[id]; l.mt = ahora; }
+  }
   save(); closeModal(); renderSettings(); renderToday(); toast("Hábito eliminado");
 };
 
