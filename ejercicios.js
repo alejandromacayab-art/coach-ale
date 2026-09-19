@@ -473,96 +473,80 @@ const CUERPO = {
               C51.2 134.4 50.4 123 49.6 114 Z"/>`
 };
 
-/* Cada músculo con su forma. "f" es de frente, "b" de espalda.
-   Los del lado derecho se espejan solos: x' = 100 - x. */
-const MUSCULOS = {
-  /* Pectoral: abanico que nace en el esternón y se abre hacia el hombro. */
-  pecho: {f:[
-    `<path d="M49.4 45.8 C43.4 45.4 37.4 46.6 33 49.2
-              C29.4 51.4 27.6 54.6 27.8 58.4 C28 62.6 30.2 65.8 34 67.6
-              C38.6 69.8 44 69.6 47.2 67 C48.8 65.6 49.4 63.4 49.4 60.4 Z"/>`]},
-  /* Dorsal ancho: ala que baja de la axila a la cintura, y el trapecio arriba. */
-  espalda: {b:[
-    `<path d="M47.6 47.6 C41.4 48.4 35.6 51 31.8 54.8
-              C28.8 57.8 27.6 61.8 28.8 66.6 C30.2 72.6 33 78.6 36.6 83.4
-              C39.4 87.2 42.6 89.8 45.2 90.8 C47 91.4 47.8 90.4 47.8 88
-              C47.8 82 47.8 74 47.8 66 C47.7 59 47.6 52.6 47.6 47.6 Z"/>`,
-    `<path d="M48.2 36.2 C43 36.8 37.8 38.8 33.6 41.8
-              C30.8 43.8 29 46.2 28.8 48.6 C32 45.8 36.4 43.8 41.2 42.8
-              C44 42.2 46.4 41.9 48.2 41.9 Z"/>`]},
-  /* Deltoides: casquete que cubre la punta del hombro. */
-  hombros: {
-    f:[`<path d="M75.2 43.6 C80.8 45.6 84.2 50.4 85 57.2
-                 C85.4 61 84.6 63.4 82.6 64 C80 64.8 77.4 62.6 76 58
-                 C74.8 54 74.4 48.8 74.8 44.4 Z"/>`],
-    b:[`<path d="M75.2 43.6 C80.8 45.6 84.2 50.4 85 57.2
-                 C85.4 61 84.6 63.4 82.6 64 C80 64.8 77.4 62.6 76 58
-                 C74.8 54 74.4 48.8 74.8 44.4 Z"/>`]},
-  /* Bíceps: bulto en la cara delantera del brazo. */
-  biceps: {f:[
-    `<path d="M76.6 62.4 C80.6 62.6 83.2 66.4 83.8 72.6
-              C84.4 79 83 85.4 80.4 89.4 C78.6 92.2 76.4 92.2 75.2 89.4
-              C73.6 85.6 73.4 79.2 74.2 72.6 C74.8 67.6 75.6 63.8 76.6 62.4 Z"/>`]},
-  /* Tríceps: herradura en la cara de atrás, algo más larga que el bíceps. */
-  triceps: {b:[
-    `<path d="M77 60.4 C81.2 61 84.2 65.4 85 72.8
-              C85.8 80.2 84.2 87.4 81.2 91.6 C79.2 94.4 77 94 75.8 90.8
-              C74.4 87 74.2 79.6 75.2 72.2 C75.8 66.6 76.4 62.2 77 60.4 Z"/>`]},
-  /* Recto abdominal en el centro y oblicuo en el costado. */
-  core: {f:[
-    `<path d="M48.6 69.6 L44.2 69.6
-              C43.4 76.4 43 83.4 43 90 C43 96.6 43.4 102.4 44.4 107.2
-              L48.6 107.2 Z"/>`,
-    `<path d="M42.4 72.6 C40 73.8 38.2 76.4 37.4 80
-              C36.4 84.6 36.8 90.6 38.2 96.6 C39.2 101 40.4 104.8 41.8 107.4
-              C41.4 100.6 41.2 93.4 41.4 86.6 C41.6 81.4 42 76.8 42.4 72.6 Z"/>`]},
-  /* Cuádriceps delante; isquios y gemelo detrás. */
-  pierna: {
-    f:[`<path d="M53 119.6 C57.8 119.4 61.8 122.4 64.2 127.6
-                 C66.6 135.4 67 143 65.6 150.8 C64.4 157.8 62.2 163 59.6 165.4
-                 C57.2 167.6 55 166.6 53.8 162.6 C52.8 158.8 52.6 151.4 52.6 141.6
-                 C52.6 133 52.8 126 53 122 Z"/>`],
-    b:[`<path d="M53 121.6 C57.2 121.4 61 124.4 63.2 129.6
-                 C65.6 137.4 66 144.6 64.8 151.6 C63.6 158.2 61.4 163 58.8 165.2
-                 C56.6 167 54.6 166 53.6 162.4 C52.8 158.8 52.6 151.6 52.6 142.4
-                 C52.6 134 52.8 127.6 53 124 Z"/>`,
-        `<path d="M53.8 172.8 C57 172.6 59.8 175.8 61.2 181.4
-                 C62.6 187 62.4 192.6 60.8 196.2 C59.4 199.4 57.4 199.6 55.8 196.8
-                 C54.4 194.2 53.8 189 53.8 182.4 C53.8 178.2 53.8 175 53.8 172.8 Z"/>`]},
-  /* Glúteo: masa redondeada entre la cintura y el muslo. */
-  gluteo: {b:[
-    `<path d="M49.2 90.6 C44 90.8 39.2 93 36 96.8
-              C32.8 100.6 31.8 105.6 33.2 110 C34.4 113.8 37.4 115.8 41.4 115.4
-              C45.6 115 48.2 112 49.2 106.4 Z"/>`]}
+/* Mapa muscular. Cada pieza dice a qué grupo pertenece; las que no se
+   entrenan directamente —antebrazo, sartorio, cuello— van como "otro" y se
+   quedan siempre en gris. Se dibuja el lado derecho y se refleja solo.
+   Referencia: una lámina de anatomía de superficie; el trazado es propio. */
+const MAPA = {
+  f: [
+    {g:"hombros", d:"M54.6 34.2 C58 34.8 61.4 36.2 63.8 38.2 C66.8 40.8 69.6 43.2 72 44.8 C68.2 45.6 63.8 46 59.8 45.8 C57 45.6 55.2 44.6 54.6 42.8 Z"},
+    {g:"hombros", d:"M71.4 43.6 C76.4 44.8 80 47.8 81.8 52.4 C83.2 56 83.2 59.6 81.8 62 C80.2 64.6 77.6 64.2 75.6 61 C73.6 57.8 72.4 53.4 72 48.6 C71.8 46.2 71.6 44.6 71.4 43.6 Z"},
+    {g:"pecho",   d:"M50.6 44.4 L58.2 44.6 C63.2 45 67.6 46.6 70.2 49.4 C72.6 52 73.2 55.6 71.8 59 C70.2 62.8 66.6 65.6 61.8 66.8 C57 68 52.8 67.2 50.8 64.6 C50.6 62.6 50.6 52.2 50.6 44.4 Z"},
+    {g:"pecho",   d:"M62.6 69 C65.2 69.6 67 71 68 73 L64.8 74.4 C63.4 72.6 62.8 71 62.6 69 Z"},
+    {g:"pecho",   d:"M60.8 74.4 C63.4 75 65.2 76.4 66.2 78.4 L63 79.8 C61.6 78 61 76.4 60.8 74.4 Z"},
+    {g:"core",    d:"M50.6 67 L57 67.4 C57.2 70.4 57.2 72.8 57 75.4 L50.6 75.4 Z"},
+    {g:"core",    d:"M50.6 77 L57 77 C57 80 56.8 82.6 56.6 85 L50.6 85 Z"},
+    {g:"core",    d:"M50.6 86.6 L56.4 86.6 C56.2 89.6 55.8 92.2 55.4 94.6 L50.6 94.6 Z"},
+    {g:"core",    d:"M50.6 96.2 L55.2 96.2 C54.6 101.4 53.6 106 52.4 109.4 L50.6 109.4 Z"},
+    {g:"core",    d:"M58 77.4 C60.8 78.4 62.6 81 63.2 85 C63.8 89.4 63.2 94.2 61.6 98.4 C60.2 102 58.4 104 57 103.4 C56.8 96.6 57.2 88.6 57.6 82 Z"},
+    {g:"biceps",  d:"M72.8 60 C76.6 60.4 79.2 64 80.2 70.2 C81.2 76.4 80.4 82.6 78.2 86.6 C76.4 89.8 74 89.8 72.6 86.6 C71.2 82.8 71 76.6 71.6 70.2 C72 65.4 72.4 61.6 72.8 60 Z"},
+    {g:"otro",    d:"M76.8 88.2 C79.8 89.2 81.6 92.6 81.8 97.8 C82 103.8 80.8 110.2 79 115.6 C77.6 119.8 75.8 121.8 74.4 120.6 C73.8 115.2 74 107.8 74.8 100.2 C75.4 94.8 76 90.6 76.8 88.2 Z"},
+    {g:"pierna",  d:"M60.8 118 C64 118.4 66.2 121.8 67 127.6 C67.8 134.6 66.8 143.6 64.6 151.2 C62.8 157.6 60.6 161.8 58.8 161.8 C58.6 152.2 59 140.2 59.6 130.2 C60 124.8 60.4 120.4 60.8 118 Z"},
+    {g:"pierna",  d:"M55.4 118.6 C57.8 119 59.2 122.6 59.4 129.6 C59.6 137.6 58.8 147.2 57.4 154.6 C56.4 159.8 55.2 162.6 54.2 162.2 C54 152.2 54.2 140.2 54.6 130.2 C54.8 124.2 55.2 120 55.4 118.6 Z"},
+    {g:"pierna",  d:"M54.4 148.2 C56.6 148.6 58.2 151.8 58.6 156.8 C59 161.6 58 165.2 56.2 166 C54.6 166.6 53.4 164.2 53.2 159.8 C53 155.6 53.6 150.8 54.4 148.2 Z"},
+    {g:"pierna",  d:"M51 118.2 C52.6 118.6 53.6 121.8 53.8 127.8 C54 134.2 53.4 141.2 52.4 146.2 C51.8 149.2 51.2 150.8 50.8 150.6 C50.6 141.2 50.6 129.2 50.8 120.2 Z"},
+    {g:"pierna",  d:"M54.8 172.4 C56.6 172.8 57.8 176.4 58.2 182.8 C58.6 189.4 58 196.4 56.8 201 C56 204 55 205 54.2 203.4 C53.8 196.4 54 186.4 54.4 178.4 Z"},
+    {g:"pierna",  d:"M59.6 172.8 C61.6 173.6 63 177.2 63.2 182.6 C63.4 187.8 62.6 192.6 61.2 195.2 C60 197.4 59 196.2 58.6 192.2 C58.4 186.2 58.8 178.8 59.6 172.8 Z"}
+  ],
+  b: [
+    {g:"espalda", d:"M50.6 34.6 C55.4 34.8 60.2 36.2 64.2 38.8 C68 41.2 70.8 43.8 72.6 46.2 C68.8 48.6 64 50.2 59 51 C55.4 51.6 52.6 51.6 50.6 51 Z"},
+    {g:"espalda", d:"M50.6 51.8 C54.2 51.6 58 50.6 61.4 49 C60.6 55.6 58.6 62.6 56 69 C54.2 73.4 52.4 76.6 50.6 78.2 Z"},
+    {g:"hombros", d:"M71.4 43.6 C76.4 44.8 80 47.8 81.8 52.4 C83.2 56 83.2 59.6 81.8 62 C80.2 64.6 77.6 64.2 75.6 61 C73.6 57.8 72.4 53.4 72 48.6 C71.8 46.2 71.6 44.6 71.4 43.6 Z"},
+    {g:"espalda", d:"M72.4 50.6 C73.2 56 72.4 62.6 70 69.4 C67.4 76.8 63.4 83 59 87.2 C55.8 90.2 53.2 91.2 51.6 90.4 L51.6 66.4 C55.4 65.6 59.6 63.6 63.6 60.6 C67.8 57.4 70.8 53.8 72.4 50.6 Z"},
+    {g:"espalda", d:"M50.8 79.6 C53.6 80.2 55.6 84 56.4 90.4 C57.2 96.4 56.8 102.6 55.4 107.2 C54.4 110.4 52.8 112 50.8 111.6 Z"},
+    {g:"triceps", d:"M72.4 58.2 C76.4 58.6 79.4 62.8 80.6 69.6 C81.8 76.6 80.8 83.8 78.4 88 C76.4 91.4 74 91.2 72.6 87.6 C71.2 83.6 71 76.2 71.6 69.2 C72 63.6 72.2 59.8 72.4 58.2 Z"},
+    {g:"otro",    d:"M76.8 88.2 C79.8 89.2 81.6 92.6 81.8 97.8 C82 103.8 80.8 110.2 79 115.6 C77.6 119.8 75.8 121.8 74.4 120.6 C73.8 115.2 74 107.8 74.8 100.2 C75.4 94.8 76 90.6 76.8 88.2 Z"},
+    {g:"gluteo",  d:"M50.6 92 C55.6 92.2 60.2 94.2 63.2 97.8 C66.2 101.4 67.2 106.4 65.8 110.6 C64.6 114.6 61.6 116.6 57.6 116.2 C54.6 115.8 52.4 114 50.6 111 Z"},
+    {g:"gluteo",  d:"M62.6 91.6 C65.2 92.4 66.8 95 67.2 99 C67.6 102.6 66.8 105.8 65.2 106.6 C64.6 101.8 63.8 96.4 62.6 91.6 Z"},
+    {g:"pierna",  d:"M61.4 120.2 C64.2 120.6 66 123.8 66.6 129.6 C67.2 136.2 66.2 144.2 64.2 151.2 C62.6 157 60.6 160.8 59 160.8 C58.8 151.8 59.2 140.2 59.8 130.6 C60.2 125.2 60.8 121.6 61.4 120.2 Z"},
+    {g:"pierna",  d:"M54 120.2 C56.4 120.6 58 123.8 58.4 129.8 C58.8 136.8 58 145.2 56.6 152.2 C55.6 157.4 54.4 160.6 53.4 160.4 C53.2 151.2 53.4 139.8 53.6 130.2 Z"},
+    {g:"pierna",  d:"M59.8 170.2 C62.2 170.8 63.8 174.8 64.2 181.2 C64.6 187.6 63.6 193.2 61.8 195.8 C60.4 197.8 59 196.6 58.6 192.2 C58.4 185.8 59 176.8 59.8 170.2 Z"},
+    {g:"pierna",  d:"M54.6 170.8 C56.8 171.2 58.2 175.2 58.4 181.6 C58.6 187.8 57.8 193.2 56.2 195.6 C54.8 197.6 53.6 196.2 53.4 191.8 C53.2 185.6 53.8 176.8 54.6 170.8 Z"},
+    {g:"pierna",  d:"M55.2 196.4 C57.8 196.8 59.8 199.4 60.8 203.4 C61.6 206.8 61.2 209.4 59.8 210 C58 208.4 56.4 205 55.4 200.4 Z"}
+  ]
 };
 
-/* Un cuerpo de frente y otro de espalda, con el músculo objetivo
-   encendido. Es un esquema, no una foto: sirve para ubicarte. */
+/* Un cuerpo de frente y otro de espalda. Todos los músculos dibujados en
+   gris, como una lámina de anatomía, y encendido el que trabaja: así ves
+   dónde está, no solo una mancha flotando. */
 function cuerpoSVG(grupo, color){
   const c = color || "#22e07a";
-  const m = MUSCULOS[grupo] || {};
 
-  /* Casi todos los músculos son pares: se dibuja el derecho y se refleja.
-     Los que ya cruzan el centro (pectoral, dorsal, glúteo) también, porque
-     están dibujados desde la línea media hacia fuera. */
+  /* Casi todo es par: se dibuja el lado derecho y se refleja. Los que nacen
+     en la línea media (pectoral, recto abdominal, dorsal) también, porque
+     están trazados desde el centro hacia fuera. */
   const par = html => `${html}<g transform="translate(100,0) scale(-1,1)">${html}</g>`;
 
   const silueta = `
     <g>${CUERPO.cabeza}${CUERPO.tronco}</g>
     ${par(CUERPO.brazoD)}${par(CUERPO.piernaD)}`;
 
-  const cara = (id, etiqueta)=>{
-    const capas = (m[id] || []).join("");
-    return `
+  const musculos = id => par((MAPA[id] || []).map(m=>{
+    const on = m.g === grupo;
+    return `<path d="${m.d}"
+      fill="${on ? c : "currentColor"}" fill-opacity="${on ? .82 : .17}"
+      stroke="${on ? c : "currentColor"}" stroke-opacity="${on ? .95 : .34}"
+      stroke-width=".7" stroke-linejoin="round"/>`;
+  }).join(""));
+
+  const cara = (id, etiqueta)=> `
     <g transform="translate(${id === "f" ? 0 : 108},0)">
-      <g fill="currentColor" opacity=".13">${silueta}</g>
-      <g fill="${c}" fill-opacity=".82" stroke="${c}" stroke-width="1.1"
-         stroke-linejoin="round">${par(capas)}</g>
+      <g fill="currentColor" opacity=".1">${silueta}</g>
+      ${musculos(id)}
       <text x="50" y="230" text-anchor="middle" font-size="9.5"
             font-weight="700" letter-spacing=".5"
             fill="currentColor" opacity=".42">${etiqueta}</text>
     </g>`;
-  };
 
   return `<svg viewBox="0 0 208 236" class="cuerpo" role="img"
       aria-label="Esquema del músculo que trabaja">
