@@ -365,6 +365,10 @@ function bloqueEntreno(dias, perfil){
       ${perfil?.rutina?.dias?.length
         ? `<span class="pill">🗓 ${perfil.rutina.dias.length} días · ${esc(perfil.rutina.dias.map(d=>d.nombre).join(" · "))}</span>`
         : `<span class="pill" style="color:#f59e0b">Sin rutina creada</span>`}
+      ${(()=>{ const s2 = perfil?.material?.sitio;
+        /* Con qué entrena: si es en casa, no tiene sentido mandarle poleas. */
+        return s2 === "mancuernas" ? `<span class="pill">🏠 Casa con pesas</span>`
+             : s2 === "corporal"   ? `<span class="pill">🤸 Solo peso corporal</span>` : ""; })()}
     </div>`;
 
   if(!series) return `
@@ -439,6 +443,7 @@ async function verAtleta(id){
     const cfg = await Nube.configDe(id);
     salud = cfg?.salud || null;
     perfilEntreno = {nivel: cfg?.nivel || null, rutina: cfg?.rutina || null,
+                     material: cfg?.material || null,
                      objetivo: cfg?.settings?.objetivo || "hipertrofia"};
   }catch(e){ $("main").innerHTML = `<div class="empty">${esc(Nube.traduce(e.message))}</div>`; return; }
   try{ documentos = await Nube.docs(id); }

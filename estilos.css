@@ -819,3 +819,18 @@ label.f span{display:block;font-size:12px;font-weight:700;color:var(--tx2);margi
 @media (max-width:640px){
   .tabla th.ocultar-movil, .tabla td.ocultar-movil{display:none}
 }
+
+/* Material extra: banco, barra fija, bandas */
+.matex{margin-top:10px;display:grid;gap:8px}
+.matx{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  padding:11px 13px;border-radius:12px;border:1px solid var(--line);
+  background:var(--card2);transition:.15s}
+.matx.on{border-color:color-mix(in srgb,var(--accent) 45%,transparent);
+  background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.matx .ck{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  font-size:12px;font-weight:800;color:var(--tx3);border:1px solid var(--line)}
+.matx.on .ck{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.matx .tx{min-width:0}
+.matx .tx b{display:block;font-size:13.5px;letter-spacing:-.01em}
+.matx .tx span{display:block;font-size:11.5px;color:var(--tx3);margin-top:1px}
+#bibMaterial{margin-bottom:6px}

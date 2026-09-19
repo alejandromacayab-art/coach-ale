@@ -164,6 +164,10 @@
       <div class="panel" id="nivelPanel"></div>
     </section>
     <section>
+      <div class="stitle">🧰 Con qué entrenas</div>
+      <div class="panel" id="matPanel"></div>
+    </section>
+    <section>
       <div class="stitle">🗓 Tu rutina</div>
       <div class="panel" id="rutPanel"></div>
     </section>
@@ -229,6 +233,7 @@
   <div class="sheet">
     <h3>Elegir ejercicio</h3>
     <input class="inp" id="bibBuscar" placeholder="Buscar por nombre o material…" autocomplete="off">
+    <div class="chipsg" id="bibMaterial"></div>
     <div class="chipsg" id="bibGrupos"></div>
     <div id="bibLista"></div>
     <button class="btn ghost" style="margin-top:12px" id="bibClose">Cerrar</button>
@@ -559,7 +564,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.18-14";
+const APP_VERSION = "2026.09.19-1";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -674,16 +679,16 @@ const colorGrupo  = id => (GRUPOS.find(g=>g.id===id) || GRUPOS[GRUPOS.length-1])
 const PISTAS = [
   /* El core va primero por una razón tonta pero real: "abdominal" contiene
      "domin", y con la espalda delante cualquier abdominal acababa ahí. */
-  [/abdominal|plancha|core|crunch|oblicuo|pallof|rueda|hollow|elevaci[oó]n\s*de\s*piernas/i, "core"],
-  [/gl[uú]teo|hip\s*thrust|puente|abducci[oó]n|patada\s*de\s*gl|peso\s*muerto\s*sumo/i, "gluteo"],
-  [/sentadilla|prensa|zancada|cu[aá]dr|femoral|gemelo|talones|pantorrilla|rumano|piernas?\s*r[ií]gidas|split|bulgar|hack|extensi[oó]n\s*de\s*(pierna|rodilla)/i, "pierna"],
+  [/abdominal|plancha|core|crunch|oblicuo|pallof|rueda|hollow|dead\s*bug|bicicleta|elevaci[oó]n\s*de\s*piernas/i, "core"],
+  [/gl[uú]teo|hip\s*thrust|puente|abducci[oó]n|patada\s*de\s*gl|caminata\s*lateral|peso\s*muerto\s*sumo/i, "gluteo"],
+  [/sentadilla|prensa|zancada|cu[aá]dr|femoral|gemelo|talones|pantorrilla|rumano|piernas?\s*r[ií]gidas|split|bulgar|hack|aductor|subida\s*al\s*caj[oó]n|step\s*up|extensi[oó]n\s*de\s*(pierna|rodilla)/i, "pierna"],
   /* Antes que pecho: los fondos en banco y el press con agarre cerrado son
      de tríceps aunque lleven "fondo" y "press banca" en el nombre. */
-  [/tr[ií]ceps|extensi[oó]n\s*(de)?\s*tr|copa|katana|press\s*franc|agarre\s*cerrado|fondos?\s*en\s*banco/i, "triceps"],
+  [/tr[ií]ceps|extensi[oó]n\s*(de)?\s*tr|copa|katana|press\s*franc|agarre\s*cerrado|diamante|fondos?\s*en\s*banco/i, "triceps"],
   [/curl(?!\s*femoral)|b[ií]ceps|martillo|predicador/i,                   "biceps"],
-  [/press\s*(militar|hombro)|elevaci[oó]n\w*\s*(lateral|frontal|posterior)|p[aá]jaro|hombro|deltoi|arnold|encogimiento/i, "hombros"],
+  [/press\s*(de\s*)?(militar|hombro)|elevaci[oó]n\w*\s*(lateral|frontal|posterior)|p[aá]jaro|pica|hombro|deltoi|arnold|encogimiento/i, "hombros"],
   /* Antes que pecho: el jalón al pecho es espalda, no pecho. */
-  [/domin|jal[oó]n|remo|pull\s*over|pullover|espalda|dorsal|face\s*pull|peso\s*muerto/i, "espalda"],
+  [/domin|jal[oó]n|remo|pull\s*over|pullover|espalda|dorsal|lumbar|face\s*pull|superman|bird\s*dog|hiperextensi|buenos\s*d[ií]as|peso\s*muerto/i, "espalda"],
   [/press\s*(de)?\s*banca|press\s*(inclinado|declinado)|pec|pecho|apertura|fondo|push\s*up|flexi[oó]n/i, "pecho"]
 ];
 function adivinaGrupo(nombre){
@@ -889,17 +894,17 @@ function nivelPorPuntos(p){
 const MANCUERNA = {principiante:0.12, intermedio:0.22, avanzado:0.32};
 const PATRONES = [
   /* Peso corporal: aquí la carga la pones tú (o el lastre), no un múltiplo. */
-  [/domin|fondo|plancha|abdominal|puente|flexi[oó]n|rueda|elevaci[oó]n\s*de\s*piernas/i, null],
+  [/domin|fondo|plancha|abdominal|puente|flexi[oó]n|rueda|elevaci[oó]n\s*de\s*piernas|superman|bird\s*dog|hiperextensi|hollow|dead\s*bug|bicicleta|isom[eé]trica|remo\s*invertido|caj[oó]n|sin\s*peso/i, null],
   [/mancuerna/i,                                   MANCUERNA],
   [/sentadilla|prensa|hack|split|bulgar/i,         {principiante:0.50, intermedio:0.90, avanzado:1.30}],
-  [/peso\s*muerto|rumano|hip\s*thrust/i,           {principiante:0.60, intermedio:1.00, avanzado:1.50}],
-  [/press\s*(de)?\s*banca|press\s*(inclinado|declinado)|agarre\s*cerrado/i,
+  [/peso\s*muerto|rumano|hip\s*thrust|buenos\s*d[ií]as/i, {principiante:0.60, intermedio:1.00, avanzado:1.50}],
+  [/press\s*(de)?\s*banca|press\s*(inclinado|declinado)|press\s*de\s*pecho|agarre\s*cerrado/i,
                                                     {principiante:0.35, intermedio:0.65, avanzado:0.95}],
   [/remo|jal[oó]n/i,                                {principiante:0.35, intermedio:0.60, avanzado:0.85}],
-  [/press\s*(militar|hombro)|arnold/i,             {principiante:0.25, intermedio:0.45, avanzado:0.65}],
+  [/press\s*(de\s*)?(militar|hombro)|arnold/i,     {principiante:0.25, intermedio:0.45, avanzado:0.65}],
   /* Máquinas de una sola articulación: el respaldo y las poleas permiten
      bastante más carga de la que sugiere un ejercicio de aislamiento. */
-  [/extensi[oó]n\s*de\s*(cu[aá]dr|pierna|rodilla)|curl\s*femoral|abducci[oó]n|talones|gemelo|pantorrilla/i,
+  [/extensi[oó]n\s*de\s*(cu[aá]dr|pierna|rodilla)|curl\s*femoral|abducci[oó]n|aductor|talones|gemelo|pantorrilla/i,
                                                     {principiante:0.30, intermedio:0.50, avanzado:0.75}],
   [/zancada/i,                                      {principiante:0.25, intermedio:0.45, avanzado:0.70}],
   [/curl|extensi[oó]n|elevaci[oó]n|apertura|pec\s*deck|face|franc[eé]s|pull\s*over|pullover|patada|encogimiento|crunch|pallof|p[aá]jaro/i,
@@ -950,7 +955,8 @@ function cargaInicial(nombre, grupo){
      por mano), y "Elevación de piernas colgado" no lleva peso aunque lo
      parezca. Solo si el ejercicio no está en la biblioteca miramos el texto. */
   const eq = fichaEjercicio(nombre)?.eq || "";
-  if(/peso\s*corporal/i.test(eq)) return "";
+  /* Una banda elástica no tiene kilos: proponía 47 kg en un remo con banda. */
+  if(/peso\s*corporal|banda/i.test(eq)) return "";
   const tabla = /mancuerna/i.test(eq)
     ? MANCUERNA
     : (PATRONES.find(([re])=>re.test(String(nombre||"")))||[])[1];
@@ -1030,6 +1036,37 @@ const fichaEjercicio = nombre => BIBLIO.find(x =>
    están primero, así una plantilla corta se queda con lo importante. */
 const EJ_POR_GRUPO = BIBLIO.reduce((a, x)=>{ (a[x.g] ||= []).push(x.n); return a; }, {});
 
+/* ============================================================
+   MATERIAL DISPONIBLE
+   La rutina se armaba del catálogo entero sin preguntar nunca con qué
+   entrenas: a quien tiene dos mancuernas en casa le salían poleas,
+   máquinas y barra. Ahora cada ejercicio dice qué necesita y solo entran
+   los que puedes hacer de verdad.
+   ============================================================ */
+const SITIOS = [
+  {id:"gimnasio",   nombre:"Gimnasio",        emoji:"🏋️", desc:"Barras, discos, poleas y máquinas"},
+  {id:"mancuernas", nombre:"Casa con pesas",  emoji:"🏠", desc:"Mancuernas y lo que tengas a mano"},
+  {id:"corporal",   nombre:"Solo mi cuerpo",  emoji:"🤸", desc:"Sin material, donde sea"}
+];
+const DEF_MATERIAL = {sitio:"gimnasio", banco:true, barraFija:true, bandas:false};
+const material = () => Object.assign({}, DEF_MATERIAL, S.material || {});
+const sitioActual = () => SITIOS.find(x=>x.id === material().sitio) || SITIOS[0];
+
+function puedeHacer(x){
+  if(!x) return true;
+  const m = material();
+  if(m.sitio === "gimnasio") return true;         // ahí hay de todo
+  if(x.eq === "Banda elástica" && !m.bandas) return false;
+  if(x.req === "banco" && !m.banco) return false;
+  if((x.req === "barrafija" || x.req === "paralelas") && !m.barraFija) return false;
+  if(m.sitio === "mancuernas")
+    return x.eq === "Peso corporal" || x.eq === "Mancuernas" || x.eq === "Banda elástica";
+  return x.eq === "Peso corporal" || x.eq === "Banda elástica";
+}
+
+/* Los ejercicios de un grupo que puedes hacer con lo que tienes. */
+const ejerciciosDe = g => BIBLIO.filter(x => x.g === g && puedeHacer(x)).map(x => x.n);
+
 /* El reparto de la semana. Cada día es [nombre, [[grupo, nº de ejercicios], …]] */
 const REPARTOS = {
   2: [["Cuerpo completo A", [["pierna",2],["pecho",2],["espalda",2],["core",1]]],
@@ -1081,7 +1118,9 @@ function armarRutina(diasSemana){
     id: "d" + (i+1),
     nombre,
     ex: gs.flatMap(([g, n])=>{
-      const lista = variados(EJ_POR_GRUPO[g] || [], n);
+      /* Si con tu material no queda ningún ejercicio de ese grupo, el día se
+         arma sin él en vez de proponerte algo que no puedes hacer. */
+      const lista = variados(ejerciciosDe(g), n);
       /* Se reparte el volumen del objetivo entre las veces que toca ese
          músculo y sus ejercicios. Tope de 4: más series en un mismo
          ejercicio aportan poco y alargan la sesión. El nivel ajusta
@@ -1425,6 +1464,9 @@ function load(){
           (dia.ex || []).forEach(e=>{ e.name = nuevo(e.name); }));
         d.v = 9;
       }
+      /* Va después del 9 a propósito: los bloques se ejecutan en orden y uno
+         que adelante la versión deja sin correr a los anteriores. */
+      if(d.v < 10){ d.material = d.material || {...DEF_MATERIAL}; d.v = 10; }  // con qué entrenas
       d.theme ||= "light";
       d.settings = Object.assign({}, DEF_SETTINGS, d.settings||{});
       d.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  d.settings.rem||{});
@@ -1460,8 +1502,8 @@ function load(){
       }
     }catch(e2){}
   }
-  return {v:9, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
-          salud: {...DEF_SALUD},
+  return {v:10, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
+          salud: {...DEF_SALUD}, material: {...DEF_MATERIAL},
           settings: JSON.parse(JSON.stringify(DEF_SETTINGS))};
 }
 /* Firmas para detectar qué cambió de verdad: solo entonces movemos la marca de
@@ -1475,7 +1517,7 @@ const sigOf = o => { const {mt, ...r} = o||{}; return JSON.stringify(r); };
    anterior de esa misma fecha. */
 function sembrarFirmas(){
   _sig.meta = JSON.stringify({h:S.habits, s:S.settings, t:S.theme, sa:S.salud,
-                              n:S.nivel, r:S.rutina});
+                              n:S.nivel, r:S.rutina, m:S.material});
   for(const k in S.logs) _sig[k] = sigOf(S.logs[k]);
 }
 
@@ -1484,7 +1526,7 @@ function touch(){
   /* La firma decide qué se considera "configuración cambiada". Si el nivel
      y la rutina no entran aquí, se guardan en el teléfono pero nunca suben. */
   const meta = JSON.stringify({h:S.habits, s:S.settings, t:S.theme, sa:S.salud,
-                               n:S.nivel, r:S.rutina});
+                               n:S.nivel, r:S.rutina, m:S.material});
   if(_sig.meta !== undefined && _sig.meta !== meta) S.metaMt = now;
   _sig.meta = meta;
   const l = S.logs[cur];
@@ -3510,10 +3552,11 @@ function abrirBiblioteca(i){
   setTimeout(()=>document.getElementById("bibBuscar").focus(), 60);
 }
 
+let bibSoloMios = true;          // por defecto, solo lo que puedes hacer
 function pintarBiblioteca(){
   const gr = document.getElementById("bibGrupos");
   gr.innerHTML = `<button class="chipg ${bibGrupo?"":"on"}" data-bg="">Todos</button>` +
-    GRUPOS.filter(g=>EJ_POR_GRUPO[g.id]).map(g=>
+    GRUPOS.filter(g=> bibSoloMios ? ejerciciosDe(g.id).length : EJ_POR_GRUPO[g.id]).map(g=>
       `<button class="chipg ${bibGrupo===g.id?"on":""}" data-bg="${g.id}"
          style="--g:${g.color}">${g.nombre}</button>`).join("");
   gr.querySelectorAll("[data-bg]").forEach(b=> b.onclick = ()=>{
@@ -3523,7 +3566,17 @@ function pintarBiblioteca(){
   const t = bibTexto.trim().toLowerCase();
   const filtrados = BIBLIO.filter(x =>
     (!bibGrupo || x.g === bibGrupo) &&
+    (!bibSoloMios || puedeHacer(x)) &&
     (!t || buscaPor(x.n).includes(t) || x.eq.toLowerCase().includes(t)));
+
+  /* Con el filtro puesto no hay que adivinar por qué faltan ejercicios. */
+  const m = material();
+  const ocultos = BIBLIO.filter(x => (!bibGrupo || x.g === bibGrupo) && !puedeHacer(x)).length;
+  document.getElementById("bibMaterial").innerHTML = m.sitio === "gimnasio" ? "" : `
+    <button class="chipg ${bibSoloMios ? "on" : ""}" id="bibFiltro">
+      ${sitioActual().emoji} Solo lo que puedo hacer${ocultos ? ` · ${ocultos} ocultos` : ""}</button>`;
+  const bf = document.getElementById("bibFiltro");
+  if(bf) bf.onclick = ()=>{ bibSoloMios = !bibSoloMios; pintarBiblioteca(); };
 
   document.getElementById("bibLista").innerHTML = filtrados.length
     ? filtrados.map(x=>`
@@ -3678,6 +3731,47 @@ document.getElementById("nvModal").onclick = e=>{ if(e.target.id === "nvModal") 
 
 /* La rutina se arma sola desde el objetivo y los días que puedas
    entrenar. No es una talla única: rehabilitación reparte distinto. */
+/* Dónde entrenas y con qué. De aquí sale qué ejercicios puede proponerte la
+   app: sin esto, a quien entrena en casa le tocaban poleas y máquinas. */
+function renderMaterial(){
+  const box = document.getElementById("matPanel");
+  if(!box) return;
+  const m = material();
+  const extras = [
+    ["banco",     "Banco o silla firme", "Para press con mancuernas, búlgaras y subidas"],
+    ["barraFija", "Barra fija o paralelas", "Para dominadas, fondos y colgarse"],
+    ["bandas",    "Bandas elásticas", "Para remos, curls y glúteo medio"]
+  ];
+  const n = BIBLIO.filter(puedeHacer).length;
+
+  box.innerHTML = SITIOS.map(x=>`
+    <button class="obj ${x.id === m.sitio ? "on" : ""}" data-sitio="${x.id}">
+      <span class="em">${x.emoji}</span>
+      <span class="tx"><b>${x.nombre}</b><span>${x.desc}</span></span>
+      <span class="ck">${x.id === m.sitio ? "✓" : ""}</span>
+    </button>`).join("")
+    + (m.sitio === "gimnasio" ? "" : `
+      <div class="matex">${extras.map(([k, t, d])=>`
+        <button class="matx ${m[k] ? "on" : ""}" data-mat="${k}">
+          <span class="ck">${m[k] ? "✓" : "＋"}</span>
+          <span class="tx"><b>${t}</b><span>${d}</span></span>
+        </button>`).join("")}</div>`)
+    + `<p style="font-size:12px;color:var(--tx3);margin:12px 0 0">
+        Con esto la app puede proponerte <b>${n}</b> de los ${BIBLIO.length} ejercicios.
+        Cambiarlo no toca tu rutina actual: rehazla para que use el material nuevo.</p>`;
+
+  box.querySelectorAll("[data-sitio]").forEach(b=> b.onclick = ()=>{
+    S.material = Object.assign(material(), {sitio: b.dataset.sitio});
+    save(); renderMaterial();
+    toast(`${sitioActual().emoji} ${sitioActual().nombre}`);
+  });
+  box.querySelectorAll("[data-mat]").forEach(b=> b.onclick = ()=>{
+    const k = b.dataset.mat, m2 = material();
+    S.material = Object.assign(m2, {[k]: !m2[k]});
+    save(); renderMaterial();
+  });
+}
+
 function renderRutina(){
   const box = document.getElementById("rutPanel");
   if(!box) return;
@@ -3913,7 +4007,7 @@ function renderTurnos(){
   };
 }
 function renderSettings(){
-  renderObjetivo(); renderNivel(); renderRutina(); renderSyncPanel(); renderDondeViven();
+  renderObjetivo(); renderNivel(); renderMaterial(); renderRutina(); renderSyncPanel(); renderDondeViven();
   renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
 
 /* ============================================================
@@ -4413,7 +4507,7 @@ function aFilas(){
   }
   return {
     config: {datos:{habits:S.habits, settings:S.settings, theme:S.theme, salud:S.salud,
-                    nivel:S.nivel, rutina:S.rutina, v:S.v}, mt: S.metaMt||0},
+                    nivel:S.nivel, rutina:S.rutina, material:S.material, v:S.v}, mt: S.metaMt||0},
     dias
   };
 }
@@ -4459,6 +4553,7 @@ async function syncNow(manual){
          de teléfono o al reinstalar, y con ellos el plan del mes. */
       if("nivel"  in rc.datos) S.nivel  = rc.datos.nivel;
       if("rutina" in rc.datos) S.rutina = rc.datos.rutina;
+      if("material" in rc.datos) S.material = rc.datos.material;
       S.metaMt = rc.mt; cambio = true;
       if(rc.corregida) subirConfig = aFilas().config;
     }else if(!rc || (S.metaMt||0) > (rc.mt||0)){
