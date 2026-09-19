@@ -564,12 +564,12 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.19-3";
+const APP_VERSION = "2026.09.19-4";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
   {id:"agua",   name:"Tomar agua",  emoji:"💧", type:"count",  goal:8,   unit:"vasos", step:1,    color:"#38bdf8"},
-  {id:"entren", name:"Entrenar",    emoji:"🏋️", type:"workout",goal:1,   unit:"",      step:1,    color:"#22e07a"},
+  {id:"entren", name:"Entrenar",    emoji:"🏋️", type:"workout",goal:1,   unit:"",      step:1,    color:"#22e07a", peso:3},
   {id:"activi", name:"Actividad física", emoji:"🏃", type:"activity", goal:60, unit:"min", step:5, color:"#f97316", peso:2},
   {id:"caminar",name:"Caminar",     emoji:"🚶", type:"amount", goal:8000,unit:"pasos", step:1000, color:"#fbbf24", peso:2},
   {id:"leer",   name:"Leer",        emoji:"📖", type:"amount", goal:10,  unit:"páginas",step:2,   color:"#a78bfa"},
@@ -1467,6 +1467,14 @@ function load(){
       /* Va después del 9 a propósito: los bloques se ejecutan en orden y uno
          que adelante la versión deja sin correr a los anteriores. */
       if(d.v < 10){ d.material = d.material || {...DEF_MATERIAL}; d.v = 10; }  // con qué entrenas
+      if(d.v < 11){                                    // entrenar pesa lo que debe
+        /* La app nació como registro de hábitos y el entrenamiento valía lo
+           mismo que beber agua: 8,3 puntos de 100, la mitad que caminar.
+           Solo se toca si nunca elegiste una prioridad a mano. */
+        const e = d.habits.find(h=>h && h.id === "entren");
+        if(e && !e.peso) e.peso = 3;
+        d.v = 11;
+      }
       d.theme ||= "light";
       d.settings = Object.assign({}, DEF_SETTINGS, d.settings||{});
       d.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  d.settings.rem||{});
@@ -1502,7 +1510,7 @@ function load(){
       }
     }catch(e2){}
   }
-  return {v:10, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
+  return {v:11, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
           salud: {...DEF_SALUD}, material: {...DEF_MATERIAL},
           settings: JSON.parse(JSON.stringify(DEF_SETTINGS))};
 }
@@ -3345,44 +3353,55 @@ async function renderInstall(){
     return;
   }
 
+  const esCoach = perfil && perfil.rol === "coach";
+
   const estado = standalone
     ? `<div class="risk rk-ok" style="margin:0 0 14px"><div class="lv" style="background:#22e07a1f">✅</div>
          <div><b style="color:#22e07a">Instalada en el dispositivo</b><span>Estás usando la app en modo pantalla completa.</span></div></div>`
     : `<div class="risk rk-warn" style="margin:0 0 14px"><div class="lv" style="background:#fbbf241f">📲</div>
          <div><b style="color:#fbbf24">Aún no está instalada</b>
            <span>${isIOS
-             ? "En iPhone las alertas solo funcionan si la agregas a la pantalla de inicio."
-             : "Instálala para recibir alertas y abrirla como una app."}</span></div></div>`;
+             ? "En iPhone se abre a pantalla completa y funciona sin internet si la agregas a la pantalla de inicio."
+             : "Instálala para abrirla como una app y usarla sin internet."}</span></div></div>`;
 
   const pasos = isIOS
     ? `<ol class="steps">
          <li>Abre esta página en <b>Safari</b> (no sirve Chrome en iPhone).</li>
          <li>Toca el botón <b>Compartir</b> ⬆︎ de abajo.</li>
          <li>Elige <b>Agregar a pantalla de inicio</b>.</li>
-         <li>Abre la app desde el icono de Coach Ale y vuelve aquí a activar las alertas.</li>
+         <li>Ábrela desde el icono de Coach Ale${esCoach ? " y vuelve aquí a activar las alertas" : ""}.</li>
        </ol>`
     : `<ol class="steps">
          <li>Toca el menú <b>⋮</b> del navegador.</li>
          <li>Elige <b>Instalar aplicación</b> o <b>Agregar a pantalla principal</b>.</li>
-         <li>Abre la app desde el icono de Coach Ale y activa las alertas.</li>
+         <li>Ábrela desde el icono de Coach Ale${esCoach ? " y activa las alertas" : ""}.</li>
        </ol>`;
 
+  /* El envío desde el servidor está montado con una sola suscripción, la del
+     entrenador, en un secreto del repositorio. A un deportista no se le puede
+     decir "llegan aunque la app esté cerrada" —no le llega ninguna— ni
+     pedirle que copie un JSON para pegarlo en ningún sitio. */
   const pushBlock = !PUSH_PUBLIC_KEY
-    ? `<div class="risk rk-warn" style="margin:14px 0 0"><div class="lv" style="background:#fbbf241f">🔑</div>
-         <div><b style="color:#fbbf24">Servidor de alertas sin configurar</b>
-           <span>Falta pegar la clave pública VAPID en index.html. Está explicado en el README.</span></div></div>`
+    ? (esCoach
+      ? `<div class="risk rk-warn" style="margin:14px 0 0"><div class="lv" style="background:#fbbf241f">🔑</div>
+           <div><b style="color:#fbbf24">Servidor de alertas sin configurar</b>
+             <span>Falta pegar la clave pública VAPID en index.html. Está explicado en el README.</span></div></div>`
+      : "")
     : sub
       ? `<div class="risk rk-ok" style="margin:14px 0 0"><div class="lv" style="background:#22e07a1f">🔔</div>
-           <div><b style="color:#22e07a">Alertas del celular activas</b>
-             <span>Llegan aunque la app esté cerrada.</span></div></div>
-         <button class="btn ghost" style="margin-top:10px" id="copySub">Copiar suscripción (para el servidor)</button>
-         <button class="btn danger" style="margin-top:8px" id="unsub">Desactivar alertas del celular</button>
-         <div class="code" id="subCode">${esc(JSON.stringify(sub))}</div>`
+           <div><b style="color:#22e07a">Avisos activados en este dispositivo</b>
+             <span>${esCoach
+               ? "Llegan aunque la app esté cerrada."
+               : "Los recordatorios que creas aparecen al abrir la app. Los avisos con la app cerrada todavía no están activados para deportistas."}</span></div></div>
+         ${esCoach ? `<button class="btn ghost" style="margin-top:10px" id="copySub">Copiar suscripción (para el servidor)</button>` : ""}
+         <button class="btn danger" style="margin-top:8px" id="unsub">Desactivar los avisos</button>
+         ${esCoach ? `<div class="code" id="subCode">${esc(JSON.stringify(sub))}</div>` : ""}`
       : `<button class="btn" style="margin-top:14px" id="doSub" ${swOK?"":"disabled style=opacity:.4"}>
-           🔔 Activar alertas en este dispositivo</button>
+           🔔 Activar avisos en este dispositivo</button>
          <p style="font-size:12px;color:var(--tx3);margin:10px 0 0">
-           ${swOK ? "Después de activarlas, copia la suscripción y pégala como secreto en el repositorio."
-                  : "Esperando al service worker… recarga la página si no aparece."}</p>`;
+           ${!swOK ? "Esperando al service worker… recarga la página si no aparece."
+             : esCoach ? "Después de activarlas, copia la suscripción y pégala como secreto en el repositorio."
+             : "Para que los recordatorios que creas te avisen a la hora, con la app abierta."}</p>`;
 
   const pie = `<p style="font-size:11.5px;color:var(--tx3);margin:16px 0 0;text-align:center">
       Coach Ale · versión ${APP_VERSION}${swOK?" · sin conexión disponible":""}
