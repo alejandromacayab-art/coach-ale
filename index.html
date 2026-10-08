@@ -247,6 +247,10 @@
   <div class="sheet">
     <h3>Elegir ejercicio</h3>
     <input class="inp" id="bibBuscar" placeholder="Buscar por nombre o material…" autocomplete="off">
+    <p class="bibnota">El número es el torque máximo que aguanta la articulación en todo el
+      recorrido, con el peso que tú has usado en ese ejercicio — o con uno de referencia si
+      todavía no lo has hecho. Sirve para comparar versiones del mismo gesto, no ejercicios
+      distintos entre sí.</p>
     <div class="chipsg" id="bibMaterial"></div>
     <div class="chipsg" id="bibGrupos"></div>
     <div id="bibLista"></div>
@@ -562,6 +566,8 @@
 
 <script src="zoom.js"></script>
 <script src="ejercicios.js"></script>
+<script src="biomecanica.js"></script>
+<script src="modelos.js"></script>
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="nube.js"></script>
@@ -578,7 +584,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.10.08-4";
+const APP_VERSION = "2026.10.08-5";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1039,6 +1045,86 @@ function buscaPor(nombre){
   const lista = [nombre.toLowerCase(), ...(SINONIMOS[nombre] || [])];
   for(const viejo in RENOMBRES) if(RENOMBRES[viejo] === nombre) lista.push(viejo);
   return lista.join(" · ");
+}
+
+/* ---------------- la mecánica, desde el laboratorio ----------------
+   El laboratorio calcula qué articulación aguanta cuánto en cada
+   ejercicio. Eso no sirve de nada en una página aparte si la decisión
+   —qué ejercicio pongo hoy— se toma en otra pantalla. Así que viaja aquí:
+   al selector, a la ficha y a la hoja del entrenamiento. */
+const BIOME = window.COACH_ALE_BIOMECANICA;
+const MODELOS_EJ = window.COACH_ALE_MODELOS;
+
+/* Con sus medidas si las tiene; si no, con un cuerpo de referencia, y
+   diciéndolo cuando el número se enseña con detalle. */
+function cuerpoDelDeportista(){
+  if(!BIOME) return null;
+  const cm = num(S.perfilFisico && S.perfilFisico.altura);
+  const p  = pesoCorporal();
+  return {cuerpo: BIOME.cuerpoDe(cm || 172, p ? p.kg : 72), suyo: !!(cm && p)};
+}
+
+/* El mejor peso que haya levantado de verdad en ese ejercicio. Se calcula
+   una vez por pintada y no una vez por fila. */
+let _cargasVistas = null;
+function cargasConocidas(){
+  if(_cargasVistas) return _cargasVistas;
+  const m = {};
+  for(const k in S.logs){
+    for(const e of ((S.logs[k].workout||{}).ex || [])){
+      for(const st of (e.sets||[])){
+        if(st.p) continue;
+        const w = num(st.w);
+        if(w > (m[e.name] || 0)) m[e.name] = w;
+      }
+    }
+  }
+  return (_cargasVistas = m);
+}
+const olvidarCargas = ()=>{ _cargasVistas = null; };
+
+/* Para decir dónde pesa más sin soltar un tecnicismo. */
+const EJE_CORTO = [
+  [/rodilla/i, "con la rodilla a"], [/codo/i, "con el codo a"],
+  [/torso|tronco/i, "con el torso a"], [/brazo/i, "con el brazo a"],
+  [/cadera/i, "con la cadera a"], [/tobillo/i, "con el tobillo a"],
+  [/pierna/i, "con las piernas a"], [/apertura/i, "con la apertura a"]
+];
+const frasePico = ejeX => (EJE_CORTO.find(([re])=>re.test(ejeX||"")) || [])[1] || "";
+
+/* El músculo principal y, si todavía cabe en una línea de teléfono, el
+   segundo. Una sentadilla no es solo cuádriceps y decirlo a medias es
+   peor que no decirlo. */
+function musculosCortos(k){
+  const uno = k.musc || "";
+  /* No se añade el segundo si ya es largo o si el primero ya enumera: salía
+     "Erectores y glúteo y cuádriceps", con dos "y" seguidas. */
+  if(!k.musc2 || uno.length > 18 || /\sy\s|,/.test(uno)) return uno;
+  const dos = k.musc2.split(/[ ,]/)[0].toLowerCase();
+  return `${uno} y ${dos}`;
+}
+
+function mecanicaDe(nombre, carga){
+  const m = MODELOS_EJ && MODELOS_EJ[nombre];
+  if(!m) return null;
+  if(m.descrito) return {descrito:true, art:m.art, musc:m.musc, porque:m.porque};
+  const c = cuerpoDelDeportista();
+  if(!c) return null;
+  /* De dónde sale el peso importa: no es lo mismo tu número que uno de
+     referencia, y la ficha lo dice con esas palabras. */
+  let kg, fuente;
+  if(carga != null && carga > 0){ kg = carga; fuente = "hoy"; }
+  else if(cargasConocidas()[nombre] > 0){ kg = cargasConocidas()[nombre]; fuente = "historial"; }
+  else { kg = m.carga || 0; fuente = "referencia"; }
+  let r; try{ r = BIOME.calcular(m, c.cuerpo, kg, {}); }catch(e){ return null; }
+  if(!r || !r.pico) return null;
+  const f = frasePico(r.ejeX);
+  return {
+    art:r.art, musc:r.musc, art2:r.art2, musc2:r.musc2,
+    pico:r.pico.torque, pico2: r.pico2 ? r.pico2.torque2 : null,
+    donde: f ? `${f} ${Math.round(r.pico.ang)}°` : "",
+    carga: kg, fuente, cuerpoSuyo: c.suyo, nota: m.nota
+  };
 }
 
 /* La biblioteca (ejercicios.js) es la fuente: las plantillas eligen de ahí.
@@ -3603,6 +3689,7 @@ function abrirBiblioteca(i){
 
 let bibSoloMios = true;          // por defecto, solo lo que puedes hacer
 function pintarBiblioteca(){
+  olvidarCargas();
   const gr = document.getElementById("bibGrupos");
   gr.innerHTML = `<button class="chipg ${bibGrupo?"":"on"}" data-bg="">Todos</button>` +
     GRUPOS.filter(g=> bibSoloMios ? ejerciciosDe(g.id).length : EJ_POR_GRUPO[g.id]).map(g=>
@@ -3627,13 +3714,26 @@ function pintarBiblioteca(){
   const bf = document.getElementById("bibFiltro");
   if(bf) bf.onclick = ()=>{ bibSoloMios = !bibSoloMios; pintarBiblioteca(); };
 
+  /* La mecánica, una vez por ejercicio y no una por cada hueco donde se
+     enseña: la plantilla la pedía dos veces por fila. En un mapa aparte,
+     que los objetos de la biblioteca son compartidos y no son sitio para
+     guardar algo que cambia con el peso del día. */
+  const mec = new Map(filtrados.map(x => [x.n, mecanicaDe(x.n)]));
+
   document.getElementById("bibLista").innerHTML = filtrados.length
     ? filtrados.map(x=>`
         <div class="bibi">
           <button class="bibsel" data-bs="${esc(x.n)}">
             <span class="pt" style="background:${colorGrupo(x.g)}"></span>
-            <span class="tx"><b>${esc(x.n)}</b><span>${nombreGrupo(x.g)} · ${esc(x.eq)}</span></span>
+            <span class="tx"><b>${esc(x.n)}</b><span>${(()=>{
+              const k = mec.get(x.n);
+              return esc(k ? musculosCortos(k) : nombreGrupo(x.g));
+            })()} · ${esc(x.eq)}</span></span>
           </button>
+          ${(()=>{ const k = mec.get(x.n);
+            return k && !k.descrito && k.pico > 0
+              ? `<span class="bibtq" title="Torque máximo en ${esc(k.art)}">${
+                  Math.round(k.pico)}<i>N·m</i></span>` : ""; })()}
           <button class="exinfo" data-bi="${esc(x.n)}" title="Cómo se hace">ⓘ</button>
         </div>`).join("")
     : `<div class="empty">Ningún ejercicio con ese nombre.<br>
@@ -3673,6 +3773,41 @@ document.getElementById("bibModal").onclick = e=>{
 
 /* ---------------- ficha del ejercicio ---------------- */
 
+/* Qué articulación trabaja, cuánto le toca aguantar y en qué punto del
+   recorrido es más duro. Lo que no se puede calcular lleva escrito por qué. */
+function bloqueMecanica(nombre){
+  const k = mecanicaDe(nombre);
+  if(!k) return "";
+  if(k.descrito) return `
+    <div class="fibloque mec">
+      <span>Qué estás trabajando</span>
+      <p><b>${esc(k.art)}</b> · ${esc(k.musc)}</p>
+      <p class="porque">${esc(k.porque)}</p>
+    </div>`;
+
+  const seg = k.pico2 > 0 && k.art2
+    ? `<div class="mecfila"><b>${Math.round(k.pico2)}</b><i>N·m</i>
+         <span>${esc(k.art2)}${k.musc2 ? " · " + esc(k.musc2) : ""}</span></div>` : "";
+  return `
+    <div class="fibloque mec">
+      <span>Qué estás trabajando</span>
+      <div class="mecfila"><b>${Math.round(k.pico)}</b><i>N·m</i>
+        <span>${esc(k.art)}${k.musc ? " · " + esc(k.musc) : ""}</span></div>
+      ${seg}
+      <p>${k.donde ? `Lo más duro, <b>${esc(k.donde)}</b>. ` : ""}Calculado con
+        ${k.carga > 0
+          ? `<b>${fmt(k.carga)} kg</b>` + (
+              k.fuente === "hoy" ? ", el peso que llevas puesto hoy" :
+              k.fuente === "historial" ? ", el peso más alto que has levantado aquí" :
+              ", un peso de referencia porque todavía no has hecho este ejercicio")
+          : "tu propio peso"}${
+        k.cuerpoSuyo ? ", y con tus medidas"
+                     : ", y con un cuerpo de referencia porque falta tu estatura o tu peso"}.</p>
+      ${k.nota ? `<p class="porque">${k.nota}</p>` : ""}
+    </div>`;
+}
+
+
 function abrirFicha(nombre){
   const f = fichaEjercicio(nombre);
   if(!f) return;
@@ -3684,6 +3819,7 @@ function abrirFicha(nombre){
          window.COACH_ALE_EJERCICIOS.cuerpoSVG(f.g, colorGrupo(f.g)) : ""}
       <span>Esquema del músculo que trabaja</span>
     </div>
+    ${bloqueMecanica(f.n)}
     <div class="fibloque sentir">
       <span>Dónde deberías sentirlo</span>
       <p>${esc(f.s)}</p>
@@ -4250,6 +4386,7 @@ function addExercise(silent){
   if(!silent) renderExercises();
 }
 function renderExercises(){
+  olvidarCargas();
   const w = dayLog(cur).workout;
   /* Redibujar la lista mandaba la ventana arriba del todo cada vez que
      elegías un ejercicio o añadías una serie. */
@@ -4272,6 +4409,18 @@ function renderExercises(){
         </select>
         <span data-exs="${i}">${seriesHechas(e)} ${seriesHechas(e)===1?"serie":"series"}</span>
       </div>
+      ${(()=>{
+        /* Con el peso que lleva puesto hoy: así el número es el suyo de hoy
+           y no una referencia. */
+        const kg = Math.max(0, ...(e.sets||[]).map(st=>num(st.w)));
+        const k = mecanicaDe(e.name, kg);
+        if(!k) return "";
+        if(k.descrito) return `<div class="exmec"><b>${esc(k.musc)}</b></div>`;
+        /* Sin repetir la articulación: ya la nombra "lo más duro con la…". */
+        return `<div class="exmec"><b>${esc(musculosCortos(k))}</b>${
+          k.pico > 0 ? ` · ${Math.round(k.pico)} N·m` : ""}${
+          k.donde ? ` · lo más duro ${esc(k.donde)}` : ` · en ${esc(k.art.toLowerCase())}`}</div>`;
+      })()}
       ${(e.sets||[]).map((st,j)=>`
         <div class="setrow${st.p ? " prop" : ""}">
           <button class="setn" data-sok="${i}.${j}" title="${st.p ? "Marcar serie hecha" : "Serie hecha"}">${st.p ? "○" : j+1}</button>
