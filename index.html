@@ -175,11 +175,14 @@
       <div class="stitle">🔬 Laboratorio de torque</div>
       <div class="panel">
         <p style="margin:0 0 10px;font-size:13.5px;color:var(--tx2)">
-          Mover el pie en la plataforma de la prensa no es comodidad: cambia dónde cae la
-          línea de fuerza y con eso cuánto trabajo le toca a la rodilla y cuánto a la cadera.
-          Aquí se ve el cálculo, con tus propias medidas.</p>
-        <a class="btn ghost" style="display:block;text-align:center;text-decoration:none"
-           href="laboratorio.html">Abrir el laboratorio</a>
+          Cuánto le toca a cada músculo en cada ejercicio no depende solo del peso: depende
+          de dónde cae la línea de fuerza respecto a tus articulaciones. Eso se calcula, y
+          para calcularlo con tu cuerpo hace falta tu estatura.</p>
+        <label class="f"><span>Tu estatura (cm)</span>
+          <input class="inp" id="altura" type="number" inputmode="numeric"
+                 min="130" max="220" step="1" placeholder="Por ejemplo, 172"></label>
+        <a class="btn ghost" style="display:block;text-align:center;text-decoration:none;margin-top:4px"
+           href="laboratorio.html">Abrir el laboratorio · los 99 ejercicios</a>
       </div>
     </section>
     <section>
@@ -575,7 +578,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.10.08-1";
+const APP_VERSION = "2026.10.08-2";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1486,6 +1489,8 @@ function load(){
         if(e && !e.peso) e.peso = 3;
         d.v = 11;
       }
+      /* Va después del 11 a propósito, por lo mismo que el 10. */
+      if(d.v < 12){ d.perfilFisico = d.perfilFisico || {}; d.v = 12; }  // estatura
       d.theme ||= "light";
       d.settings = Object.assign({}, DEF_SETTINGS, d.settings||{});
       d.settings.rem  = Object.assign({}, DEF_SETTINGS.rem,  d.settings.rem||{});
@@ -1521,7 +1526,7 @@ function load(){
       }
     }catch(e2){}
   }
-  return {v:11, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light",
+  return {v:12, habits: DEF_HABITS.map(h=>({...h})), logs:{}, theme:"light", perfilFisico:{},
           salud: {...DEF_SALUD}, material: {...DEF_MATERIAL},
           settings: JSON.parse(JSON.stringify(DEF_SETTINGS))};
 }
@@ -1545,7 +1550,7 @@ function touch(){
   /* La firma decide qué se considera "configuración cambiada". Si el nivel
      y la rutina no entran aquí, se guardan en el teléfono pero nunca suben. */
   const meta = JSON.stringify({h:S.habits, s:S.settings, t:S.theme, sa:S.salud,
-                               n:S.nivel, r:S.rutina, m:S.material});
+                               n:S.nivel, r:S.rutina, m:S.material, pf:S.perfilFisico});
   if(_sig.meta !== undefined && _sig.meta !== meta) S.metaMt = now;
   _sig.meta = meta;
   const l = S.logs[cur];
@@ -3666,7 +3671,7 @@ document.getElementById("bibModal").onclick = e=>{
 /* Solo donde el pie se apoya en una plataforma y moverlo es la variable:
    el laboratorio modela la prensa, no la sentadilla libre, y enlazarlo desde
    una sentadilla en pared sería prometer algo que la página no calcula. */
-const CON_LABORATORIO = /prensa|hack/i;
+const CON_LABORATORIO = /./;   // el laboratorio ya cubre los 99
 
 function abrirFicha(nombre){
   const f = fichaEjercicio(nombre);
@@ -3688,7 +3693,7 @@ function abrirFicha(nombre){
     </div>
     ${CON_LABORATORIO.test(f.n) ? `
     <a class="btn ghost" style="display:block;text-align:center;text-decoration:none;margin-top:12px"
-       href="laboratorio.html">🔬 Dónde apoyas el pie cambia el músculo · ver el cálculo</a>` : ""}`;
+       href="laboratorio.html">🔬 Ver el torque de este ejercicio con tus medidas</a>` : ""}`;
   document.getElementById("fiModal").classList.add("open");
 }
 document.getElementById("fiClose").onclick = ()=> document.getElementById("fiModal").classList.remove("open");
@@ -4054,9 +4059,29 @@ function renderTurnos(){
     save(); renderTurnos();
   };
 }
+/* La estatura: de ella salen los largos de los segmentos con los que el
+   laboratorio calcula los brazos de palanca. */
+function renderAltura(){
+  const el = document.getElementById("altura");
+  if(!el) return;
+  el.value = (S.perfilFisico && S.perfilFisico.altura) || "";
+  el.onchange = ()=>{
+    const v = parseFloat(el.value);
+    if(!v){ S.perfilFisico = Object.assign({}, S.perfilFisico, {altura:0}); save(); return; }
+    if(v < 130 || v > 220){
+      toast("Esa estatura no cuadra");
+      el.value = (S.perfilFisico && S.perfilFisico.altura) || "";
+      return;
+    }
+    S.perfilFisico = Object.assign({}, S.perfilFisico, {altura:Math.round(v)});
+    save(); toast("Estatura guardada");
+  };
+}
+
 function renderSettings(){
   renderObjetivo(); renderNivel(); renderMaterial(); renderRutina(); renderSyncPanel(); renderDondeViven();
-  renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits(); }
+  renderInstall(); renderRem(); renderWake(); renderTurnos(); renderHabits();
+  renderAltura(); }
 
 /* ============================================================
    MODAL HÁBITO
@@ -4555,7 +4580,8 @@ function aFilas(){
   }
   return {
     config: {datos:{habits:S.habits, settings:S.settings, theme:S.theme, salud:S.salud,
-                    nivel:S.nivel, rutina:S.rutina, material:S.material, v:S.v}, mt: S.metaMt||0},
+                    nivel:S.nivel, rutina:S.rutina, material:S.material,
+                    perfilFisico:S.perfilFisico, v:S.v}, mt: S.metaMt||0},
     dias
   };
 }
@@ -4602,6 +4628,7 @@ async function syncNow(manual){
       if("nivel"  in rc.datos) S.nivel  = rc.datos.nivel;
       if("rutina" in rc.datos) S.rutina = rc.datos.rutina;
       if("material" in rc.datos) S.material = rc.datos.material;
+      if("perfilFisico" in rc.datos) S.perfilFisico = rc.datos.perfilFisico;
       S.metaMt = rc.mt; cambio = true;
       if(rc.corregida) subirConfig = aFilas().config;
     }else if(!rc || (S.metaMt||0) > (rc.mt||0)){

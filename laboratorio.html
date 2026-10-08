@@ -14,8 +14,9 @@
   :root{--q0:#38bdf8; --c:#fbbf24; --f:#c084fc}
   :root[data-theme="light"]{--q0:#0284c7; --c:#b45309; --f:#7c3aed}
 
-  .volver{font-size:13px;font-weight:700;color:var(--accent);padding:10px 0;display:inline-block;text-decoration:none}
-  .lead{font-size:14.5px;color:var(--tx2);margin:0 0 18px}
+  .volver{font-size:13px;font-weight:700;color:var(--accent);padding:10px 0;
+    display:inline-block;text-decoration:none;background:none}
+  .lead{font-size:14.5px;color:var(--tx2);margin:0 0 16px}
   .lead b{color:var(--tx)}
 
   .lab{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
@@ -23,73 +24,71 @@
   .lab > h2{font-size:15px;margin:0 0 4px}
   .lab > .sub{font-size:12px;color:var(--tx3);margin:0 0 12px}
 
-  .dibujo{width:100%;display:block;color:var(--tx)}
+  /* ---- antropometría ---- */
+  .medidas{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .medidas label{display:block;font-size:11.5px;font-weight:700;color:var(--tx2);margin-bottom:4px}
+  .medidas input{width:100%;padding:10px 12px;border-radius:12px;background:var(--card2);
+    border:1px solid var(--line);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+  .derivadas{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .derivadas span{font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:99px;
+    background:var(--card2);border:1px solid var(--line);color:var(--tx2)}
+  .derivadas b{color:var(--tx);font-variant-numeric:tabular-nums}
 
-  /* ---- marcadores ---- */
+  /* ---- lista ---- */
+  .buscar{width:100%;padding:12px 14px;border-radius:14px;background:var(--card2);
+    border:1px solid var(--line);font-size:15px;margin-bottom:10px}
+  .chipsg{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .chipg{font-size:12px;font-weight:700;padding:7px 12px;border-radius:99px;
+    border:1px solid var(--line);background:var(--card2);color:var(--tx2)}
+  .chipg.on{border-color:var(--accent);background:var(--accent2);color:var(--accent)}
+  .fila{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    padding:11px 2px;border-top:1px solid var(--line);background:none}
+  .fila:first-child{border-top:none}
+  .fila .nm{flex:1;min-width:0}
+  .fila .nm b{display:block;font-size:14px;font-weight:700}
+  .fila .nm span{font-size:11.5px;color:var(--tx3)}
+  .fila .tq{font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .fila .tq i{font-style:normal;font-size:10.5px;font-weight:700;color:var(--tx3)}
+  .fila .tq.no{font-size:11.5px;font-weight:700;color:var(--tx3)}
+  .gtit{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:800;
+    color:var(--tx3);margin:16px 0 2px}
+  .gtit:first-child{margin-top:0}
+
+  /* ---- detalle ---- */
+  .cab{display:flex;align-items:flex-start;gap:10px;margin-bottom:4px}
+  .cab h1{font-size:21px;margin:0;flex:1}
   .lecturas{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 0}
+  .lecturas.sola{grid-template-columns:1fr}
   .lec{background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:11px 12px}
   .lec span{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;
     font-weight:800;color:var(--tx3);margin-bottom:3px}
   .lec b{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
   .lec i{font-style:normal;font-size:12px;font-weight:700;color:var(--tx3);margin-left:3px}
   .lec em{display:block;font-style:normal;font-size:11.5px;color:var(--tx3);margin-top:3px}
-  .lec.q b{color:var(--q0)} .lec.c b{color:var(--c)}
-  .lec.q.flex b{color:var(--f)}
+  .lec.a b{color:var(--q0)} .lec.b b{color:var(--c)}
 
-  .reparto{margin-top:10px}
-  .barra{display:flex;height:16px;border-radius:99px;overflow:hidden;border:1px solid var(--line)}
-  .barra i{display:block}
-  .barra .bq{background:var(--q0)} .barra .bc{background:var(--c)}
-  .pies{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;margin-top:6px}
-  .pies .pq{color:var(--q0)} .pies .pc{color:var(--c)}
-  .pies.flex .pq{color:var(--f)}
+  .grafico{width:100%;display:block;color:var(--tx)}
+  .dibujo{width:100%;display:block;color:var(--tx);max-height:300px}
+  .leyenda{display:flex;gap:14px;font-size:11.5px;font-weight:700;margin-top:6px;flex-wrap:wrap}
+  .leyenda i{font-style:normal;display:inline-flex;align-items:center;gap:5px}
+  .leyenda u{text-decoration:none;width:14px;height:3px;border-radius:2px;display:inline-block}
 
-  .veredicto{margin-top:12px;background:var(--accent2);border:1px solid var(--line);
-    border-radius:13px;padding:11px 12px;font-size:13.5px;line-height:1.45}
-  .veredicto b{color:var(--tx)}
-  .aviso{margin-top:10px;font-size:12.5px;color:#f59e0b;font-weight:600}
-
-  /* ---- controles ---- */
   .ctrl{margin-top:14px}
   .ctrl label{display:block;font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:5px}
   .ctrl label b{color:var(--tx);font-variant-numeric:tabular-nums}
   .ctrl input[type=range]{width:100%;margin:0;accent-color:var(--accent)}
   .extremos{display:flex;justify-content:space-between;font-size:11px;color:var(--tx3);margin-top:2px}
-  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
-  .presets button{font-size:12px;font-weight:700;padding:7px 12px;border-radius:99px;
-    border:1px solid var(--line);background:var(--card2);color:var(--tx2)}
-  .presets button.on{border-color:var(--accent);background:var(--accent2);color:var(--accent)}
 
-  .medidas{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
-  .medidas label{display:block;font-size:11.5px;font-weight:700;color:var(--tx2);margin-bottom:4px}
-  .medidas input{width:100%;padding:10px 12px;border-radius:12px;background:var(--card2);
-    border:1px solid var(--line);font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
-
-  /* ---- tabla comparativa ---- */
-  .comp{width:100%;border-collapse:collapse;margin-top:4px}
-  .comp th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);
-    text-align:right;padding:0 6px 8px;font-weight:800}
-  .comp th:first-child{text-align:left}
-  .comp td{padding:10px 6px;border-top:1px solid var(--line);font-size:13.5px;
-    text-align:right;font-variant-numeric:tabular-nums}
-  .comp td:first-child{text-align:left;font-weight:700}
-  .comp tr.aqui td{background:var(--card2)}
-  .comp .dq{color:var(--q0);font-weight:700} .comp .dc{color:var(--c);font-weight:700}
-  .comp .df{color:var(--f);font-weight:700}
-
-  /* ---- plano frontal ---- */
-  .fcards{display:grid;gap:10px}
-  .fc{background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:12px}
-  .fc b{display:block;font-size:13.5px;margin-bottom:4px}
-  .fc p{margin:0;font-size:13px;color:var(--tx2);line-height:1.5}
-  .fc p + p{margin-top:6px}
-  .fc .musc{font-weight:700;color:var(--tx)}
+  .nota{margin-top:12px;background:var(--accent2);border:1px solid var(--line);
+    border-radius:13px;padding:11px 12px;font-size:13.5px;line-height:1.5}
+  .nota b{color:var(--tx)}
+  .porque{margin-top:12px;background:var(--card2);border:1px solid var(--line);
+    border-radius:13px;padding:12px;font-size:13.5px;line-height:1.5;color:var(--tx2)}
+  .porque b{display:block;color:var(--tx);font-size:12.5px;margin-bottom:5px}
 
   .limites li{font-size:13px;color:var(--tx2);line-height:1.5;margin-bottom:7px}
-  @media (max-width:520px){
-    .lecturas{grid-template-columns:1fr}
-    .medidas{grid-template-columns:1fr}
-  }
+  .limites b{color:var(--tx)}
+  @media (max-width:520px){ .lecturas, .medidas{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -107,482 +106,216 @@
 </header>
 
 <main class="wrap">
-  <a class="volver" href="index.html">‹ Volver a la app</a>
-  <h1 style="font-size:22px;margin:4px 0 8px">Laboratorio de torque</h1>
-  <p class="lead">Cuando mueves el pie en la plataforma de la prensa no cambias la comodidad:
-    cambias <b>dónde cae la línea de fuerza</b> respecto a tu cadera y tu rodilla. Esa distancia
-    es el brazo de palanca, y el brazo de palanca por la fuerza es el torque que tiene que
-    aguantar el músculo. Mueve el pie y mira cómo se reparte.</p>
+  <button class="volver" id="atras">‹ Volver</button>
 
-  <section class="lab">
-    <h2>La prensa, de perfil</h2>
-    <p class="sub">La línea punteada larga es por dónde empuja la máquina. Las dos punteadas
-      cortas son los brazos de palanca: lo que le toca a la rodilla y lo que le toca a la cadera.</p>
-    <div id="dibujo"></div>
+  <!-- ================= LISTA ================= -->
+  <div id="vista-lista">
+    <h1 style="font-size:22px;margin:4px 0 8px">Laboratorio de torque</h1>
+    <p class="lead">Un músculo no levanta kilos: aguanta giros. El giro que tiene que aguantar
+      es el peso por la distancia perpendicular entre la articulación y la línea por donde tira
+      ese peso — el <b>brazo de palanca</b>. Por eso el mismo peso pesa distinto según dónde esté,
+      y por eso mover el pie, la mano o el torso cambia qué músculo trabaja.
+      Aquí está ese cálculo para los 99 ejercicios de la biblioteca, con tus medidas.</p>
 
-    <div class="lecturas">
-      <div class="lec q">
-        <span>Torque en la rodilla</span>
-        <b id="tqRod">—</b><i>N·m</i>
-        <em id="brRod"></em>
+    <section class="lab">
+      <h2>Tus medidas</h2>
+      <p class="sub">De la estatura salen los largos de tus segmentos y del peso sus masas,
+        con las tablas antropométricas de Dempster. Cambia la estatura y cambian todos
+        los números de abajo.</p>
+      <div class="medidas">
+        <div>
+          <label for="inAltura">Estatura (cm)</label>
+          <input id="inAltura" type="number" inputmode="numeric" min="130" max="220" step="1">
+        </div>
+        <div>
+          <label for="inPeso">Peso corporal (kg)</label>
+          <input id="inPeso" type="number" inputmode="numeric" min="30" max="200" step="0.5">
+        </div>
       </div>
-      <div class="lec c">
-        <span>Torque en la cadera</span>
-        <b id="tqCad">—</b><i>N·m</i>
-        <em id="brCad"></em>
-      </div>
-    </div>
+      <div class="derivadas" id="derivadas"></div>
+    </section>
 
-    <div class="reparto">
-      <div class="barra"><i class="bq" id="bq"></i><i class="bc" id="bc"></i></div>
-      <div class="pies">
-        <span class="pq" id="pq">Rodilla · cuádriceps</span>
-        <span class="pc" id="pc">Cadera · glúteo y aductor</span>
-      </div>
-    </div>
+    <section class="lab">
+      <h2>Los ejercicios</h2>
+      <p class="sub">El número es el torque máximo del recorrido, por extremidad,
+        con una carga de referencia que puedes cambiar en cada ficha.</p>
+      <input class="buscar" id="buscar" placeholder="Buscar ejercicio…" autocomplete="off">
+      <div class="chipsg" id="grupos"></div>
+      <div id="lista"></div>
+    </section>
 
-    <div class="veredicto" id="veredicto"></div>
-    <div class="aviso hidden" id="aviso"></div>
+    <section class="lab">
+      <h2>Qué sabe y qué no sabe este laboratorio</h2>
+      <ul class="limites">
+        <li><b>Mide demanda, no activación.</b> El torque dice cuánto giro tiene que aguantar
+          la articulación. Cuánto músculo se enciende con eso es otra pregunta: la dirección
+          de la flecha es sólida, el tamaño exacto del salto lo es menos.</li>
+        <li><b>No compares entre ejercicios distintos para saber cuál es "más duro".</b>
+          Una elevación lateral con 14 kilos da más torque de hombro que un press militar con 35,
+          y es verdad — pero el press carga dos articulaciones, dos brazos y el tríceps entero.
+          El número sirve para comparar <i>el mismo ejercicio consigo mismo</i> cuando cambias
+          algo: el peso, la posición, la profundidad.</li>
+        <li><b>Es un modelo en un plano.</b> Lo que pasa de frente o en rotación —ancho de pies,
+          puntas afuera, apertura de codos— entra solo como corrección, cuando entra.</li>
+        <li><b>Las máquinas con leva no se pueden calcular desde fuera.</b> La curva de resistencia
+          la decide una pieza del fabricante. Los ejercicios donde eso manda están marcados y
+          explicados, sin número inventado.</li>
+        <li><b>Las bandas elásticas no pesan: tiran según cuánto las estires.</b> Su curva es la
+          contraria a la de una mancuerna, y por eso no se pueden comparar en kilos.</li>
+        <li><b>Las proporciones son promedios de población.</b> Si tienes el fémur largo o los
+          brazos cortos para tu estatura, tus números reales se corren. El modelo usa un cuerpo
+          del porte correcto, no el tuyo exacto.</li>
+      </ul>
+    </section>
+  </div>
 
-    <div class="ctrl">
-      <label>Pie en la plataforma: <b id="lbPie">al medio</b></label>
-      <input type="range" id="inPie" min="-12" max="12" step="1" value="0">
-      <div class="extremos"><span>12 cm más abajo</span><span>12 cm más arriba</span></div>
-    </div>
-
-    <div class="presets">
-      <button data-pie="-10">Pie abajo</button>
-      <button data-pie="0">Pie al medio</button>
-      <button data-pie="10">Pie arriba</button>
-    </div>
-
-    <div class="ctrl">
-      <label>Ángulo de rodilla: <b id="lbRod">—</b></label>
-      <input type="range" id="inRod" min="70" max="165" step="1" value="105">
-      <div class="extremos"><span>abajo del todo</span><span>casi estirada</span></div>
-    </div>
-
-    <div class="medidas">
-      <div>
-        <label for="inCarga">Peso en el carro (kg)</label>
-        <input id="inCarga" type="number" inputmode="numeric" min="0" max="600" step="5" value="150">
-      </div>
-      <div>
-        <label for="inCarro">Peso del carro vacío (kg)</label>
-        <input id="inCarro" type="number" inputmode="numeric" min="0" max="150" step="5" value="30">
-      </div>
-      <div>
-        <label for="inMuslo">Tu muslo, cadera a rodilla (cm)</label>
-        <input id="inMuslo" type="number" inputmode="numeric" min="30" max="60" step="1" value="42">
-      </div>
-      <div>
-        <label for="inPierna">Tu pierna, rodilla a tobillo (cm)</label>
-        <input id="inPierna" type="number" inputmode="numeric" min="30" max="60" step="1" value="42">
-      </div>
-    </div>
-  </section>
-
-  <section class="lab">
-    <h2>Los tres pies, con tus medidas</h2>
-    <p class="sub">Mismo ángulo de rodilla, mismo peso. Solo cambia la altura del pie.</p>
-    <table class="comp">
-      <thead>
-        <tr><th>Pie</th><th>Rodilla</th><th>Cadera</th><th>Se lo lleva</th></tr>
-      </thead>
-      <tbody id="compBody"></tbody>
-    </table>
-  </section>
-
-  <section class="lab">
-    <h2>Lo que no se ve de perfil</h2>
-    <p class="sub">El ancho y la orientación del pie trabajan en los otros dos planos. No salen
-      en los números de arriba, y conviene decirlo en vez de inventarles una cifra.</p>
-    <div class="fcards">
-      <div class="fc">
-        <b>Ancho de los pies</b>
-        <p>Abrirlos acerca el fémur a la abducción y deja menos recorrido a la rodilla. La cadera
-          se flexiona parecido pero con el muslo más afuera, y eso le da más trabajo al
-          <span class="musc">aductor mayor</span> —que en la cadera es extensor— y al
-          <span class="musc">glúteo medio</span>, que ahora tiene que impedir que la rodilla se caiga adentro.</p>
-        <p>Juntarlos alarga el recorrido de la rodilla y pide más
-          <span class="musc">cuádriceps</span>, sobre todo vasto lateral. También pide más
-          dorsiflexión de tobillo: si el talón se despega, el pie está demasiado junto o demasiado bajo.</p>
-      </div>
-      <div class="fc">
-        <b>Puntas adentro o afuera</b>
-        <p>Las puntas afuera rotan el fémur hacia fuera y reparten la extensión de cadera entre
-          <span class="musc">glúteo mayor</span> y aductores. Las puntas rectas o levemente
-          adentro concentran más el trabajo en la rodilla.</p>
-        <p>El límite no lo pone el músculo: lo pone tu cadera. La rotación disponible varía mucho
-          de persona a persona, y forzarla es lo que termina doliendo. La regla práctica es que
-          la rodilla siga la dirección del pie en todo el recorrido.</p>
-      </div>
-      <div class="fc">
-        <b>Cuánto pie apoyas</b>
-        <p>Apoyar solo la planta delantera, con el talón afuera de la plataforma, agrega un torque
-          de flexión plantar que tiene que aguantar el <span class="musc">gemelo y el sóleo</span>.
-          El tobillo es la articulación más débil de las tres: cuando se convierte en el eslabón
-          que falla, la pierna deja de recibir el estímulo mucho antes de cansarse.</p>
-        <p>Pie entero apoyado, talón pegado a la plataforma en todo el recorrido. Si no llega,
-          baja menos: no fuerces el rango.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="lab">
-    <h2>Lo que este laboratorio no sabe</h2>
-    <ul class="limites">
-      <li><b>Mide demanda, no activación.</b> El brazo de palanca dice cuánto torque le toca a
-        cada articulación. Cuánto músculo se enciende con eso es otra pregunta: los estudios de
-        electromiografía encuentran diferencias reales entre posiciones del pie, pero modestas.
-        La dirección de la flecha es sólida; el tamaño del salto, menos.</li>
-      <li><b>Es solo el plano de perfil.</b> Ancho y rotación no entran en el cálculo.</li>
-      <li><b>Asume la plataforma perpendicular a los rieles</b>, sin roce y sin multiplicación de
-        poleas. Muchas prensas inclinan la plataforma o tienen reducción: ahí el peso de los
-        discos no es el peso que llega al pie.</li>
-      <li><b>El carro vacío pesa.</b> Suele ir de 20 a 60 kg y no está escrito en ninguna parte.
-        Si lo dejas en cero, el torque sale bajo.</li>
-      <li><b>De los isquios: casi no participan aquí.</b> El torque de cadera lo cubren sobre todo
-        el glúteo mayor y el aductor mayor. El isquio extiende la cadera, sí, pero también flexiona
-        la rodilla, y en la prensa la rodilla se está estirando. Por eso "pie arriba para isquios"
-        es la parte de la receta que la mecánica no sostiene: lo que ganas es glúteo y aductor.</li>
-      <li><b>Tus proporciones cambian el resultado.</b> Para eso están editables el muslo y la
-        pierna: con fémur largo los mismos centímetros de pie pesan distinto.</li>
-    </ul>
-  </section>
+  <!-- ================= DETALLE ================= -->
+  <div id="vista-ficha" class="hidden"></div>
 </main>
 
+<script src="ejercicios.js"></script>
+<script src="biomecanica.js"></script>
+<script src="modelos.js"></script>
 <script>
-/* El tema lo manda la app: si ya elegiste claro u oscuro allá, esta página
-   lo respeta en vez de imponer el suyo. */
-try{
-  const g = JSON.parse(localStorage.getItem("wellness.v1") || "{}");
-  document.documentElement.setAttribute("data-theme", g.theme === "dark" ? "dark" : "light");
-}catch(e){}
+const BIO = window.COACH_ALE_BIOMECANICA;
+const MOD = window.COACH_ALE_MODELOS;
+const EJ  = window.COACH_ALE_EJERCICIOS.lista;
+const CLAVE = "wellness.v1";
 
-/* ===================== El modelo =====================
-
-   Prensa de 45°. La cadera queda fija en el origen. Los rieles corren en la
-   dirección d y la plataforma es perpendicular a ellos, así que toda la
-   resistencia que siente el pie va en la línea de d.
-
-   De ahí sale un resultado limpio: con la plataforma perpendicular, el brazo
-   de palanca de la cadera es exactamente la altura del pie por encima del eje
-   que pasa por la cadera. Subir el pie cinco centímetros son cinco
-   centímetros más de brazo en la cadera, sin más vueltas.
-
-   El de la rodilla hay que calcularlo, porque depende de dónde queda la
-   rodilla, y eso sale de la cinemática inversa del muslo y la pierna.
-   ===================================================== */
-
-const G = 9.81;
-const RAD = Math.PI / 180;
-const ANG_RIEL = 45;            // inclinación de los rieles, en grados
-const PIE_BASE = 16;            // cm que la plataforma queda sobre el eje de la cadera
-
-const E = {pie:0, rodilla:105, carga:150, carro:30, muslo:42, pierna:42};
-
-const d = {x:Math.cos(ANG_RIEL*RAD), y:Math.sin(ANG_RIEL*RAD)};   // eje de los rieles
-const p = {x:-Math.sin(ANG_RIEL*RAD), y:Math.cos(ANG_RIEL*RAD)};  // plataforma
-
-function calcular(pieCm){
-  const Lf = E.muslo/100, Lt = E.pierna/100;
-  const phi = E.rodilla * RAD;
-
-  /* Distancia de la cadera al pie: la da el ángulo de rodilla por el teorema
-     del coseno. Es la misma sea donde sea que pongas el pie. */
-  const D = Math.sqrt(Lf*Lf + Lt*Lt - 2*Lf*Lt*Math.cos(phi));
-
-  /* Altura pedida del pie. Si pides más altura que el largo de la pierna
-     estirada, la posición no existe: se avisa y se recorta. */
-  const pedida = (PIE_BASE + pieCm) / 100;
-  const tope = D - 0.03;
-  const h = Math.min(pedida, tope);
-  const fuera = pedida > tope;
-
-  const s = Math.sqrt(Math.max(0, D*D - h*h));
-  const F = {x: s*d.x + h*p.x, y: s*d.y + h*p.y};        // el pie
-
-  /* Rodilla por cinemática inversa: el codo del triángulo cadera-rodilla-pie,
-     elegido del lado que corresponde (la rodilla sube hacia el pecho). */
-  const u = {x:F.x/D, y:F.y/D};
-  const n = {x:-u.y, y:u.x};
-  const a = (D*D + Lf*Lf - Lt*Lt) / (2*D);
-  const alto = Math.sqrt(Math.max(0, Lf*Lf - a*a));
-  const K = {x: u.x*a + n.x*alto, y: u.y*a + n.y*alto};
-
-  /* Brazo de palanca = distancia perpendicular de la articulación a la línea
-     de fuerza, que pasa por el pie en la dirección de los rieles.
-
-     Con signo, y no en valor absoluto: lo que importa no es solo cuánto
-     brazo hay, sino a qué lado de la articulación pasa la línea. Si pasa
-     al otro lado de la rodilla, el torque deja de pedir cuádriceps y pasa
-     a pedir flexores. Positivo = lo aguantan los extensores. */
-  const cruz = (A, B) => A.x*B.y - A.y*B.x;
-  const rCad = h;                                   // + = pide extensores de cadera
-  const rRod = cruz({x:F.x - K.x, y:F.y - K.y}, d);  // + = pide cuádriceps
-
-  /* Pie de la perpendicular, para poder dibujarla. */
-  const pieDe = P => {
-    const t = (P.x - F.x)*d.x + (P.y - F.y)*d.y;
-    return {x: F.x + t*d.x, y: F.y + t*d.y};
-  };
-
-  /* Fuerza que llega al pie: la componente del peso a lo largo de los rieles. */
-  const fuerza = (E.carga + E.carro) * G * Math.sin(ANG_RIEL*RAD);
-
-  /* Flexión de cadera: el ángulo entre el muslo y el eje del tronco, que en
-     una prensa de 45° va paralelo a los rieles. */
-  const nK = Math.hypot(K.x, K.y) || 1;
-  const flexCad = Math.acos(Math.min(1, Math.max(-1, (K.x*d.x + K.y*d.y)/nK))) / RAD;
-
-  const aRod = Math.abs(rRod), aCad = Math.abs(rCad);
-  return {
-    D, h, F, K, rCad, rRod, aRod, aCad, fuerza, fuera, flexCad,
-    qCad: pieDe({x:0, y:0}), qRod: pieDe(K),
-    flexorRod: rRod < 0,                            // la rodilla pide isquios
-    tqCad: fuerza * aCad,
-    tqRod: fuerza * aRod,
-    cuotaRod: (aRod + aCad) > 0 ? aRod/(aRod + aCad) : 0.5
-  };
+/* ---------- estado compartido con la app ---------- */
+function leerEstado(){
+  try{ return JSON.parse(localStorage.getItem(CLAVE) || "{}"); }catch(e){ return {}; }
+}
+function guardarMedidas(altura){
+  try{
+    const st = leerEstado();
+    if(!st.v) return;                       // la app todavía no ha guardado nada
+    st.perfilFisico = Object.assign({}, st.perfilFisico, {altura});
+    st.metaMt = Date.now();                 // para que la nube se entere
+    localStorage.setItem(CLAVE, JSON.stringify(st));
+  }catch(e){}
+}
+/* El peso sale de la última medición que haya registrado el deportista. */
+function pesoDeLaApp(st){
+  let mejor = null;
+  for(const k in (st.logs||{})){
+    const kg = Number(st.logs[k] && st.logs[k].cuerpo && st.logs[k].cuerpo.peso);
+    if(kg > 0 && (!mejor || k > mejor.f)) mejor = {f:k, kg};
+  }
+  return mejor;
+}
+/* El peso que usa de verdad en cada ejercicio, si lo tiene registrado. */
+function cargaDeLaApp(st, nombre){
+  let mejor = 0;
+  for(const k in (st.logs||{})){
+    for(const e of ((st.logs[k].workout||{}).ex || [])){
+      if(e.name !== nombre) continue;
+      for(const s of (e.sets||[])){
+        if(s.p) continue;                    // planeada, no hecha
+        const w = Number(s.w);
+        if(w > mejor) mejor = w;
+      }
+    }
+  }
+  return mejor;
 }
 
-/* ===================== El dibujo ===================== */
+const st0 = leerEstado();
+document.documentElement.setAttribute("data-theme", st0.theme === "dark" ? "dark" : "light");
 
-const SC = 200, OX = 115, OY = 265;                 // 1 metro = 200 px
-const X = pt => (OX + pt.x*SC).toFixed(1);
-const Y = pt => (OY - pt.y*SC).toFixed(1);
-const mas = (A, v, k) => ({x:A.x + v.x*k, y:A.y + v.y*k});
+const medidaPeso = pesoDeLaApp(st0);
+let ALTURA = Number((st0.perfilFisico||{}).altura) || 172;
+let PESO   = medidaPeso ? medidaPeso.kg : 72;
+let CUERPO = BIO.cuerpoDe(ALTURA, PESO);
 
-function dibujar(r){
-  const centro = mas(r.F, p, -E.pie/100);           // centro de la plataforma
-  const linA = mas(r.F, d, -0.40), linB = mas(r.F, d, 0.26);
-  /* El riel sale desde la plataforma hacia afuera y no hacia la cadera:
-     geométricamente también está del otro lado, pero dibujarlo ahí lo hacía
-     cruzar la pierna y se leía como si fuera parte del deportista. */
-  const rielA = mas(centro, d, 0.03);
-  const rielB = mas(centro, d, 0.62);
-  const cabeza = mas({x:0,y:0}, d, -0.42);
-  const cuello = mas({x:0,y:0}, d, -0.34);
-  const flechaA = mas(r.F, d, -0.04), flechaB = mas(r.F, d, -0.26);
+/* ---------- utilidades ---------- */
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const $ = id => document.getElementById(id);
+const NOMBRE_GRUPO = {pecho:"Pecho", espalda:"Espalda", hombros:"Hombros", biceps:"Bíceps",
+  triceps:"Tríceps", pierna:"Pierna", gluteo:"Glúteo", core:"Core"};
+const ORDEN = ["pecho","espalda","hombros","biceps","triceps","pierna","gluteo","core"];
 
-  document.getElementById("dibujo").innerHTML = `
-  <svg viewBox="-46 28 352 322" class="dibujo" role="img"
-       aria-label="Esquema de la prensa de piernas con los brazos de palanca de cadera y rodilla">
-    <defs>
-      <marker id="pta" viewBox="0 0 10 10" refX="9" refY="5"
-              markerWidth="5" markerHeight="5" orient="auto">
-        <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
-      </marker>
-    </defs>
+let filtro = "", grupoSel = "";
+const cargas = {};        // lo que el usuario escriba en cada ficha
 
-    <!-- rieles por donde corre el carro -->
-    <g stroke="currentColor" stroke-opacity=".17" stroke-width="2.5" stroke-linecap="round">
-      <line x1="${X(rielA)}" y1="${Y(rielA)}" x2="${X(rielB)}" y2="${Y(rielB)}"/>
-    </g>
-
-    <!-- respaldo y asiento -->
-    <g stroke="currentColor" stroke-opacity=".3" stroke-width="9"
-       stroke-linecap="round" fill="none">
-      <line x1="${X({x:0,y:0})}" y1="${Y({x:0,y:0})}" x2="${X(cuello)}" y2="${Y(cuello)}"/>
-    </g>
-    <circle cx="${X(cabeza)}" cy="${Y(cabeza)}" r="11"
-            fill="currentColor" fill-opacity=".3"/>
-
-    <!-- línea de fuerza: por dónde empuja la máquina -->
-    <line x1="${X(linA)}" y1="${Y(linA)}" x2="${X(linB)}" y2="${Y(linB)}"
-          stroke="currentColor" stroke-opacity=".38" stroke-width="1.3"
-          stroke-dasharray="6 5"/>
-    <text x="${X(mas(linB, p, 0.05))}" y="${Y(mas(linB, p, 0.05))}"
-          font-size="10.5" font-weight="800" text-anchor="middle" dy="4"
-          fill="currentColor" opacity=".42">línea de fuerza</text>
-
-    <!-- plataforma y carro -->
-    <g stroke-linecap="round">
-      <line x1="${X(mas(centro, p, 0.17))}" y1="${Y(mas(centro, p, 0.17))}"
-            x2="${X(mas(centro, p, -0.17))}" y2="${Y(mas(centro, p, -0.17))}"
-            stroke="currentColor" stroke-opacity=".55" stroke-width="7"/>
-      <line x1="${X(mas(mas(centro, d, 0.045), p, 0.15))}" y1="${Y(mas(mas(centro, d, 0.045), p, 0.15))}"
-            x2="${X(mas(mas(centro, d, 0.045), p, -0.15))}" y2="${Y(mas(mas(centro, d, 0.045), p, -0.15))}"
-            stroke="currentColor" stroke-opacity=".22" stroke-width="16"/>
-    </g>
-
-    <!-- flecha de la resistencia: hacia dónde empuja la máquina al pie -->
-    <g color="currentColor" opacity=".72">
-      <line x1="${X(flechaA)}" y1="${Y(flechaA)}" x2="${X(flechaB)}" y2="${Y(flechaB)}"
-            stroke="currentColor" stroke-width="3.4" marker-end="url(#pta)"/>
-    </g>
-    <text x="${X(mas(flechaB, p, -0.145))}" y="${Y(mas(flechaB, p, -0.145))}"
-          font-size="10.5" font-weight="800" text-anchor="middle" dy="4"
-          fill="currentColor" opacity=".5"
-          stroke="var(--card)" stroke-width="3" paint-order="stroke"
-          stroke-linejoin="round">resistencia</text>
-
-    <!-- brazos de palanca -->
-    <g stroke-dasharray="4 3" stroke-width="2">
-      <line x1="${X({x:0,y:0})}" y1="${Y({x:0,y:0})}" x2="${X(r.qCad)}" y2="${Y(r.qCad)}"
-            stroke="var(--c)"/>
-      <line x1="${X(r.K)}" y1="${Y(r.K)}" x2="${X(r.qRod)}" y2="${Y(r.qRod)}"
-            stroke="${r.flexorRod ? "var(--f)" : "var(--q0)"}"/>
-    </g>
-
-    <!-- la pierna -->
-    <g stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-opacity=".85" fill="none">
-      <polyline points="${X({x:0,y:0})},${Y({x:0,y:0})} ${X(r.K)},${Y(r.K)} ${X(r.F)},${Y(r.F)}"/>
-    </g>
-    <line x1="${X(mas(r.F, p, -0.05))}" y1="${Y(mas(r.F, p, -0.05))}"
-          x2="${X(mas(r.F, p, 0.09))}" y2="${Y(mas(r.F, p, 0.09))}"
-          stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-opacity=".85"/>
-
-    <!-- articulaciones -->
-    <circle cx="${X({x:0,y:0})}" cy="${Y({x:0,y:0})}" r="6.5"
-            fill="var(--card)" stroke="var(--c)" stroke-width="3"/>
-    <circle cx="${X(r.K)}" cy="${Y(r.K)}" r="6.5"
-            fill="var(--card)" stroke="${r.flexorRod ? "var(--f)" : "var(--q0)"}" stroke-width="3"/>
-
-    <text x="${X({x:0,y:0})}" y="${Y({x:0,y:0})}" dx="-12" dy="17" font-size="11.5"
-          font-weight="800" text-anchor="end" fill="var(--c)"
-          stroke="var(--card)" stroke-width="3.5" paint-order="stroke"
-          stroke-linejoin="round">cadera · ${(r.aCad*100).toFixed(0)} cm</text>
-    <text x="${X(r.K)}" y="${Y(r.K)}" dx="-12" dy="-9" font-size="11.5"
-          font-weight="800" text-anchor="end"
-          fill="${r.flexorRod ? "var(--f)" : "var(--q0)"}"
-          stroke="var(--card)" stroke-width="3.5" paint-order="stroke"
-          stroke-linejoin="round">rodilla · ${(r.aRod*100).toFixed(0)} cm</text>
-  </svg>`;
+function cargaDe(nombre){
+  if(cargas[nombre] != null) return cargas[nombre];
+  const m = MOD[nombre] || {};
+  const real = cargaDeLaApp(st0, nombre);
+  return real > 0 ? real : (m.carga || 0);
 }
 
-/* ===================== Pantalla ===================== */
+function resultado(nombre, opciones){
+  const m = MOD[nombre];
+  if(!m || m.descrito) return null;
+  try{ return BIO.calcular(m, CUERPO, cargaDe(nombre), opciones || {}); }
+  catch(e){ return null; }
+}
 
-const num = (id, def) => {
-  const v = parseFloat(document.getElementById(id).value);
-  return isFinite(v) ? v : def;
+/* ---------- medidas ---------- */
+function pintarMedidas(){
+  $("inAltura").value = ALTURA;
+  $("inPeso").value = PESO;
+  const L = CUERPO.L, cm = v => (v*100).toFixed(0);
+  $("derivadas").innerHTML = `
+    <span>Muslo <b>${cm(L.muslo)}</b> cm</span>
+    <span>Pierna <b>${cm(L.pierna)}</b> cm</span>
+    <span>Brazo al agarre <b>${cm(L.brazoEntero)}</b> cm</span>
+    <span>Antebrazo <b>${cm(L.antebrazoMano)}</b> cm</span>
+    <span>Tronco <b>${cm(L.tronco)}</b> cm</span>
+    ${medidaPeso ? `<span>Peso de tu registro del <b>${esc(medidaPeso.f)}</b></span>` : ""}`;
+}
+function recalcular(){
+  CUERPO = BIO.cuerpoDe(ALTURA, PESO);
+  pintarMedidas(); pintarLista();
+  if(fichaAbierta) abrirFicha(fichaAbierta);
+}
+$("inAltura").oninput = e => {
+  const v = parseFloat(e.target.value);
+  if(v >= 130 && v <= 220){ ALTURA = v; guardarMedidas(v); recalcular(); }
+};
+$("inPeso").oninput = e => {
+  const v = parseFloat(e.target.value);
+  if(v >= 30 && v <= 200){ PESO = v; recalcular(); }
 };
 
-function nombrePie(cm){
-  if(cm <= -8) return "abajo";
-  if(cm <= -3) return "algo abajo";
-  if(cm < 3)   return "al medio";
-  if(cm < 8)   return "algo arriba";
-  return "arriba";
+/* ---------- lista ---------- */
+function pintarGrupos(){
+  $("grupos").innerHTML = ORDEN.map(g =>
+    `<button class="chipg ${grupoSel===g?"on":""}" data-g="${g}">${NOMBRE_GRUPO[g]}</button>`).join("");
+  document.querySelectorAll("#grupos .chipg").forEach(b => b.onclick = ()=>{
+    grupoSel = grupoSel === b.dataset.g ? "" : b.dataset.g;
+    pintarGrupos(); pintarLista();
+  });
 }
+function pintarLista(){
+  const txt = filtro.trim().toLowerCase();
+  const visibles = EJ.filter(x =>
+    (!grupoSel || x.g === grupoSel) &&
+    (!txt || x.n.toLowerCase().includes(txt) || x.eq.toLowerCase().includes(txt)));
 
-function veredictoDe(r){
-  const cuota = Math.round(r.cuotaRod * 100);
-
-  /* Los dos brazos chicos a la vez = tramo donde la carga pasa casi derecha
-     por las articulaciones. Se mira la geometría y no el torque, porque el
-     torque sube o baja solo con el peso que escribas arriba. */
-  if(r.aRod < 0.08 && r.aCad < 0.10){
-    return `Los dos brazos de palanca están casi en cero:
-      <b>aquí la carga pasa derecho por las articulaciones y la aguanta el hueso</b>,
-      no el músculo. Es el tramo donde se puede poner mucho peso y sentir poco.
-      Si la serie entera vive en esta zona, el estímulo es casi nada.`;
+  let html = "";
+  for(const g of ORDEN){
+    const dentro = visibles.filter(x => x.g === g);
+    if(!dentro.length) continue;
+    html += `<div class="gtit">${NOMBRE_GRUPO[g]}</div>`;
+    html += dentro.map(x => {
+      const m = MOD[x.n] || {};
+      const r = resultado(x.n);
+      const tq = r ? `<div class="tq">${Math.round(r.pico.torque)} <i>N·m</i></div>`
+                   : `<div class="tq no">explicado</div>`;
+      return `<button class="fila" data-ej="${esc(x.n)}">
+        <div class="nm"><b>${esc(x.n)}</b>
+          <span>${esc(x.eq)}${m.musc ? " · " + esc(m.musc) : ""}</span></div>
+        ${tq}</button>`;
+    }).join("");
   }
-  if(r.flexorRod){
-    return `Ojo con esta posición: la línea de fuerza pasó <b>al otro lado de la rodilla</b>.
-      El torque ya no lo aguanta el cuádriceps sino los <b>flexores</b> —isquios y gemelo—
-      que ahí tiran para que la rodilla no se vaya a la hiperextensión. Pasa con el pie alto
-      y la pierna casi estirada, y es el motivo por el que ese bloqueo final se siente
-      distinto. No es peligroso en sí, pero el cuádriceps ahí no está trabajando.`;
-  }
-  if(cuota >= 68){
-    return `Con el pie ${nombrePie(E.pie)} y la rodilla a ${Math.round(E.rodilla)}°,
-      <b>${cuota}% del torque cae en la rodilla</b>: es una prensa de cuádriceps.
-      La cadera apenas trabaja, y el talón es lo primero que se va a querer despegar.`;
-  }
-  if(cuota <= 38){
-    return `Con el pie ${nombrePie(E.pie)}, <b>${100-cuota}% del torque cae en la cadera</b>:
-      el trabajo se va al glúteo mayor y al aductor mayor. El cuádriceps queda de acompañante.
-      Flexión de cadera en este punto: ${Math.round(r.flexCad)}°.`;
-  }
-  return `Reparto parejo: <b>${cuota}% rodilla y ${100-cuota}% cadera</b>. Es la posición
-    neutra de la prensa — trabaja todo, no destaca nada. Útil como ejercicio base;
-    poco útil si querías apuntarle a un músculo en particular.`;
+  $("lista").innerHTML = html || `<p class="sub">Nada con ese nombre.</p>`;
+  document.querySelectorAll("#lista .fila").forEach(b =>
+    b.onclick = ()=> abrirFicha(b.dataset.ej));
 }
-
-function pintar(){
-  const r = calcular(E.pie);
-
-  document.getElementById("tqRod").textContent = Math.round(r.tqRod);
-  document.getElementById("tqCad").textContent = Math.round(r.tqCad);
-  document.getElementById("brRod").textContent =
-    `${(r.aRod*100).toFixed(0)} cm de brazo · ${r.flexorRod ? "isquios y gemelo" : "cuádriceps"}`;
-  document.getElementById("brCad").textContent =
-    `${(r.aCad*100).toFixed(0)} cm de brazo · glúteo y aductor`;
-
-  /* Cuando la línea de fuerza cruza al otro lado de la rodilla cambia el
-     color: ya no es la misma pregunta. */
-  document.querySelector(".lec.q").classList.toggle("flex", r.flexorRod);
-  document.querySelector(".pies").classList.toggle("flex", r.flexorRod);
-
-  const cuota = r.cuotaRod * 100;
-  document.getElementById("bq").style.flex = cuota;
-  document.getElementById("bc").style.flex = 100 - cuota;
-  document.getElementById("bq").style.background = r.flexorRod ? "var(--f)" : "var(--q0)";
-  document.getElementById("pq").textContent =
-    `Rodilla ${Math.round(cuota)}% · ${r.flexorRod ? "isquios" : "cuádriceps"}`;
-  document.getElementById("pc").textContent = `${Math.round(100-cuota)}% cadera · glúteo y aductor`;
-
-  document.getElementById("veredicto").innerHTML = veredictoDe(r);
-
-  const av = document.getElementById("aviso");
-  av.classList.toggle("hidden", !r.fuera);
-  if(r.fuera) av.textContent =
-    "A este ángulo de rodilla el pie no alcanza a subir tanto: con la pierna tan estirada " +
-    "la plataforma ya no da más altura. Los números son del punto más alto posible.";
-
-  document.getElementById("lbPie").textContent =
-    E.pie === 0 ? "al medio" : `${E.pie > 0 ? "+" : ""}${E.pie} cm (${nombrePie(E.pie)})`;
-  document.getElementById("lbRod").textContent =
-    `${E.rodilla}° · cadera flexionada ${Math.round(r.flexCad)}°`;
-
-  document.querySelectorAll(".presets button").forEach(b=>
-    b.classList.toggle("on", parseInt(b.dataset.pie, 10) === E.pie));
-
-  dibujar(r);
-  comparar();
-}
-
-function comparar(){
-  const filas = [[-10, "Abajo"], [0, "Al medio"], [10, "Arriba"]];
-  document.getElementById("compBody").innerHTML = filas.map(([cm, nombre])=>{
-    const r = calcular(cm);
-    const cuota = Math.round(r.cuotaRod * 100);
-    const manda = r.flexorRod ? `<span class="df">isquios</span>`
-                : cuota >= 60 ? `<span class="dq">cuádriceps</span>`
-                : cuota <= 40 ? `<span class="dc">cadera</span>`
-                : "parejo";
-    const aqui = Math.abs(E.pie - cm) <= 2 ? " class=\"aqui\"" : "";
-    return `<tr${aqui}>
-      <td>${nombre}</td>
-      <td>${Math.round(r.tqRod)} N·m</td>
-      <td>${Math.round(r.tqCad)} N·m</td>
-      <td>${manda}</td>
-    </tr>`;
-  }).join("");
-}
-
-/* ---- conexiones ---- */
-document.getElementById("inPie").oninput = e=>{ E.pie = parseInt(e.target.value, 10); pintar(); };
-document.getElementById("inRod").oninput = e=>{ E.rodilla = parseInt(e.target.value, 10); pintar(); };
-["inCarga","inCarro","inMuslo","inPierna"].forEach(id=>{
-  document.getElementById(id).oninput = ()=>{
-    E.carga  = Math.max(0, num("inCarga", 150));
-    E.carro  = Math.max(0, num("inCarro", 30));
-    E.muslo  = Math.min(60, Math.max(30, num("inMuslo", 42)));
-    E.pierna = Math.min(60, Math.max(30, num("inPierna", 42)));
-    pintar();
-  };
-});
-document.querySelectorAll(".presets button").forEach(b=> b.onclick = ()=>{
-  E.pie = parseInt(b.dataset.pie, 10);
-  document.getElementById("inPie").value = E.pie;
-  pintar();
-});
-
-document.getElementById("inRod").value = E.rodilla;
-pintar();
+$("buscar").oninput = e => { filtro = e.target.value; pintarLista(); };
 </script>
+<script src="laboratorio-ficha.js"></script>
 </body>
 </html>
