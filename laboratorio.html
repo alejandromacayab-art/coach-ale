@@ -183,8 +183,22 @@
 <script>
 const BIO = window.COACH_ALE_BIOMECANICA;
 const MOD = window.COACH_ALE_MODELOS;
-const EJ  = window.COACH_ALE_EJERCICIOS.lista;
+const EJ  = (window.COACH_ALE_EJERCICIOS || {}).lista;
 const CLAVE = "wellness.v1";
+
+/* Esta página son cuatro archivos y sin uno de ellos no hay nada que
+   enseñar. Antes se quedaba en blanco, sin una sola palabra. */
+window.__labRoto = !BIO || !MOD || !EJ;
+if(window.__labRoto){
+  document.querySelector("main").innerHTML =
+    `<a class="volver" href="index.html">‹ Volver a la app</a>
+     <section class="lab">
+       <h2>No se pudo cargar el laboratorio</h2>
+       <p class="sub" style="margin-bottom:12px">Faltó alguno de los archivos de
+         cálculo. Suele ser la conexión al abrirlo por primera vez.</p>
+       <button class="btn" onclick="location.reload()">Reintentar</button>
+     </section>`;
+}
 
 /* ---------- estado compartido con la app ---------- */
 function leerEstado(){
@@ -253,7 +267,7 @@ const alturaIni = alturaGuardada(st0);
 let ALTURA = alturaIni.cm;
 let PESO   = medidaPeso ? medidaPeso.kg : 72;
 let tuyos  = {altura: alturaIni.suya, peso: !!medidaPeso};
-let CUERPO = BIO.cuerpoDe(ALTURA, PESO);
+let CUERPO = BIO ? BIO.cuerpoDe(ALTURA, PESO) : null;
 
 /* ---------- utilidades ---------- */
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -316,14 +330,16 @@ function recalcular(){
   pintarMedidas(); pintarLista();
   if(fichaAbierta) abrirFicha(fichaAbierta);
 }
-$("inAltura").oninput = e => {
-  const v = parseFloat(e.target.value);
-  if(v >= 130 && v <= 220){ ALTURA = v; tuyos.altura = true; guardarMedidas(v); recalcular(); }
-};
-$("inPeso").oninput = e => {
-  const v = parseFloat(e.target.value);
-  if(v >= 30 && v <= 200){ PESO = v; tuyos.peso = true; recalcular(); }
-};
+if(!window.__labRoto){
+  $("inAltura").oninput = e => {
+    const v = parseFloat(e.target.value);
+    if(v >= 130 && v <= 220){ ALTURA = v; tuyos.altura = true; guardarMedidas(v); recalcular(); }
+  };
+  $("inPeso").oninput = e => {
+    const v = parseFloat(e.target.value);
+    if(v >= 30 && v <= 200){ PESO = v; tuyos.peso = true; recalcular(); }
+  };
+}
 
 /* ---------- lista ---------- */
 function pintarGrupos(){
@@ -360,8 +376,13 @@ function pintarLista(){
   document.querySelectorAll("#lista .fila").forEach(b =>
     b.onclick = ()=> abrirFicha(b.dataset.ej));
 }
-$("buscar").oninput = e => { filtro = e.target.value; pintarLista(); };
+if(!window.__labRoto){
+  $("buscar").oninput = e => { filtro = e.target.value; pintarLista(); };
+  /* La segunda mitad de la página se carga solo si hay con qué dibujarla. */
+  const mas = document.createElement("script");
+  mas.src = "laboratorio-ficha.js";
+  document.body.appendChild(mas);
+}
 </script>
-<script src="laboratorio-ficha.js"></script>
 </body>
 </html>

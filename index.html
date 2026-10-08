@@ -578,7 +578,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.10.08-3";
+const APP_VERSION = "2026.10.08-4";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1041,7 +1041,12 @@ function buscaPor(nombre){
   return lista.join(" · ");
 }
 
-/* La biblioteca (ejercicios.js) es la fuente: las plantillas eligen de ahí. */
+/* La biblioteca (ejercicios.js) es la fuente: las plantillas eligen de ahí.
+   Si ese archivo no llega —primera visita con la conexión cortándose— la
+   app seguía arrancando con la biblioteca vacía y sin decir nada: no salían
+   ejercicios, no se podía armar una rutina, y parecía que la app estaba
+   rota por dentro. Mejor detectarlo y decirlo. */
+const SIN_BIBLIO = !window.COACH_ALE_EJERCICIOS;
 const BIBLIO = (window.COACH_ALE_EJERCICIOS?.lista) || [];
 const fichaEjercicio = nombre => BIBLIO.find(x =>
   x.n.toLowerCase() === String(nombre||"").trim().toLowerCase()) || null;
@@ -3675,7 +3680,8 @@ function abrirFicha(nombre){
   document.getElementById("fiSub").textContent = `${nombreGrupo(f.g)} · ${f.eq}`;
   document.getElementById("fiCuerpo").innerHTML = `
     <div class="fidibujo" style="color:${colorGrupo(f.g)}">
-      ${window.COACH_ALE_EJERCICIOS.cuerpoSVG(f.g, colorGrupo(f.g))}
+      ${window.COACH_ALE_EJERCICIOS ?
+         window.COACH_ALE_EJERCICIOS.cuerpoSVG(f.g, colorGrupo(f.g)) : ""}
       <span>Esquema del músculo que trabaja</span>
     </div>
     <div class="fibloque sentir">
@@ -4070,6 +4076,25 @@ function renderAltura(){
     S.perfilFisico = Object.assign({}, S.perfilFisico, {altura:Math.round(v)});
     save(); toast("Estatura guardada");
   };
+}
+
+/* Una barra fija arriba para los fallos que no se arreglan solos: no se va
+   sola como un toast, porque el problema tampoco se va solo. */
+function avisoCarga(texto){
+  if(document.getElementById("avisoCarga")) return;
+  const d = document.createElement("div");
+  d.id = "avisoCarga";
+  /* Arriba y no abajo: abajo va la barra de navegación, y taparla justo
+     cuando algo falló deja al deportista sin poder moverse por la app. */
+  d.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:999;padding:12px 16px;" +
+    "padding-top:calc(12px + env(safe-area-inset-top));background:#f59e0b;color:#1a1300;" +
+    "font-size:13px;font-weight:600;line-height:1.45;display:flex;gap:10px;align-items:center";
+  d.innerHTML = `<span style="flex:1"></span>
+    <button style="font-weight:800;padding:7px 12px;border-radius:99px;background:#1a1300;color:#fff">
+      Reintentar</button>`;
+  d.firstElementChild.textContent = texto;
+  d.querySelector("button").onclick = ()=> location.reload();
+  document.body.appendChild(d);
 }
 
 function renderSettings(){
@@ -5557,6 +5582,9 @@ addEventListener("pagehide", ()=>{ clearTimeout(syncTimer); syncNow(false); });
    INIT
    ============================================================ */
 applyTheme();
+if(SIN_BIBLIO) avisoCarga(
+  "No se pudo cargar la lista de ejercicios. Lo demás funciona, pero no podrás " +
+  "armar ni editar entrenamientos hasta que vuelvas a abrir la app con conexión.");
 renderAll();
 go("hoy");
 initSW();

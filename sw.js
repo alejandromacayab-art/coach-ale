@@ -2,7 +2,7 @@
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "coachale-v84";
+const CACHE = "coachale-v85";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
@@ -58,8 +58,15 @@ self.addEventListener("fetch", e=>{
       /* `ignoreSearch` importa: el enlace a un ejercicio concreto viaja como
          laboratorio.html?ej=..., y en la caché está guardado sin la query.
          Sin esto, sin conexión ese enlace caía en la portada. */
-      caches.match(req, {ignoreSearch:true})
-        .then(r=> r || caches.match("./index.html")))
+      caches.match(req, {ignoreSearch:true}).then(r=>{
+        if(r) return r;
+        /* El respaldo a la portada vale para una navegación y solo para eso.
+           Antes se devolvía para cualquier petición: un archivo .js que
+           fallara recibía HTML, el navegador no podía ejecutarlo y la app
+           arrancaba a medias sin decir nada. Mejor un error honesto. */
+        if(req.mode === "navigate") return caches.match("./index.html");
+        return new Response("", {status:504, statusText:"Sin conexión"});
+      }))
   );
 });
 
