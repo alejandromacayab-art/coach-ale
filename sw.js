@@ -2,7 +2,7 @@
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "coachale-v81";
+const CACHE = "coachale-v82";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
@@ -10,7 +10,7 @@ const SHELL = [
   "./assets/symbol-dark.png", "./assets/symbol-light.png",
   "./assets/logo-dark.png", "./assets/logo-light.png",
   "./estilos.css", "./zoom.js", "./ejercicios.js", "./config.js", "./nube.js", "./vendor/supabase.js",
-  "./panel.html", "./panel.js"
+  "./panel.html", "./panel.js", "./laboratorio.html"
 ];
 
 /* Uno a uno, y no con addAll: addAll es todo o nada, así que un solo archivo

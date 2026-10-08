@@ -172,6 +172,17 @@
       <div class="panel" id="rutPanel"></div>
     </section>
     <section>
+      <div class="stitle">🔬 Laboratorio de torque</div>
+      <div class="panel">
+        <p style="margin:0 0 10px;font-size:13.5px;color:var(--tx2)">
+          Mover el pie en la plataforma de la prensa no es comodidad: cambia dónde cae la
+          línea de fuerza y con eso cuánto trabajo le toca a la rodilla y cuánto a la cadera.
+          Aquí se ve el cálculo, con tus propias medidas.</p>
+        <a class="btn ghost" style="display:block;text-align:center;text-decoration:none"
+           href="laboratorio.html">Abrir el laboratorio</a>
+      </div>
+    </section>
+    <section>
       <div class="stitle">☁️ Sincronización entre dispositivos</div>
       <div class="panel" id="syncPanel"></div>
     </section>
@@ -564,7 +575,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.09.19-5";
+const APP_VERSION = "2026.10.08-1";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -3651,6 +3662,12 @@ document.getElementById("bibModal").onclick = e=>{
 };
 
 /* ---------------- ficha del ejercicio ---------------- */
+
+/* Solo donde el pie se apoya en una plataforma y moverlo es la variable:
+   el laboratorio modela la prensa, no la sentadilla libre, y enlazarlo desde
+   una sentadilla en pared sería prometer algo que la página no calcula. */
+const CON_LABORATORIO = /prensa|hack/i;
+
 function abrirFicha(nombre){
   const f = fichaEjercicio(nombre);
   if(!f) return;
@@ -3668,7 +3685,10 @@ function abrirFicha(nombre){
     <div class="fibloque errores">
       <span>Errores más comunes</span>
       <ul>${f.e.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
-    </div>`;
+    </div>
+    ${CON_LABORATORIO.test(f.n) ? `
+    <a class="btn ghost" style="display:block;text-align:center;text-decoration:none;margin-top:12px"
+       href="laboratorio.html">🔬 Dónde apoyas el pie cambia el músculo · ver el cálculo</a>` : ""}`;
   document.getElementById("fiModal").classList.add("open");
 }
 document.getElementById("fiClose").onclick = ()=> document.getElementById("fiModal").classList.remove("open");
