@@ -180,6 +180,7 @@
 <script src="ejercicios.js"></script>
 <script src="biomecanica.js"></script>
 <script src="modelos.js"></script>
+<script src="torque-grafico.js"></script>
 <script>
 const BIO = window.COACH_ALE_BIOMECANICA;
 const MOD = window.COACH_ALE_MODELOS;
@@ -188,7 +189,7 @@ const CLAVE = "wellness.v1";
 
 /* Esta página son cuatro archivos y sin uno de ellos no hay nada que
    enseñar. Antes se quedaba en blanco, sin una sola palabra. */
-window.__labRoto = !BIO || !MOD || !EJ;
+window.__labRoto = !BIO || !MOD || !EJ || !window.COACH_ALE_GRAFICO;
 if(window.__labRoto){
   document.querySelector("main").innerHTML =
     `<a class="volver" href="index.html">‹ Volver a la app</a>

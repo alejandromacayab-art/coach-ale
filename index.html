@@ -568,6 +568,7 @@
 <script src="ejercicios.js"></script>
 <script src="biomecanica.js"></script>
 <script src="modelos.js"></script>
+<script src="torque-grafico.js"></script>
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="nube.js"></script>
@@ -584,7 +585,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.10.08-5";
+const APP_VERSION = "2026.10.08-6";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -1123,7 +1124,8 @@ function mecanicaDe(nombre, carga){
     art:r.art, musc:r.musc, art2:r.art2, musc2:r.musc2,
     pico:r.pico.torque, pico2: r.pico2 ? r.pico2.torque2 : null,
     donde: f ? `${f} ${Math.round(r.pico.ang)}°` : "",
-    carga: kg, fuente, cuerpoSuyo: c.suyo, nota: m.nota
+    carga: kg, fuente, cuerpoSuyo: c.suyo, nota: m.nota,
+    crudo: r, modelo: m
   };
 }
 
@@ -3757,6 +3759,8 @@ function elegirEjercicio(nombre){
     if(w0) (e.sets||[]).forEach(st=>{ if(!num(st.w)) st.w = w0; });
     save();
   }
+  mecAbierto = bibIdx;        // recién elegido: que se vea qué vas a trabajar
+  delete mecPunto[bibIdx];
   document.getElementById("bibModal").classList.remove("open");
   document.getElementById("wkModal").classList.add("open");
   renderExercises(); updateWkTotal();
@@ -3770,6 +3774,83 @@ document.getElementById("bibClose").onclick = ()=>{
 document.getElementById("bibModal").onclick = e=>{
   if(e.target.id === "bibModal") document.getElementById("bibClose").click();
 };
+
+/* ---------------- la mecánica, en vivo, en la propia hoja ----------------
+   Al elegir un ejercicio se abre sola: ver qué vas a trabajar es parte de
+   elegirlo, no algo que haya que ir a buscar a otra pantalla. Y los
+   números se mueven con el peso que estás escribiendo. */
+let mecAbierto = null;      // qué ejercicio tiene la mecánica desplegada
+const mecPunto = {};        // en qué punto del recorrido está cada uno
+
+/* La línea de resumen. Está aparte porque la escriben dos sitios: el
+   redibujado de la hoja y el repintado al escribir un peso. Si solo la
+   escribiera el primero, al cambiar los kilos el panel enseñaba el número
+   nuevo y la línea de encima seguía con el viejo. */
+function resumenMecanica(k){
+  if(!k) return "";
+  if(k.descrito) return `<b>${esc(k.musc)}</b>`;
+  /* Sin repetir la articulación: ya la nombra "lo más duro con la…". */
+  return `<b>${esc(musculosCortos(k))}</b>${
+    k.pico > 0 ? ` · ${Math.round(k.pico)} N·m` : ""}${
+    k.donde ? ` · lo más duro ${esc(k.donde)}` : ` · en ${esc(k.art.toLowerCase())}`}`;
+}
+
+function pesoDeHoy(e){
+  return Math.max(0, ...(e.sets||[]).map(st=>num(st.w)));
+}
+
+/* Repinta solo el panel de un ejercicio, sin tocar el resto de la hoja:
+   redibujarla entera mientras escribes te saca del campo de texto. */
+function pintarMecanica(i){
+  const caja = document.querySelector(`[data-mecw="${i}"]`);
+  if(!caja) return;
+  const e = dayLog(cur).workout.ex[i];
+  if(!e) return;
+  const sl = caja.querySelector("[data-mecsl]");
+  const foco = sl && document.activeElement === sl;
+  caja.innerHTML = mecAbierto === i ? panelMecanica(i, e) : "";
+  if(foco){ const n = caja.querySelector("[data-mecsl]"); if(n) n.focus(); }
+
+  const linea = document.querySelector(`[data-mect="${i}"] > span`);
+  if(linea) linea.innerHTML = resumenMecanica(mecanicaDe(e.name, pesoDeHoy(e)));
+}
+
+function panelMecanica(i, e){
+  const G = window.COACH_ALE_GRAFICO;
+  const k = mecanicaDe(e.name, pesoDeHoy(e));
+  if(!k) return "";
+
+  if(k.descrito) return `
+    <div class="mecpanel">
+      <p class="mecpor">${esc(k.porque)}</p>
+      <a class="meclab" href="laboratorio.html?ej=${encodeURIComponent(e.name)}">Ver la ficha completa ›</a>
+    </div>`;
+
+  if(!G || !k.crudo) return "";
+  const r = k.crudo;
+  const iPico = r.puntos.indexOf(r.pico);
+  const idx = Math.max(0, Math.min(r.puntos.length-1,
+    mecPunto[i] != null ? mecPunto[i] : iPico));
+  const p = r.puntos[idx];
+
+  return `
+    <div class="mecpanel">
+      <div class="mecdos">
+        <div class="mecfig">${G.figura(r, idx, k.modelo, {alto:170})}</div>
+        <div class="meccur">${G.curva(r, idx, {alto:150})}</div>
+      </div>
+      <div class="meclec">
+        <span class="a"><b>${Math.round(p.torque)}</b> N·m · ${esc(r.art)}</span>
+        ${p.torque2 != null ? `<span class="b"><b>${Math.round(p.torque2)}</b> N·m · ${esc(r.art2)}</span>` : ""}
+      </div>
+      <input type="range" class="mecsl" data-mecsl="${i}" min="0" max="${r.puntos.length-1}"
+             step="1" value="${idx}" aria-label="Recorrido del ejercicio">
+      <p class="mecpie">${esc(r.ejeX)} <b>${Math.round(p.ang)}°</b>${
+        idx === iPico ? " · aquí es lo más duro" : ""} · con ${
+        k.carga > 0 ? `<b>${fmt(k.carga)} kg</b>` : "tu propio peso"}</p>
+      <a class="meclab" href="laboratorio.html?ej=${encodeURIComponent(e.name)}">Ver la ficha completa ›</a>
+    </div>`;
+}
 
 /* ---------------- ficha del ejercicio ---------------- */
 
@@ -4415,11 +4496,11 @@ function renderExercises(){
         const kg = Math.max(0, ...(e.sets||[]).map(st=>num(st.w)));
         const k = mecanicaDe(e.name, kg);
         if(!k) return "";
-        if(k.descrito) return `<div class="exmec"><b>${esc(k.musc)}</b></div>`;
-        /* Sin repetir la articulación: ya la nombra "lo más duro con la…". */
-        return `<div class="exmec"><b>${esc(musculosCortos(k))}</b>${
-          k.pico > 0 ? ` · ${Math.round(k.pico)} N·m` : ""}${
-          k.donde ? ` · lo más duro ${esc(k.donde)}` : ` · en ${esc(k.art.toLowerCase())}`}</div>`;
+        const abierto = mecAbierto === i;
+        return `<button class="exmec${abierto ? " abierta" : ""}" data-mect="${i}"
+            aria-expanded="${abierto}"><span>${resumenMecanica(k)}</span><i>${
+            abierto ? "▾" : "▸"}</i></button>
+          <div class="mecwrap" data-mecw="${i}">${abierto ? panelMecanica(i, e) : ""}</div>`;
       })()}
       ${(e.sets||[]).map((st,j)=>`
         <div class="setrow${st.p ? " prop" : ""}">
@@ -4465,8 +4546,30 @@ function renderExercises(){
     const rm = L.querySelector(`[data-rm="${i}"]`), vo = L.querySelector(`[data-vol="${i}"]`);
     if(rm) rm.textContent = exUnoRM(w.ex[i]) ? kg(exUnoRM(w.ex[i]))+" kg" : "–";
     if(vo) vo.textContent = exVolume(w.ex[i]) ? kg(exVolume(w.ex[i]))+" kg" : "–";
+    if(mecAbierto === i) pintarMecanica(i);     // los números siguen al peso
     updateWkTotal(); save();
   });
+  /* Abrir y cerrar la mecánica, y recorrerla. Por delegación: el panel se
+     vuelve a dibujar cada vez que cambia el peso y los enganches directos
+     se perderían en cada redibujo. */
+  if(!L.dataset.mecLigado){
+    L.dataset.mecLigado = "1";
+    L.addEventListener("click", ev=>{
+      const b = ev.target.closest("[data-mect]");
+      if(!b) return;
+      const i = +b.dataset.mect;
+      mecAbierto = mecAbierto === i ? null : i;
+      renderExercises();
+    });
+    L.addEventListener("input", ev=>{
+      const sl = ev.target.closest("[data-mecsl]");
+      if(!sl) return;
+      const i = +sl.dataset.mecsl;
+      mecPunto[i] = +sl.value;
+      pintarMecanica(i);
+    });
+  }
+
   L.querySelectorAll("[data-sok]").forEach(b=>b.onclick=()=>{
     const [i,j] = b.dataset.sok.split(".").map(Number);
     const st = w.ex[i].sets[j];

@@ -232,8 +232,28 @@ section{margin:22px 0}
   color:var(--tx2);white-space:nowrap}
 .bibtq i{font-style:normal;font-size:9.5px;font-weight:700;color:var(--tx3);margin-left:2px}
 /* Qué trabaja cada ejercicio, en la propia hoja del entrenamiento. */
-.exmec{font-size:11.5px;line-height:1.4;color:var(--tx3);padding:0 0 8px}
+.exmec{display:flex;align-items:flex-start;gap:8px;width:100%;text-align:left;
+  font-size:11.5px;line-height:1.4;color:var(--tx3);padding:2px 0 8px}
 .exmec b{color:var(--tx2);font-weight:700}
+.exmec > span{flex:1;min-width:0}
+.exmec i{font-style:normal;font-size:10px;color:var(--tx3);flex:none}
+.exmec.abierta{color:var(--tx2)}
+/* El panel en vivo: el esquema, la curva y los números moviéndose. */
+.mecpanel{background:var(--card2);border:1px solid var(--line);border-radius:14px;
+  padding:10px 12px 12px;margin:0 0 10px}
+.mecdos{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:center}
+.mecfig svg, .meccur svg{width:100%;height:auto;display:block;color:var(--tx)}
+.meclec{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px;font-size:11.5px;
+  color:var(--tx3);font-weight:600}
+.meclec b{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+.meclec .a b{color:var(--q0)} .meclec .b b{color:var(--c)}
+.mecsl{width:100%;margin:8px 0 2px;accent-color:var(--accent)}
+.mecpie{margin:0;font-size:11px;color:var(--tx3);line-height:1.45}
+.mecpie b{color:var(--tx2)}
+.mecpor{margin:0;font-size:12px;color:var(--tx2);line-height:1.5}
+.meclab{display:inline-block;margin-top:8px;font-size:11.5px;font-weight:700;
+  color:var(--accent);text-decoration:none}
+@media (max-width:420px){ .mecdos{grid-template-columns:1fr} }
 /* El bloque de mecánica dentro de la ficha. */
 .fibloque.mec .mecfila{display:flex;align-items:baseline;gap:6px;margin:6px 0}
 .fibloque.mec .mecfila b{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx)}
