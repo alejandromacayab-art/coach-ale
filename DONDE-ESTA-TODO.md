@@ -12,9 +12,14 @@ Es la carpeta de trabajo. Todo se edita aquí y desde aquí se publica.
 |---|---|
 | `index.html` | La app del deportista, entera |
 | `panel.html` + `panel.js` | El panel del entrenador |
+| `ejercicios.js` | Los 99 ejercicios y la lámina de anatomía |
+| `laboratorio.html` + `laboratorio-ficha.js` | El laboratorio de torque |
+| `biomecanica.js` | Las tablas antropométricas y los cinco modelos de cálculo |
+| `modelos.js` | Qué modelo le toca a cada ejercicio, y por qué |
 | `nube.js` | Cuentas y sincronización |
 | `config.js` | La conexión con la base de datos |
-| `estilos.css` | Los estilos, compartidos por ambas |
+| `estilos.css` | Los estilos, compartidos por todas |
+| `zoom.js` | El pellizco para acercar |
 | `sw.js` | Funcionamiento sin internet y notificaciones |
 | `assets/` `icons/` | Logotipo e iconos |
 | `base-de-datos/` | El esquema SQL y cómo se monta |

@@ -578,7 +578,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.10.08-2";
+const APP_VERSION = "2026.10.08-3";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -3668,11 +3668,6 @@ document.getElementById("bibModal").onclick = e=>{
 
 /* ---------------- ficha del ejercicio ---------------- */
 
-/* Solo donde el pie se apoya en una plataforma y moverlo es la variable:
-   el laboratorio modela la prensa, no la sentadilla libre, y enlazarlo desde
-   una sentadilla en pared sería prometer algo que la página no calcula. */
-const CON_LABORATORIO = /./;   // el laboratorio ya cubre los 99
-
 function abrirFicha(nombre){
   const f = fichaEjercicio(nombre);
   if(!f) return;
@@ -3691,9 +3686,8 @@ function abrirFicha(nombre){
       <span>Errores más comunes</span>
       <ul>${f.e.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
     </div>
-    ${CON_LABORATORIO.test(f.n) ? `
     <a class="btn ghost" style="display:block;text-align:center;text-decoration:none;margin-top:12px"
-       href="laboratorio.html">🔬 Ver el torque de este ejercicio con tus medidas</a>` : ""}`;
+       href="laboratorio.html?ej=${encodeURIComponent(f.n)}">🔬 Ver la mecánica de este ejercicio</a>`;
   document.getElementById("fiModal").classList.add("open");
 }
 document.getElementById("fiClose").onclick = ()=> document.getElementById("fiModal").classList.remove("open");

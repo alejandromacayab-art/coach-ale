@@ -30,6 +30,9 @@
   .medidas input{width:100%;padding:10px 12px;border-radius:12px;background:var(--card2);
     border:1px solid var(--line);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
   .derivadas{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .aviso{margin-top:12px;border-radius:13px;padding:11px 12px;font-size:13px;line-height:1.5;
+    background:#f59e0b14;border:1px solid #f59e0b44;color:var(--tx2)}
+  .aviso b{color:var(--tx)}
   .derivadas span{font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:99px;
     background:var(--card2);border:1px solid var(--line);color:var(--tx2)}
   .derivadas b{color:var(--tx);font-variant-numeric:tabular-nums}
@@ -132,6 +135,7 @@
           <input id="inPeso" type="number" inputmode="numeric" min="30" max="200" step="0.5">
         </div>
       </div>
+      <div class="aviso hidden" id="avisoCuerpo"></div>
       <div class="derivadas" id="derivadas"></div>
     </section>
 
@@ -187,21 +191,42 @@ function leerEstado(){
   try{ return JSON.parse(localStorage.getItem(CLAVE) || "{}"); }catch(e){ return {}; }
 }
 function guardarMedidas(altura){
+  /* Copia propia del laboratorio: si la app todavía no existe en este
+     teléfono —un deportista que abre el enlace antes que la app— la
+     estatura no se puede guardar en su estado, y perderla en silencio
+     sería peor que guardarla aquí. */
+  try{ localStorage.setItem("coachale.laboratorio", JSON.stringify({altura})); }catch(e){}
   try{
     const st = leerEstado();
-    if(!st.v) return;                       // la app todavía no ha guardado nada
+    if(!st.v) return;
     st.perfilFisico = Object.assign({}, st.perfilFisico, {altura});
     st.metaMt = Date.now();                 // para que la nube se entere
     localStorage.setItem(CLAVE, JSON.stringify(st));
   }catch(e){}
 }
-/* El peso sale de la última medición que haya registrado el deportista. */
+function alturaGuardada(st){
+  const dela = Number((st.perfilFisico||{}).altura);
+  if(dela) return {cm:dela, suya:true};
+  try{
+    const mia = Number(JSON.parse(localStorage.getItem("coachale.laboratorio")||"{}").altura);
+    if(mia) return {cm:mia, suya:true};
+  }catch(e){}
+  return {cm:172, suya:false};
+}
+/* El peso sale de la última medición que haya registrado el deportista.
+   Con la misma regla que usa la app: pasados 45 días deja de valer como
+   dato actual, y conviene decirlo en vez de calcular sobre él callando. */
+const DIAS_PESO = 45;
 function pesoDeLaApp(st){
   let mejor = null;
   for(const k in (st.logs||{})){
     const kg = Number(st.logs[k] && st.logs[k].cuerpo && st.logs[k].cuerpo.peso);
     if(kg > 0 && (!mejor || k > mejor.f)) mejor = {f:k, kg};
   }
+  if(!mejor) return null;
+  const dias = Math.round((Date.now() - new Date(mejor.f + "T12:00").getTime())/86400000);
+  mejor.dias = isFinite(dias) ? dias : 0;
+  mejor.viejo = mejor.dias > DIAS_PESO;
   return mejor;
 }
 /* El peso que usa de verdad en cada ejercicio, si lo tiene registrado. */
@@ -224,8 +249,10 @@ const st0 = leerEstado();
 document.documentElement.setAttribute("data-theme", st0.theme === "dark" ? "dark" : "light");
 
 const medidaPeso = pesoDeLaApp(st0);
-let ALTURA = Number((st0.perfilFisico||{}).altura) || 172;
+const alturaIni = alturaGuardada(st0);
+let ALTURA = alturaIni.cm;
 let PESO   = medidaPeso ? medidaPeso.kg : 72;
+let tuyos  = {altura: alturaIni.suya, peso: !!medidaPeso};
 let CUERPO = BIO.cuerpoDe(ALTURA, PESO);
 
 /* ---------- utilidades ---------- */
@@ -262,8 +289,27 @@ function pintarMedidas(){
     <span>Pierna <b>${cm(L.pierna)}</b> cm</span>
     <span>Brazo al agarre <b>${cm(L.brazoEntero)}</b> cm</span>
     <span>Antebrazo <b>${cm(L.antebrazoMano)}</b> cm</span>
-    <span>Tronco <b>${cm(L.tronco)}</b> cm</span>
-    ${medidaPeso ? `<span>Peso de tu registro del <b>${esc(medidaPeso.f)}</b></span>` : ""}`;
+    <span>Tronco <b>${cm(L.tronco)}</b> cm</span>`;
+
+  /* Si alguno de los dos datos no es suyo, los números de toda la página
+     son los de otra persona. Decirlo, y no dejar que parezcan suyos. */
+  const faltan = [];
+  if(!tuyos.altura) faltan.push("la estatura");
+  if(!tuyos.peso)   faltan.push("el peso");
+  const av = $("avisoCuerpo");
+  if(faltan.length){
+    av.classList.remove("hidden");
+    av.innerHTML = `<b>Estos no son tus números todavía.</b> Falta ${faltan.join(" y ")},
+      así que el laboratorio está calculando con un cuerpo de ejemplo de
+      ${ALTURA} cm y ${PESO} kg. Escríbelos aquí arriba y todo se recalcula solo.`;
+  }else if(medidaPeso && medidaPeso.viejo){
+    av.classList.remove("hidden");
+    av.innerHTML = `El peso es de tu medición del <b>${esc(medidaPeso.f)}</b>,
+      hace ${medidaPeso.dias} días. Si cambiaste, cámbialo aquí: los ejercicios
+      donde cargas tu propio cuerpo —flexiones, dominadas, gemelos— dependen de él.`;
+  }else{
+    av.classList.add("hidden");
+  }
 }
 function recalcular(){
   CUERPO = BIO.cuerpoDe(ALTURA, PESO);
@@ -272,11 +318,11 @@ function recalcular(){
 }
 $("inAltura").oninput = e => {
   const v = parseFloat(e.target.value);
-  if(v >= 130 && v <= 220){ ALTURA = v; guardarMedidas(v); recalcular(); }
+  if(v >= 130 && v <= 220){ ALTURA = v; tuyos.altura = true; guardarMedidas(v); recalcular(); }
 };
 $("inPeso").oninput = e => {
   const v = parseFloat(e.target.value);
-  if(v >= 30 && v <= 200){ PESO = v; recalcular(); }
+  if(v >= 30 && v <= 200){ PESO = v; tuyos.peso = true; recalcular(); }
 };
 
 /* ---------- lista ---------- */

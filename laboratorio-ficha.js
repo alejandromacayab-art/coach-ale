@@ -118,11 +118,19 @@ function figura(r, i, m){
 }
 
 /* ---------- la ficha ---------- */
-function abrirFicha(nombre){
+function abrirFicha(nombre, opt){
   const x = EJ.find(e => e.n === nombre);
   const m = MOD[nombre];
   if(!x || !m) return;
-  if(fichaAbierta !== nombre){ fichaAbierta = nombre; puntoSel = 0.5; pieSel = 0; }
+  /* Cambiar de ejercicio es navegar; mover un slider no. Solo lo primero
+     entra en el historial, para que el botón de atrás del teléfono vuelva
+     a la lista y no deshaga el slider control a control. */
+  const cambia = fichaAbierta !== nombre;
+  if(cambia){
+    fichaAbierta = nombre; puntoSel = 0.5; pieSel = 0;
+    if(!(opt && opt.sinHistoria))
+      history.pushState({ej:nombre}, "", "?ej=" + encodeURIComponent(nombre));
+  }
 
   const r = m.descrito ? null : BIO.calcular(m, CUERPO, cargaDe(nombre), {pie:pieSel});
   const i = r ? Math.round(puntoSel*(r.puntos.length-1)) : 0;
@@ -227,19 +235,35 @@ function abrirFicha(nombre){
   };
 }
 
+function mostrarLista(){
+  fichaAbierta = null;
+  $("vista-ficha").classList.add("hidden");
+  $("vista-lista").classList.remove("hidden");
+  pintarLista();
+  window.scrollTo(0,0);
+}
+
+/* Atrás: si estamos en una ficha, deshacemos el paso del historial — así
+   el botón de la página y el del teléfono hacen lo mismo. Si entraste
+   directo por enlace desde la app, ese paso te devuelve a la app, que es
+   justo de donde venías. */
 function volver(){
-  if(fichaAbierta){
-    fichaAbierta = null;
-    $("vista-ficha").classList.add("hidden");
-    $("vista-lista").classList.remove("hidden");
-    pintarLista();
-    window.scrollTo(0,0);
-  }else{
-    location.href = "index.html";
-  }
+  if(fichaAbierta) history.back();
+  else location.href = "index.html";
 }
 $("atras").onclick = volver;
+window.onpopstate = e => {
+  const n = e.state && e.state.ej;
+  if(n) abrirFicha(n, {sinHistoria:true}); else mostrarLista();
+};
 
 pintarMedidas();
 pintarGrupos();
 pintarLista();
+
+/* Enlace directo a un ejercicio: es lo que usa la ficha dentro de la app. */
+const pedido = new URLSearchParams(location.search).get("ej");
+if(pedido && EJ.some(x => x.n === pedido)){
+  history.replaceState({ej:pedido}, "", location.search);
+  abrirFicha(pedido, {sinHistoria:true});
+}

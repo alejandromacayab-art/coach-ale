@@ -2,7 +2,7 @@
    - cachea la app para que funcione sin internet
    - recibe las notificaciones push enviadas desde el servidor
    - lee el progreso del día desde IndexedDB para que el aviso sea específico */
-const CACHE = "coachale-v83";
+const CACHE = "coachale-v84";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
@@ -54,7 +54,12 @@ self.addEventListener("fetch", e=>{
       const copy = res.clone();
       caches.open(CACHE).then(c=>c.put(req, copy)).catch(()=>{});
       return res;
-    }).catch(()=> caches.match(req).then(r=> r || caches.match("./index.html")))
+    }).catch(()=>
+      /* `ignoreSearch` importa: el enlace a un ejercicio concreto viaja como
+         laboratorio.html?ej=..., y en la caché está guardado sin la query.
+         Sin esto, sin conexión ese enlace caía en la portada. */
+      caches.match(req, {ignoreSearch:true})
+        .then(r=> r || caches.match("./index.html")))
   );
 });
 
