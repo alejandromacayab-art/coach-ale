@@ -407,6 +407,12 @@ const MOTORES = {rotacion:modeloRotacion, brazos:modeloBrazos,
 function calcular(ej, cuerpo, carga, opciones){
   if(!ej || !MOTORES[ej.patron]) return null;
   const r = MOTORES[ej.patron](ej, cuerpo, carga||0, opciones||{});
+  /* Cuánta fuerza llega de verdad al implemento. En una prensa de 45° no
+     es el peso de los discos: es su componente a lo largo del riel. */
+  if(r.fuerza == null)
+    r.fuerza = ej.patron === "prensa"
+      ? (carga||0)*G*sin(ej.riel || 45)
+      : (carga||0)*G;
   r.pico  = r.puntos.reduce((a,b)=> b.torque  > a.torque  ? b : a);
   r.pico2 = r.puntos.some(x=>x.torque2 != null)
     ? r.puntos.reduce((a,b)=> (b.torque2||0) > (a.torque2||0) ? b : a) : null;

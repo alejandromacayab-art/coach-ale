@@ -98,7 +98,9 @@ const hayApp = !!st0.v;
 
 /* Tema propio: si ya usa Coach Ale se arranca con el suyo, pero a partir
    de ahí este laboratorio recuerda el que elija aquí. */
-let tema = mio0.tema || (st0.theme === "dark" ? "dark" : "light");
+/* Arranca oscuro: es una lámina técnica y en claro pierde la mitad
+   de la gracia. Si ya eligió uno aquí, manda el suyo. */
+let tema = mio0.tema || "dark";
 function aplicarTema(){
   document.documentElement.setAttribute("data-theme", tema);
   const b = $("temaBtn"); if(b) b.textContent = tema === "dark" ? "🌙" : "☀️";

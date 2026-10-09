@@ -12,6 +12,7 @@
      porque los usan las dos pantallas — tenerlos solo allí dejaba los
      trazos de la app sin color, y una línea sin color no se dibuja. */
   --q0:#38bdf8; --c:#fbbf24; --f:#c084fc;
+  --marca:#ff6b52; --cuerpo:#c3ccda;
 }
 :root[data-theme="light"]{
   --bg:#f5f6f8; --bg2:#ffffff; --card:#ffffff; --card2:#f2f4f7;
@@ -20,6 +21,7 @@
   --accent:#12a35c; --accent2:#e6f7ee;
   --glow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.07);
   --q0:#0284c7; --c:#b45309; --f:#7c3aed;
+  --marca:#e0452a; --cuerpo:#2b3647;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -260,6 +262,14 @@ section{margin:22px 0}
   margin-top:2px;overflow:hidden;text-overflow:ellipsis}
 .meclec .a u{background:var(--q0)} .meclec .b u{background:var(--c)}
 .meclec .a b{color:var(--q0)} .meclec .b b{color:var(--c)}
+/* El control del recorrido con su botón: ver el movimiento es lo que
+   explica la curva. */
+.reproduce{display:flex;align-items:center;gap:9px;margin:8px 0 2px}
+.reproduce .mecsl{flex:1;min-width:0;margin:0}
+.play{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  background:var(--card);border:1px solid var(--line);color:var(--accent);
+  font-size:11px;line-height:1;padding-left:2px}
+.play.on{background:var(--accent);color:#fff;border-color:var(--accent);padding-left:0}
 .mecsl{width:100%;margin:8px 0 2px;accent-color:var(--accent)}
 .mecpie{margin:0;font-size:11px;color:var(--tx3);line-height:1.45}
 .mecpie b{color:var(--tx2)}

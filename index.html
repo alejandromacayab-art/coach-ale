@@ -585,7 +585,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.10.09-3";
+const APP_VERSION = "2026.10.09-4";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -3807,6 +3807,58 @@ function pesoDeHoy(e){
   return Math.max(0, ...(e.sets||[]).map(st=>num(st.w)));
 }
 
+/* ---- el movimiento ----
+   Mover el esquema es cambiarle los atributos, no volver a dibujarlo:
+   así se ve continuo y no parpadea. El reproductor recorre el ejercicio
+   como una repetición, no como un barrido. */
+let peliEn = null;                      // qué ejercicio se está reproduciendo
+const peli = (window.COACH_ALE_GRAFICO || {}).reproductor
+  ? window.COACH_ALE_GRAFICO.reproductor(u => {
+      if(peliEn == null) return;
+      const r = _crudos[peliEn];
+      if(!r) return;
+      moverMecanica(peliEn, Math.round(u*(r.puntos.length-1)), true);
+    })
+  : {play(){}, pausa(){}, activo:false};
+
+const _crudos = {};                     // el cálculo vivo de cada panel abierto
+
+function moverMecanica(i, idx, desdeLaPeli){
+  const G = window.COACH_ALE_GRAFICO, r = _crudos[i];
+  if(!G || !r) return;
+  mecPunto[i] = idx;
+  const caja = document.querySelector(`[data-mecw="${i}"]`);
+  if(!caja) return;
+  const p = r.puntos[idx];
+  G.moverFigura(caja.querySelector(".dibujo"), r, idx, r.__modelo, r.__enc);
+  G.moverCurva(caja.querySelector(".grafico"), r, idx, {alto:150});
+  const ls = caja.querySelectorAll(".meclec b");
+  if(ls[0]) ls[0].textContent = Math.round(p.torque);
+  if(ls[1] && p.torque2 != null) ls[1].textContent = Math.round(p.torque2);
+  const pie = caja.querySelector(".mecpie b");
+  if(pie) pie.textContent = Math.round(p.ang) + "°";
+  /* "Aquí es lo más duro" solo vale en el máximo: al moverse, se calla. */
+  const pico = caja.querySelector(".mecpie [data-pico]");
+  if(pico) pico.hidden = idx !== r.puntos.indexOf(r.pico);
+  if(desdeLaPeli){
+    const sl = caja.querySelector("[data-mecsl]");
+    if(sl) sl.value = idx;
+  }
+}
+function pintarPlay(i){
+  const b = document.querySelector(`[data-mecplay="${i}"]`);
+  if(b){ b.textContent = peliEn === i ? "❚❚" : "▶"; b.classList.toggle("on", peliEn === i); }
+}
+function pararPeli(){
+  if(peliEn == null) return;
+  const antes = peliEn; peliEn = null; peli.pausa(); pintarPlay(antes);
+}
+function alternarPeli(i){
+  if(peliEn === i){ pararPeli(); return; }
+  pararPeli();
+  peliEn = i; peli.play(); pintarPlay(i);
+}
+
 /* Repinta solo el panel de un ejercicio, sin tocar el resto de la hoja:
    redibujarla entera mientras escribes te saca del campo de texto. */
 function pintarMecanica(i){
@@ -3836,6 +3888,10 @@ function panelMecanica(i, e){
 
   if(!G || !k.crudo) return "";
   const r = k.crudo;
+  /* Se guardan para poder moverlo después sin recalcular nada. */
+  r.__modelo = k.modelo;
+  r.__enc = G.encuadre(r, k.modelo, {alto:170});
+  _crudos[i] = r;
   const iPico = r.puntos.indexOf(r.pico);
   const idx = Math.max(0, Math.min(r.puntos.length-1,
     mecPunto[i] != null ? mecPunto[i] : iPico));
@@ -3844,7 +3900,7 @@ function panelMecanica(i, e){
   return `
     <div class="mecpanel">
       <div class="mecdos">
-        <div class="mecfig">${G.figura(r, idx, k.modelo, {alto:170})}</div>
+        <div class="mecfig">${G.figura(r, idx, k.modelo, {alto:170, eq:(fichaEjercicio(e.name)||{}).eq, newtons:r.fuerza})}</div>
         <div class="meccur">${G.curva(r, idx, {alto:150})}</div>
       </div>
       <div class="meclec">
@@ -3853,10 +3909,13 @@ function panelMecanica(i, e){
         ${p.torque2 != null ? `<span class="b"><u></u><b>${Math.round(p.torque2)}</b> N·m<em>${
           esc(r.art2)}${r.musc2 ? " · " + esc(r.musc2) : ""}</em></span>` : ""}
       </div>
-      <input type="range" class="mecsl" data-mecsl="${i}" min="0" max="${r.puntos.length-1}"
-             step="1" value="${idx}" aria-label="Recorrido del ejercicio">
-      <p class="mecpie">${esc(r.ejeX)} <b>${Math.round(p.ang)}°</b>${
-        idx === iPico ? " · aquí es lo más duro" : ""} · con ${
+      <div class="reproduce">
+        <button class="play" data-mecplay="${i}" aria-label="Reproducir el movimiento">▶</button>
+        <input type="range" class="mecsl" data-mecsl="${i}" min="0" max="${r.puntos.length-1}"
+               step="1" value="${idx}" aria-label="Recorrido del ejercicio">
+      </div>
+      <p class="mecpie">${esc(r.ejeX)} <b>${Math.round(p.ang)}°</b><span data-pico${
+        idx === iPico ? "" : " hidden"}> · aquí es lo más duro</span> · con ${
         k.carga > 0 ? `<b>${fmt(k.carga)} kg</b>` : "tu propio peso"}</p>
       <a class="meclab" href="laboratorio/?ej=${encodeURIComponent(e.name)}">Ver la ficha completa en Palanca ›</a>
     </div>`;
@@ -4477,7 +4536,7 @@ function addExercise(silent){
   if(!silent) renderExercises();
 }
 function renderExercises(){
-  olvidarCargas();
+  olvidarCargas(); pararPeli();
   const w = dayLog(cur).workout;
   /* Redibujar la lista mandaba la ventana arriba del todo cada vez que
      elegías un ejercicio o añadías una serie. */
@@ -4565,9 +4624,12 @@ function renderExercises(){
   if(!L.dataset.mecLigado){
     L.dataset.mecLigado = "1";
     L.addEventListener("click", ev=>{
+      const p = ev.target.closest("[data-mecplay]");
+      if(p){ alternarPeli(+p.dataset.mecplay); return; }
       const b = ev.target.closest("[data-mect]");
       if(!b) return;
       const i = +b.dataset.mect;
+      pararPeli();
       if(mecCerrado.has(i)) mecCerrado.delete(i); else mecCerrado.add(i);
       renderExercises();
     });
@@ -4575,8 +4637,8 @@ function renderExercises(){
       const sl = ev.target.closest("[data-mecsl]");
       if(!sl) return;
       const i = +sl.dataset.mecsl;
-      mecPunto[i] = +sl.value;
-      pintarMecanica(i);
+      pararPeli();
+      moverMecanica(i, +sl.value);
     });
   }
 
