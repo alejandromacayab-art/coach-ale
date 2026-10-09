@@ -414,6 +414,63 @@ function modeloApoyos(ej, cuerpo, carga, op){
           unidad:"°", ejeX: ej.ejeX || "Ángulo del codo"};
 }
 
+
+/* ---- F. PLANO FRONTAL ------------------------------------------------
+   El motor de arriba resuelve un plano: el del movimiento. Pero en todo
+   lo que se hace de pie hay un segundo problema que no se ve ahí, y es
+   el que manda en la rodilla que se va adentro y en el glúteo medio.
+
+   Visto de frente: el suelo empuja hacia arriba bajo cada pie, y la
+   cadera está donde está. Si el pie queda por dentro de la cadera, ese
+   empuje tiende a aducir el muslo y lo aguantan los abductores —glúteo
+   medio—. Si queda por fuera, al revés: lo aguantan los aductores. Y la
+   distancia entre la rodilla y el pie es el momento de valgo, que es el
+   número que importa cuando la rodilla se mete.
+
+   Separación entre centros articulares de cadera: unos 16-17 cm en un
+   adulto, que es lo que se usa aquí como 0,047 de la estatura por lado.
+   ---------------------------------------------------------------------- */
+
+const MEDIA_CADERA = 0.047;        // × estatura, del centro del cuerpo a cada cadera
+
+function modeloFrontal(ej, cuerpo, carga, op){
+  const {H, M} = cuerpo;
+  const o = op || {};
+  const unaPierna = (ej.reparto || 0.5) > 0.6;
+  /* Cuánto peso aguanta la pierna que estamos mirando. */
+  const fraccion = ej.reparto != null ? ej.reparto : 0.5;
+  const masa = M + (carga || 0);
+  const F = masa * G * fraccion;
+
+  const xCadera = MEDIA_CADERA * H;
+  /* Un pie por debajo del cuerpo cuando es a una pierna; si no, la mitad
+     de la separación que haya elegido. */
+  const anchoDef = unaPierna ? 0 : (o.anchoPies != null ? o.anchoPies : (ej.ancho || 32))/2/100;
+  const xPie = unaPierna ? 0 : anchoDef;
+  /* La rodilla, respecto al pie: positivo = se mete hacia dentro. */
+  const dentro = (o.rodillaDentro || 0)/100;
+  const xRodilla = xPie - dentro;
+
+  const brazoCadera  = xCadera - xPie;      // + = el pie queda por dentro
+  const brazoRodilla = xRodilla - xPie;     // + = valgo
+
+  return {
+    unaPierna, F, xCadera, xPie, xRodilla, ancho: xPie*2,
+    cadera: {
+      torque: Math.abs(F * brazoCadera),
+      brazo: Math.abs(brazoCadera),
+      musc: brazoCadera >= 0 ? "Glúteo medio y menor" : "Aductores",
+      gesto: brazoCadera >= 0 ? "abducción" : "aducción"
+    },
+    rodilla: {
+      torque: Math.abs(F * brazoRodilla),
+      brazo: Math.abs(brazoRodilla),
+      musc: brazoRodilla > 0 ? "Glúteo medio y rotadores externos" : "Estructuras laterales",
+      gesto: brazoRodilla > 0 ? "valgo" : "varo"
+    }
+  };
+}
+
 const MOTORES = {rotacion:modeloRotacion, brazos:modeloBrazos,
                  piernas:modeloPiernas, prensa:modeloPrensa, apoyos:modeloApoyos};
 
@@ -459,6 +516,15 @@ function ajustesDe(ej, cuerpo){
             min:30, max:65, paso:5, def: ej.riel || 45,
             ayuda:"Cada prensa tiene la suya, y cambia cuánta fuerza llega al pie."});
   }
+  if(ej.frontal){
+    const una = (ej.reparto || 0.5) > 0.6;
+    if(!una) L.push({id:"anchoPies", et:"Ancho de los pies", u:"cm",
+      min:14, max:80, paso:2, def: ej.ancho || 32,
+      ayuda:"Medido entre centros. Más estrecho que tus caderas carga el glúteo medio; más ancho, los aductores."});
+    L.push({id:"rodillaDentro", et:"Rodilla hacia dentro", u:"cm",
+      min:-6, max:14, paso:1, def:0,
+      ayuda:"Lo que la rodilla se mete respecto al pie. Es el momento de valgo, el número que importa cuando se va adentro."});
+  }
   if(ej.patron === "piernas")
     L.push(ej.anclaCarga
       ? {id:"barra", et:"Separación de la barra", u:"cm", min:0, max:20, paso:1, def:0,
@@ -489,6 +555,15 @@ function metricasDe(r, i, ej){
   const mete = (clave, nombre, musc, torque, extra) =>
     L.push(Object.assign({clave, nombre, musc, torque}, extra || {}));
 
+  if(ej.frontal){
+    const una = (ej.reparto || 0.5) > 0.6;
+    if(!una) L.push({id:"anchoPies", et:"Ancho de los pies", u:"cm",
+      min:14, max:80, paso:2, def: ej.ancho || 32,
+      ayuda:"Medido entre centros. Más estrecho que tus caderas carga el glúteo medio; más ancho, los aductores."});
+    L.push({id:"rodillaDentro", et:"Rodilla hacia dentro", u:"cm",
+      min:-6, max:14, paso:1, def:0,
+      ayuda:"Lo que la rodilla se mete respecto al pie. Es el momento de valgo, el número que importa cuando se va adentro."});
+  }
   if(ej.patron === "piernas"){
     const cad = ej.principal === "cadera";
     mete(cad ? "cadera" : "rodilla", r.art, r.musc, p.torque,
@@ -520,6 +595,9 @@ function calcular(ej, cuerpo, carga, opciones){
   const op = conDefectos(ej, cuerpo, opciones);
   const r = MOTORES[ej.patron](ej, cuerpo, carga||0, op);
   r.ajustes = ajustesDe(ej, cuerpo);
+  /* Los de pie llevan además el plano frontal: es otro problema, no otra
+     vista del mismo, y por eso se calcula aparte. */
+  if(ej.frontal) r.frontal = modeloFrontal(ej, cuerpo, carga||0, op);
   r.plano = ej.plano || "sagital";
   r.ej = ej;
   r.op = op;
@@ -536,7 +614,8 @@ function calcular(ej, cuerpo, carga, opciones){
 }
 
 global.COACH_ALE_BIOMECANICA = {
-  cuerpoDe, calcular, ajustesDe, metricasDe, torqueDe, comDe, kilos, sin, cos,
+  cuerpoDe, calcular, ajustesDe, metricasDe, modeloFrontal,
+  MEDIA_CADERA, torqueDe, comDe, kilos, sin, cos,
   LARGO, MASA, COM, G, RAD
 };
 })(window);

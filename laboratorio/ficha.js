@@ -5,6 +5,7 @@ window.fichaAbierta = null;
 let puntoSel = 0.5;        // dónde está el cursor dentro del recorrido, 0 a 1
 let ajustes = {};          // el montaje: apoyos, agarre, inclinación…
 let artSel = null;         // qué articulación está seleccionada
+let vista = "sagital";     // qué plano se está mirando
 const ajuste = a => ajustes[a.id] != null ? ajustes[a.id] : a.def;
 
 /* Lo que hace falta para mover el esquema sin volver a dibujarlo: el
@@ -19,9 +20,22 @@ const figura  = (r, i, m, eq, N) => G.figura(r, i, m, {eq, newtons:N});
 /* Mueve la ficha a un punto del recorrido tocando solo lo que cambia.
    Redibujarla entera en cada fotograma parpadeaba y perdía el foco del
    control; así el movimiento se ve continuo. */
+/* Las del plano frontal salen de su propio motor: es otro problema, no
+   otra vista del mismo. */
+function metricasFrontales(r){
+  const f = r.frontal;
+  if(!f) return [];
+  return [
+    {clave:"caderaF", nombre:"Cadera · plano frontal", musc:f.cadera.musc,
+     torque:f.cadera.torque, brazo:f.cadera.brazo, gesto:f.cadera.gesto},
+    {clave:"rodillaF", nombre:"Rodilla · plano frontal", musc:f.rodilla.musc,
+     torque:f.rodilla.torque, brazo:f.rodilla.brazo, gesto:f.rodilla.gesto}
+  ];
+}
+
 /* Las métricas de una articulación, para cuando la tocas. */
 function tarjetaArt(r, i, m){
-  const todas = BIO.metricasDe(r, i, m);
+  const todas = vista === "frontal" ? metricasFrontales(r) : BIO.metricasDe(r, i, m);
   if(!todas.length) return "";
   const sel = todas.find(x => x.clave === artSel) || todas[0];
   const chips = todas.map(x =>
@@ -40,6 +54,7 @@ function tarjetaArt(r, i, m){
         ${dato("Brazo de palanca", sel.brazo != null ? (Math.abs(sel.brazo)*100).toFixed(0) + " cm" : null)}
         ${dato("Fuerza en el implemento", r.fuerza ? Math.round(r.fuerza) + " N" : null)}
         ${dato("Carga en las manos", sel.porcentaje != null ? Math.round(sel.porcentaje) + "%" : null)}
+        ${dato("Gesto que resiste", sel.gesto || null)}
       </div>
     </div>`;
 }
@@ -51,7 +66,18 @@ function irA(u, desdeLaPeli){
   const i = Math.round(puntoSel*(r.puntos.length-1));
   const p = r.puntos[i];
 
-  G.moverFigura(document.querySelector("#vista-ficha .dibujo"), r, i, m, vivo.enc);
+  if(vista === "frontal"){
+    /* La vista de frente cambia de altura con la postura, así que se
+       vuelve a dibujar; son cuatro líneas y no se nota. */
+    const cont = document.querySelector("#vista-ficha .dibujo");
+    if(cont && cont.parentNode){
+      const tmp = document.createElement("div");
+      tmp.innerHTML = G.frontal(r, i, m, CUERPO, {});
+      if(tmp.firstElementChild) cont.replaceWith(tmp.firstElementChild);
+    }
+  }else{
+    G.moverFigura(document.querySelector("#vista-ficha .dibujo"), r, i, m, vivo.enc);
+  }
   G.moverCurva(document.querySelector("#vista-ficha .grafico"), r, i);
 
   const gb = document.getElementById("granB");
@@ -91,7 +117,7 @@ function abrirFicha(nombre, opt){
   /* Cambiar de ejercicio es navegar; mover un control no. */
   const cambia = window.fichaAbierta !== nombre;
   if(cambia){
-    window.fichaAbierta = nombre; puntoSel = 0.5; ajustes = {}; artSel = null;
+    window.fichaAbierta = nombre; puntoSel = 0.5; ajustes = {}; artSel = null; vista = "sagital";
     if(!(opt && opt.sinHistoria))
       history.pushState({ej:nombre}, "", "?ej=" + encodeURIComponent(nombre));
   }
@@ -169,10 +195,20 @@ function abrirFicha(nombre, opt){
     </section>
     <section class="fig">
       <h2><i>FIG. 02</i> La posición y el brazo de palanca</h2>
-      ${figura(r, i, m, x.eq, r.fuerza)}
+      ${r.frontal ? `
+      <div class="planos">
+        <button class="chipg ${vista==="sagital"?"on":""}" data-vista="sagital">De perfil</button>
+        <button class="chipg ${vista==="frontal"?"on":""}" data-vista="frontal">De frente</button>
+      </div>` : ""}
+      ${vista === "frontal" && r.frontal
+        ? G.frontal(r, i, m, CUERPO, {})
+        : figura(r, i, m, x.eq, r.fuerza)}
       ${tarjetaArt(r, i, m)}
-      <p class="plano">Los números son del <b>plano ${esc(r.plano)}</b>, que es
-        donde ocurre este movimiento. Lo que pase en el otro plano no entra.</p>
+      <p class="plano">${r.frontal
+        ? (vista === "frontal"
+            ? "De frente manda otra cosa: dónde cae el pie respecto a la cadera y hacia dónde apunta la rodilla. Son otros músculos y otro cálculo — no es la misma cuenta vista de lado."
+            : "Los números de perfil son los del empuje. Cambia a <b>De frente</b> para ver lo que este plano no puede: el glúteo medio, los aductores y el valgo de rodilla.")
+        : `Los números son del <b>plano ${esc(r.plano)}</b>, que es donde ocurre este movimiento. Lo que pase en el otro plano no entra.`}</p>
       ${control}
       ${m.nota ? `<div class="nota">${m.nota}</div>` : ""}
     </section>` : `
@@ -215,7 +251,11 @@ function abrirFicha(nombre, opt){
   /* Solo se pueden tocar las articulaciones de las que hay algo que
      decir: tocar una sin métricas y que no pase nada es peor que no
      poder tocarla. */
-  const conDatos = new Set(r ? BIO.metricasDe(r, i, m).map(z=>z.clave) : []);
+  const conDatos = new Set(r ? (vista === "frontal" ? metricasFrontales(r) : BIO.metricasDe(r, i, m)).map(z=>z.clave) : []);
+  document.querySelectorAll("#vista-ficha [data-vista]").forEach(b => b.onclick = ()=>{
+    vista = b.dataset.vista; artSel = null;
+    abrirFicha(nombre, {sinHistoria:true});
+  });
   const elegir = c => { if(!conDatos.has(c)) return; artSel = c; abrirFicha(nombre, {sinHistoria:true}); };
   document.querySelectorAll("#vista-ficha [data-art]").forEach(b =>
     b.onclick = ()=> elegir(b.dataset.art));

@@ -50,9 +50,11 @@ function curva(r, i, opt){
     ${cursor}
     <circle cx="${X(r.pico.ang)}" cy="${Y(r.pico.torque)}" r="3" fill="none"
       stroke="var(--q0)" stroke-width="1.6" opacity=".6"/>
-    <text x="${Math.min(W-DER-26, Math.max(IZQ+2, X(r.pico.ang)))}"
-      y="${Math.max(11, Y(r.pico.torque)-9)}" font-size="10"
-      font-weight="800" fill="var(--q0)" opacity=".85">pico ${Math.round(r.pico.torque)}</text>
+    ${(()=>{ const alFinal = X(r.pico.ang) > (IZQ + W-DER)/2;
+      return `<text x="${alFinal ? W-DER : Math.max(IZQ+2, X(r.pico.ang))}"
+        y="${Math.max(11, Y(r.pico.torque)-9)}" font-size="10"
+        text-anchor="${alFinal ? "end" : "start"}"
+        font-weight="800" fill="var(--q0)" opacity=".85">pico ${Math.round(r.pico.torque)}</text>`; })()}
     ${/* En todos los modelos el recorrido arranca con el músculo largo:
           decirlo con palabras vale más que dos cifras en grados. */""}
     <text x="${IZQ-2}" y="${H-7}" font-size="9.5" font-weight="700"
@@ -491,6 +493,120 @@ function reproductor(alCambiar, opt){
   };
 }
 
-global.COACH_ALE_GRAFICO = {curva, chispa, figura: figuraSVG,
+
+/* ---------- la vista de frente ----------
+   Las alturas salen del plano del movimiento —así las dos vistas hablan
+   de la misma postura— y las posiciones laterales, del motor frontal.
+   El muslo sale más corto de lo que es: visto de frente está escorzado,
+   y eso es correcto, no un error de dibujo.                            */
+function figuraFrontal(r, i, m, cuerpo, opt){
+  const fr = r.frontal;
+  if(!fr) return "";
+  const alto = (opt && opt.alto) || 250;
+  const g = (r.puntos[i] || {}).geo || {};
+  const L = cuerpo.L;
+
+  /* Subidas verticales de cada tramo, tomadas de la postura real. */
+  let subePierna, subeMuslo, subeTorso;
+  if(m.patron === "piernas" && g.tobillo){
+    subePierna = g.rodilla.y - g.tobillo.y;
+    subeMuslo  = g.cadera.y  - g.rodilla.y;
+    subeTorso  = g.hombro.y  - g.cadera.y;
+  }else{
+    /* La prensa va tumbada: se escorza a ojo para que la vista frontal
+       siga teniendo sentido como plano de apoyo. */
+    const D = g.K ? Math.hypot(g.K.x, g.K.y) : L.muslo;
+    subePierna = L.pierna*0.7; subeMuslo = D*0.55; subeTorso = 0;
+  }
+
+  const yT = 0, yR = yT + subePierna, yC = yR + subeMuslo, yH = yC + subeTorso;
+  const lado = sg => ({
+    pie:    {x: sg*fr.xPie,     y: yT},
+    rodilla:{x: sg*fr.xRodilla, y: yR},
+    cadera: {x: sg*fr.xCadera,  y: yC},
+    hombro: {x: sg*0.129*cuerpo.H, y: yH}
+  });
+  const D = lado(1), I = lado(-1);
+
+  /* Encuadre, con aire para la silueta. */
+  const todos = [D, I].flatMap(o => Object.values(o));
+  const xs = todos.map(v=>v.x), ys = todos.map(v=>v.y);
+  const aire = 0.30;
+  const x0 = Math.min(...xs)-aire, x1 = Math.max(...xs)+aire;
+  const y0 = Math.min(...ys)-aire, y1 = Math.max(...ys)+aire;
+  const e = Math.min(300/Math.max(0.5, x1-x0), (alto-20)/Math.max(0.5, y1-y0));
+  const OX = 160 - (x0+x1)/2*e, OY = alto/2 + (y0+y1)/2*e;
+  const P = v => ({x: OX + v.x*e, y: OY - v.y*e});
+  const n = v => v.toFixed(1);
+
+  const pierna = (o, k) => {
+    const T = P(o.pie), R = P(o.rodilla), C = P(o.cadera);
+    return `
+      <line x1="${n(T.x)}" y1="${n(T.y)}" x2="${n(R.x)}" y2="${n(R.y)}"
+            stroke="var(--cuerpo)" stroke-width="${n(0.135*e)}" stroke-linecap="round"/>
+      <line x1="${n(R.x)}" y1="${n(R.y)}" x2="${n(C.x)}" y2="${n(C.y)}"
+            stroke="var(--cuerpo)" stroke-width="${n(0.21*e)}" stroke-linecap="round"/>
+      <line x1="${n(T.x - 0.06*e)}" y1="${n(T.y)}" x2="${n(T.x + 0.06*e)}" y2="${n(T.y)}"
+            stroke="var(--cuerpo)" stroke-width="${n(0.085*e)}" stroke-linecap="round"/>`;
+  };
+
+  const C0 = P({x:0, y:yC}), H0 = P({x:0, y:yH});
+  const tronco = subeTorso > 0.05 ? `
+    <line x1="${n(C0.x)}" y1="${n(C0.y)}" x2="${n(H0.x)}" y2="${n(H0.y)}"
+          stroke="var(--cuerpo)" stroke-width="${n(0.30*e)}" stroke-linecap="round"/>
+    <line x1="${n(P(D.hombro).x)}" y1="${n(P(D.hombro).y)}"
+          x2="${n(P(I.hombro).x)}" y2="${n(P(I.hombro).y)}"
+          stroke="var(--cuerpo)" stroke-width="${n(0.12*e)}" stroke-linecap="round"/>
+    <circle cx="${n(H0.x)}" cy="${n(H0.y - 0.17*e)}" r="${n(0.105*e)}" fill="var(--cuerpo)"/>` : "";
+  const pelvis = `<line x1="${n(P(D.cadera).x)}" y1="${n(P(D.cadera).y)}"
+      x2="${n(P(I.cadera).x)}" y2="${n(P(I.cadera).y)}"
+      stroke="var(--cuerpo)" stroke-width="${n(0.14*e)}" stroke-linecap="round"/>`;
+
+  /* Los dos brazos de palanca del plano frontal, en la pierna derecha. */
+  /* Las marcas se separan un poco de la articulación: dibujadas justo
+     encima quedaban tapadas por el grosor de la pierna. */
+  const marca = (A, B, txt, sep) => {
+    if(Math.abs(A.x-B.x) < 0.02) return "";
+    const a = P(A), b = P(B), y = a.y + sep, mx = (a.x+b.x)/2;
+    return `
+      <line x1="${n(a.x)}" y1="${n(a.y)}" x2="${n(a.x)}" y2="${n(y)}"
+            stroke="var(--marca)" stroke-opacity=".5" stroke-width="1.4" stroke-dasharray="3 3"/>
+      <line x1="${n(b.x)}" y1="${n(b.y)}" x2="${n(b.x)}" y2="${n(y)}"
+            stroke="var(--marca)" stroke-opacity=".5" stroke-width="1.4" stroke-dasharray="3 3"/>
+      <line x1="${n(a.x)}" y1="${n(y)}" x2="${n(b.x)}" y2="${n(y)}"
+            stroke="var(--marca)" stroke-width="3" stroke-linecap="round"/>
+      <g transform="translate(${n(mx)},${n(y)})">
+        <rect x="-21" y="-9" width="42" height="18" rx="5" fill="var(--marca)"/>
+        <text x="0" y="4.5" text-anchor="middle" font-size="11" font-weight="800"
+              fill="#fff">${txt}</text>
+      </g>`;
+  };
+
+  const nudo = (v, clave) => {
+    const q = P(v);
+    return `<circle cx="${n(q.x)}" cy="${n(q.y)}" r="4" fill="none"
+              stroke="var(--bg)" stroke-opacity=".55" stroke-width="2"/>
+            <circle data-toque="${clave}" cx="${n(q.x)}" cy="${n(q.y)}" r="17"
+              fill="transparent" style="cursor:pointer"><title>${clave}</title></circle>
+            <circle data-halo="${clave}" cx="${n(q.x)}" cy="${n(q.y)}" r="11" fill="none"
+              stroke="var(--marca)" stroke-width="2.5" opacity="0"/>`;
+  };
+
+  const suelo = P({x:0, y:yT});
+  return `<svg viewBox="0 0 320 ${alto}" class="dibujo" role="img"
+      aria-label="Vista de frente: ancho de los pies y seguimiento de la rodilla">
+    <line x1="8" y1="${n(suelo.y)}" x2="312" y2="${n(suelo.y)}"
+          stroke="currentColor" stroke-opacity=".2" stroke-width="2"/>
+    <line x1="${n(P({x:0,y:y1}).x)}" y1="${n(P({x:0,y:y1}).y)}"
+          x2="${n(P({x:0,y:y0}).x)}" y2="${n(P({x:0,y:y0}).y)}"
+          stroke="currentColor" stroke-opacity=".18" stroke-width="1" stroke-dasharray="4 5"/>
+    ${pierna(I)}${pierna(D)}${pelvis}${tronco}
+    ${marca(D.cadera, D.pie, `${Math.round(fr.cadera.brazo*100)} cm`, -0.17*e)}
+    ${marca(D.rodilla, D.pie, `${Math.round(fr.rodilla.brazo*100)} cm`, 0.17*e)}
+    ${nudo(D.cadera, "caderaF")}${nudo(D.rodilla, "rodillaF")}
+  </svg>`;
+}
+
+global.COACH_ALE_GRAFICO = {curva, chispa, figura: figuraSVG, frontal: figuraFrontal,
   encuadre, moverFigura, moverCurva, reproductor};
 })(window);

@@ -164,6 +164,7 @@ h1{font-size:22px;margin:2px 0 6px;letter-spacing:-.01em}
 .ctrl input[type=range]{width:100%;margin:0;accent-color:var(--accent)}
 /* Los controles del montaje, cada uno con lo que hace. */
 /* Las articulaciones: una fila de botones y la ficha de la elegida. */
+.planos{display:flex;gap:6px;margin-bottom:10px}
 .artbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .artchip{font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:8px;
   border:1px solid var(--line);background:var(--card2);color:var(--tx2)}
