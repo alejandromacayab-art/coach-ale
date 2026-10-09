@@ -4,6 +4,7 @@
 window.fichaAbierta = null;
 let puntoSel = 0.5;        // dónde está el cursor dentro del recorrido, 0 a 1
 let ajustes = {};          // el montaje: apoyos, agarre, inclinación…
+let artSel = null;         // qué articulación está seleccionada
 const ajuste = a => ajustes[a.id] != null ? ajustes[a.id] : a.def;
 
 /* Lo que hace falta para mover el esquema sin volver a dibujarlo: el
@@ -18,6 +19,31 @@ const figura  = (r, i, m, eq, N) => G.figura(r, i, m, {eq, newtons:N});
 /* Mueve la ficha a un punto del recorrido tocando solo lo que cambia.
    Redibujarla entera en cada fotograma parpadeaba y perdía el foco del
    control; así el movimiento se ve continuo. */
+/* Las métricas de una articulación, para cuando la tocas. */
+function tarjetaArt(r, i, m){
+  const todas = BIO.metricasDe(r, i, m);
+  if(!todas.length) return "";
+  const sel = todas.find(x => x.clave === artSel) || todas[0];
+  const chips = todas.map(x =>
+    `<button class="artchip${x.clave === sel.clave ? " on" : ""}" data-art="${esc(x.clave)}">
+       ${esc(x.nombre || x.clave)}</button>`).join("");
+  const dato = (et, v) => v == null ? "" :
+    `<div><span>${et}</span><b>${v}</b></div>`;
+  return `
+    <div class="artbar">${chips}</div>
+    <div class="artficha" id="artFicha">
+      <h3>${esc(sel.nombre || sel.clave)}</h3>
+      <p>${esc(sel.musc || "")}</p>
+      <div class="artdatos">
+        ${dato("Torque", sel.torque != null ? Math.round(sel.torque) + " N·m" : null)}
+        ${dato("Ángulo", sel.angulo != null ? Math.round(sel.angulo) + "°" : null)}
+        ${dato("Brazo de palanca", sel.brazo != null ? (Math.abs(sel.brazo)*100).toFixed(0) + " cm" : null)}
+        ${dato("Fuerza en el implemento", r.fuerza ? Math.round(r.fuerza) + " N" : null)}
+        ${dato("Carga en las manos", sel.porcentaje != null ? Math.round(sel.porcentaje) + "%" : null)}
+      </div>
+    </div>`;
+}
+
 function irA(u, desdeLaPeli){
   if(!vivo) return;
   puntoSel = Math.max(0, Math.min(1, u));
@@ -38,6 +64,19 @@ function irA(u, desdeLaPeli){
   if(b && p.torque2 != null) b.querySelector("b").textContent = Math.round(p.torque2);
   else if(b && p.efectivo != null) b.querySelector("b").textContent = Math.round(p.efectivo);
 
+  /* La tarjeta de la articulación y el músculo encendido siguen al
+     movimiento: eso es lo que lo hace un atlas vivo y no una lámina. */
+  const tf = document.getElementById("artFicha");
+  if(tf){
+    const t2 = document.createElement("div");
+    t2.innerHTML = tarjetaArt(r, i, m);
+    const nueva = t2.querySelector("#artFicha");
+    if(nueva) tf.innerHTML = nueva.innerHTML;
+  }
+  const lam = document.getElementById("lamina");
+  if(lam) lam.style.setProperty("--int",
+    (Math.min(1, p.torque / Math.max(1, r.pico.torque))).toFixed(3));
+
   const et = document.getElementById("etPunto");
   if(et) et.textContent = Math.round(p.ang) + "°";
   const sl = document.getElementById("inPunto");
@@ -52,7 +91,7 @@ function abrirFicha(nombre, opt){
   /* Cambiar de ejercicio es navegar; mover un control no. */
   const cambia = window.fichaAbierta !== nombre;
   if(cambia){
-    window.fichaAbierta = nombre; puntoSel = 0.5; ajustes = {};
+    window.fichaAbierta = nombre; puntoSel = 0.5; ajustes = {}; artSel = null;
     if(!(opt && opt.sinHistoria))
       history.pushState({ej:nombre}, "", "?ej=" + encodeURIComponent(nombre));
   }
@@ -131,6 +170,9 @@ function abrirFicha(nombre, opt){
     <section class="fig">
       <h2><i>FIG. 02</i> La posición y el brazo de palanca</h2>
       ${figura(r, i, m, x.eq, r.fuerza)}
+      ${tarjetaArt(r, i, m)}
+      <p class="plano">Los números son del <b>plano ${esc(r.plano)}</b>, que es
+        donde ocurre este movimiento. Lo que pase en el otro plano no entra.</p>
       ${control}
       ${m.nota ? `<div class="nota">${m.nota}</div>` : ""}
     </section>` : `
@@ -144,7 +186,7 @@ function abrirFicha(nombre, opt){
 
     <section class="fig">
       <h2><i>FIG. ${r ? "03" : "02"}</i> Dónde deberías sentirlo</h2>
-      ${dibujo}
+      <div id="lamina" class="lamina" style="--int:1">${dibujo}</div>
       <p class="sub" style="margin:10px 0 0">${esc(x.s)}</p>
     </section>
 
@@ -170,6 +212,21 @@ function abrirFicha(nombre, opt){
   };
   /* Cambiar el montaje recalcula el ejercicio entero: no es moverse por
      el recorrido, es otro ejercicio. */
+  /* Solo se pueden tocar las articulaciones de las que hay algo que
+     decir: tocar una sin métricas y que no pase nada es peor que no
+     poder tocarla. */
+  const conDatos = new Set(r ? BIO.metricasDe(r, i, m).map(z=>z.clave) : []);
+  const elegir = c => { if(!conDatos.has(c)) return; artSel = c; abrirFicha(nombre, {sinHistoria:true}); };
+  document.querySelectorAll("#vista-ficha [data-art]").forEach(b =>
+    b.onclick = ()=> elegir(b.dataset.art));
+  document.querySelectorAll("#vista-ficha [data-toque]").forEach(o => {
+    if(!conDatos.has(o.dataset.toque)){ o.style.cursor = "default"; return; }
+    o.onclick = ()=> elegir(o.dataset.toque);
+  });
+  /* El halo marca la que estás mirando. */
+  const halo = document.querySelector(`#vista-ficha [data-halo="${artSel}"]`);
+  if(halo) halo.setAttribute("opacity", ".9");
+
   document.querySelectorAll("#vista-ficha [data-aj]").forEach(sl => sl.oninput = e => {
     peli.pausa();
     ajustes[e.target.dataset.aj] = parseFloat(e.target.value);

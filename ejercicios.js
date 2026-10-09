@@ -533,7 +533,10 @@ function cuerpoSVG(grupo, color){
 
   const musculos = id => par((MAPA[id] || []).map(m=>{
     const on = m.g === grupo;
-    return `<path d="${m.d}"
+    /* El que trabaja va marcado: así la página puede encenderlo más o
+       menos según el torque del momento, y la lámina deja de ser un
+       dibujo fijo para seguir al movimiento. */
+    return `<path d="${m.d}"${on ? " data-on=\"1\"" : ""}
       fill="${on ? c : "currentColor"}" fill-opacity="${on ? .82 : .17}"
       stroke="${on ? c : "currentColor"}" stroke-opacity="${on ? .95 : .34}"
       stroke-width=".7" stroke-linejoin="round"/>`;

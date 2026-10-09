@@ -203,8 +203,6 @@ function implemento(eq, patron, enc, geo){
     const D = geo.d, P = geo.p;
     const pt = (a, b) => `${((D.x*a + P.x*b)*enc.e).toFixed(1)},${(-(D.y*a + P.y*b)*enc.e).toFixed(1)}`;
     return {svg: `
-      <line x1="${pt(0.05, 0.17)}" y1="0" x2="${pt(0.05, -0.17)}" y2="0"
-            stroke="currentColor" stroke-opacity="0" stroke-width="0"/>
       <polyline points="${pt(0.05, 0.16)} ${pt(0.05, -0.16)}"
             stroke="currentColor" stroke-opacity=".2" stroke-width="15"
             stroke-linecap="round" fill="none"/>
@@ -332,9 +330,16 @@ function figuraSVG(r, i, m, opt){
               r="${n(rr)}" fill="var(--cuerpo)"/>`;
   })() : "";
 
+  /* Cada articulación con su nombre y un área de toque generosa: en un
+     teléfono un círculo de cuatro píxeles no se acierta nunca. */
   const nudos = nombres.map((k, j) =>
     `<circle data-nudo="${j}" cx="${n(P(c.puntos[k]).x)}" cy="${n(P(c.puntos[k]).y)}" r="4"
-       fill="none" stroke="var(--bg)" stroke-opacity=".55" stroke-width="2"/>`).join("");
+       fill="none" stroke="var(--bg)" stroke-opacity=".55" stroke-width="2"/>
+     <circle data-toque="${esc(k)}" data-nudo2="${j}"
+       cx="${n(P(c.puntos[k]).x)}" cy="${n(P(c.puntos[k]).y)}" r="17"
+       fill="transparent" style="cursor:pointer"><title>${esc(k)}</title></circle>
+     <circle data-halo="${esc(k)}" cx="${n(P(c.puntos[k]).x)}" cy="${n(P(c.puntos[k]).y)}" r="11"
+       fill="none" stroke="var(--marca)" stroke-width="2.5" opacity="0"/>`).join("");
 
   /* El brazo de palanca es el protagonista del dibujo, así que va en su
      propio color, sólido, con la medida en una pastilla y el ángulo recto
@@ -416,6 +421,10 @@ function moverFigura(svg, r, i, m, enc){
     const v = P(c.puntos[k]);
     const o = svg.querySelector(`[data-nudo="${j}"]`);
     pon(o, "cx", v.x); pon(o, "cy", v.y);
+    for(const sel of [`[data-nudo2="${j}"]`, `[data-halo="${k}"]`]){
+      const q = svg.querySelector(sel);
+      pon(q, "cx", v.x); pon(q, "cy", v.y);
+    }
   });
   if(c.palanca){
     const A = P(c.palanca.J), B = P(c.palanca.Q);

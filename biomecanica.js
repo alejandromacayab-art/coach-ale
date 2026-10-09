@@ -286,7 +286,12 @@ function modeloPiernas(ej, cuerpo, carga, opc){
        realmente se reparte el apoyo. */
     const tRodilla = Math.abs(torqueDe(e.encima.rodilla, e.rodilla));
     const tCadera  = Math.abs(torqueDe(e.encima.cadera,  e.cadera));
-    const tTobillo = Math.abs(torqueDe(e.pesos, {x:medioPie, y:e.tobillo.y}));
+    /* Respecto al tobillo, no al medio del pie: el equilibrio pone el
+       centro de masa justo sobre el medio del pie, así que medirlo ahí
+       daba cero siempre — un cero de construcción, no de la realidad.
+       Lo que el sóleo aguanta es el peso por lo que el tobillo queda
+       por detrás del apoyo. */
+    const tTobillo = Math.abs(torqueDe(e.pesos, {x:0, y:e.tobillo.y}));
 
     /* A una pierna no se reparte a medias: en una zancada la de adelante
        se lleva la mayor parte, y eso lo dice el ejercicio. */
@@ -468,11 +473,55 @@ const conDefectos = (ej, cuerpo, op) => {
   return o;
 };
 
+/* ============================================================
+   5. LAS MÉTRICAS DE CADA ARTICULACIÓN
+   Para poder tocar una y que diga lo suyo: cuánto gira, cuánto torque
+   aguanta, con qué brazo de palanca y qué músculo lo produce. Las que
+   el modelo no calcula también aparecen, diciendo que no las calcula —
+   es más honesto que esconderlas.
+   ============================================================ */
+
+function metricasDe(r, i, ej){
+  const p = r.puntos[i];
+  if(!p) return [];
+  const g = p.geo || {};
+  const L = [];
+  const mete = (clave, nombre, musc, torque, extra) =>
+    L.push(Object.assign({clave, nombre, musc, torque}, extra || {}));
+
+  if(ej.patron === "piernas"){
+    const cad = ej.principal === "cadera";
+    mete(cad ? "cadera" : "rodilla", r.art, r.musc, p.torque,
+         {angulo: p.angRodilla != null && !cad ? p.angRodilla : null, brazo: p.brazo});
+    mete(cad ? "rodilla" : "cadera", r.art2, r.musc2, p.torque2,
+         {angulo: cad ? p.angRodilla : null});
+    mete("tobillo", "Tobillo", "Gemelo y sóleo", p.torque3);
+  }else if(ej.patron === "prensa"){
+    mete("rodilla", r.art, r.musc, p.torque, {angulo: p.ang, brazo: p.brazo});
+    mete("cadera", r.art2, r.musc2, p.torque2, {brazo: p.h});
+  }else if(ej.patron === "brazos"){
+    mete("hombro", r.art, r.musc, p.torque, {brazo: p.brazo});
+    mete("codo", r.art2, r.musc2, p.torque2, {angulo: p.ang});
+  }else if(ej.patron === "apoyos"){
+    mete((ej.momentoEn && ej.momentoEn[0]) || "codo", r.art, r.musc, p.torque,
+         {angulo: p.ang, brazo: p.brazo});
+    if(p.torque2 != null) mete((ej.momentoEn && ej.momentoEn[1]) || "hombro",
+         r.art2, r.musc2, p.torque2);
+    if(p.efectivo != null) L.push({clave:"manos", nombre:"Apoyo de las manos",
+      musc:"", porcentaje: p.efectivo});
+  }else if(ej.patron === "rotacion"){
+    mete("pivote", r.art, r.musc, p.torque, {angulo: p.ang, brazo: p.brazo});
+  }
+  return L.filter(x => x.torque != null || x.porcentaje != null);
+}
+
 function calcular(ej, cuerpo, carga, opciones){
   if(!ej || !MOTORES[ej.patron]) return null;
   const op = conDefectos(ej, cuerpo, opciones);
   const r = MOTORES[ej.patron](ej, cuerpo, carga||0, op);
   r.ajustes = ajustesDe(ej, cuerpo);
+  r.plano = ej.plano || "sagital";
+  r.ej = ej;
   r.op = op;
   /* Cuánta fuerza llega de verdad al implemento. En una prensa de 45° no
      es el peso de los discos: es su componente a lo largo del riel. */
@@ -487,7 +536,7 @@ function calcular(ej, cuerpo, carga, opciones){
 }
 
 global.COACH_ALE_BIOMECANICA = {
-  cuerpoDe, calcular, ajustesDe, torqueDe, comDe, kilos, sin, cos,
+  cuerpoDe, calcular, ajustesDe, metricasDe, torqueDe, comDe, kilos, sin, cos,
   LARGO, MASA, COM, G, RAD
 };
 })(window);
