@@ -520,13 +520,17 @@ function figuraFrontal(r, i, m, cuerpo, opt){
   }
 
   const yT = 0, yR = yT + subePierna, yC = yR + subeMuslo, yH = yC + subeTorso;
-  const lado = sg => ({
-    pie:    {x: sg*fr.xPie,     y: yT},
-    rodilla:{x: sg*fr.xRodilla, y: yR},
+  /* A una pierna solo hay una debajo: la otra está atrás, en un banco o
+     en el aire. Dibujarlas simétricas decía lo contrario de lo que dice
+     el modelo, que es precisamente que el pie queda bajo la línea media. */
+  const una = fr.unaPierna;
+  const lado = (sg, libre) => ({
+    pie:    {x: libre ? sg*0.20 : sg*fr.xPie,     y: libre ? yT + 0.18 : yT},
+    rodilla:{x: libre ? sg*0.17 : sg*fr.xRodilla, y: libre ? yR + 0.14 : yR},
     cadera: {x: sg*fr.xCadera,  y: yC},
     hombro: {x: sg*0.129*cuerpo.H, y: yH}
   });
-  const D = lado(1), I = lado(-1);
+  const D = lado(1, false), I = lado(-1, una);
 
   /* Encuadre, con aire para la silueta. */
   const todos = [D, I].flatMap(o => Object.values(o));
@@ -539,15 +543,16 @@ function figuraFrontal(r, i, m, cuerpo, opt){
   const P = v => ({x: OX + v.x*e, y: OY - v.y*e});
   const n = v => v.toFixed(1);
 
-  const pierna = (o, k) => {
+  const pierna = (o, tenue) => {
     const T = P(o.pie), R = P(o.rodilla), C = P(o.cadera);
-    return `
+    const op = tenue ? ' opacity=".38"' : "";
+    return `<g${op}>
       <line x1="${n(T.x)}" y1="${n(T.y)}" x2="${n(R.x)}" y2="${n(R.y)}"
             stroke="var(--cuerpo)" stroke-width="${n(0.135*e)}" stroke-linecap="round"/>
       <line x1="${n(R.x)}" y1="${n(R.y)}" x2="${n(C.x)}" y2="${n(C.y)}"
             stroke="var(--cuerpo)" stroke-width="${n(0.21*e)}" stroke-linecap="round"/>
       <line x1="${n(T.x - 0.06*e)}" y1="${n(T.y)}" x2="${n(T.x + 0.06*e)}" y2="${n(T.y)}"
-            stroke="var(--cuerpo)" stroke-width="${n(0.085*e)}" stroke-linecap="round"/>`;
+            stroke="var(--cuerpo)" stroke-width="${n(0.085*e)}" stroke-linecap="round"/></g>`;
   };
 
   const C0 = P({x:0, y:yC}), H0 = P({x:0, y:yH});
@@ -600,7 +605,7 @@ function figuraFrontal(r, i, m, cuerpo, opt){
     <line x1="${n(P({x:0,y:y1}).x)}" y1="${n(P({x:0,y:y1}).y)}"
           x2="${n(P({x:0,y:y0}).x)}" y2="${n(P({x:0,y:y0}).y)}"
           stroke="currentColor" stroke-opacity=".18" stroke-width="1" stroke-dasharray="4 5"/>
-    ${pierna(I)}${pierna(D)}${pelvis}${tronco}
+    ${pierna(I, una)}${pierna(D, false)}${pelvis}${tronco}
     ${marca(D.cadera, D.pie, `${Math.round(fr.cadera.brazo*100)} cm`, -0.17*e)}
     ${marca(D.rodilla, D.pie, `${Math.round(fr.rodilla.brazo*100)} cm`, 0.17*e)}
     ${nudo(D.cadera, "caderaF")}${nudo(D.rodilla, "rodillaF")}

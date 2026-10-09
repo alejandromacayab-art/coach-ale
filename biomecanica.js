@@ -455,7 +455,7 @@ function modeloFrontal(ej, cuerpo, carga, op){
   const brazoRodilla = xRodilla - xPie;     // + = valgo
 
   return {
-    unaPierna, F, xCadera, xPie, xRodilla, ancho: xPie*2,
+    unaPierna, F, xCadera, xPie, xRodilla, ancho: xPie*2, masa,
     cadera: {
       torque: Math.abs(F * brazoCadera),
       brazo: Math.abs(brazoCadera),

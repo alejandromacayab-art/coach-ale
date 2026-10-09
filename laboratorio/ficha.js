@@ -27,9 +27,9 @@ function metricasFrontales(r){
   if(!f) return [];
   return [
     {clave:"caderaF", nombre:"Cadera · plano frontal", musc:f.cadera.musc,
-     torque:f.cadera.torque, brazo:f.cadera.brazo, gesto:f.cadera.gesto},
+     torque:f.cadera.torque, brazo:f.cadera.brazo, gesto:f.cadera.gesto, apoyo:f.F},
     {clave:"rodillaF", nombre:"Rodilla · plano frontal", musc:f.rodilla.musc,
-     torque:f.rodilla.torque, brazo:f.rodilla.brazo, gesto:f.rodilla.gesto}
+     torque:f.rodilla.torque, brazo:f.rodilla.brazo, gesto:f.rodilla.gesto, apoyo:f.F}
   ];
 }
 
@@ -52,7 +52,9 @@ function tarjetaArt(r, i, m){
         ${dato("Torque", sel.torque != null ? Math.round(sel.torque) + " N·m" : null)}
         ${dato("Ángulo", sel.angulo != null ? Math.round(sel.angulo) + "°" : null)}
         ${dato("Brazo de palanca", sel.brazo != null ? (Math.abs(sel.brazo)*100).toFixed(0) + " cm" : null)}
-        ${dato("Fuerza en el implemento", r.fuerza ? Math.round(r.fuerza) + " N" : null)}
+        ${dato(sel.apoyo != null ? "Fuerza en el apoyo" : "Fuerza en el implemento",
+          sel.apoyo != null ? Math.round(sel.apoyo) + " N"
+                            : (r.fuerza ? Math.round(r.fuerza) + " N" : null))}
         ${dato("Carga en las manos", sel.porcentaje != null ? Math.round(sel.porcentaje) + "%" : null)}
         ${dato("Gesto que resiste", sel.gesto || null)}
       </div>
