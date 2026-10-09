@@ -122,7 +122,7 @@ const comDe = pesos => {
    `offset` inclina el punto de partida: es lo que diferencia un curl de
    pie (el brazo cuelga vertical) de uno en banca Scott (el brazo ya
    arranca inclinado hacia adelante, así que el ejercicio empieza duro).  */
-function modeloRotacion(ej, cuerpo, carga){
+function modeloRotacion(ej, cuerpo, carga, op){
   const {L, m} = cuerpo;
   const largo = ej.largo(L);
   const com   = ej.com ? ej.com(L) : largo*0.45;
@@ -134,7 +134,8 @@ function modeloRotacion(ej, cuerpo, carga){
   const [a0, a1] = ej.rango;
   for(let i=0; i<=40; i++){
     const ang = a0 + (a1-a0)*i/40;
-    const phi = Math.abs(ang + (ej.offset||0));       // ángulo con la vertical
+    const inc = op && op.inclinacion != null ? op.inclinacion : (ej.offset||0);
+    const phi = Math.abs(ang + inc);                  // ángulo con la vertical
     const sp = Math.abs(sin(phi));
     const brazoCarga = largo*sp;
     const brazoSeg   = com*sp;
@@ -160,7 +161,7 @@ function modeloRotacion(ej, cuerpo, carga){
    El ángulo del slider es el del brazo (hombro → codo) respecto a la
    vertical; de ahí sale el codo, y la mano se obtiene cerrando el
    triángulo hasta el punto donde la carga tiene que estar.            */
-function modeloBrazos(ej, cuerpo, carga){
+function modeloBrazos(ej, cuerpo, carga, op){
   const {L, m} = cuerpo;
   const porLado = ej.lados === 2 ? 0.5 : 1;
   const kgCarga = carga*porLado + (ej.corporal ? cuerpo.M*ej.corporal*porLado : 0);
@@ -169,7 +170,7 @@ function modeloBrazos(ej, cuerpo, carga){
 
   for(let i=0; i<=40; i++){
     const ang = a0 + (a1-a0)*i/40;
-    const g = ej.pose(ang, L);           // {hombro, codo, mano} en metros
+    const g = ej.pose(ang, L, op);       // {hombro, codo, mano} en metros
     const pesos = [
       {kg:kgCarga, x:g.mano.x, y:g.mano.y},
       {kg:m.brazo*porLado,          x:(g.hombro.x+g.codo.x)/2, y:(g.hombro.y+g.codo.y)/2},
@@ -194,7 +195,7 @@ function modeloBrazos(ej, cuerpo, carga){
    centro de masa de todo —cuerpo más barra— sobre el medio del pie.
    Eso es lo que hace tu cuerpo para no caerse, y es también lo que
    explica por qué una sentadilla frontal obliga a ir más erguido.     */
-function esqueletoPierna(ej, cuerpo, carga, angRodilla, angTronco, correccionTibia){
+function esqueletoPierna(ej, cuerpo, carga, angRodilla, angTronco, correccionTibia, opc){
   const {L, m} = cuerpo;
   const tobillo = {x:0, y:L.tobillo};
   /* La tibia se inclina hacia adelante con la flexión de rodilla. */
@@ -217,6 +218,9 @@ function esqueletoPierna(ej, cuerpo, carga, angRodilla, angTronco, correccionTib
   ];
   /* Dónde se apoya la carga: hombros, manos colgando, o pecho. */
   const pCarga = ej.cargaPos(hombro, cadera, L);
+  /* Lo que la barra se aleja de la pierna se suma al brazo de palanca:
+     es el error más caro del peso muerto y aquí se puede medir. */
+  if(opc && opc.barra) pCarga.x += opc.barra/100;
   if(carga > 0) pesos.push({kg:carga, x:pCarga.x, y:pCarga.y});
 
   /* El orden es: piernas, muslos, torso, brazos y la carga. Lo que cuelga
@@ -228,7 +232,7 @@ function esqueletoPierna(ej, cuerpo, carga, angRodilla, angTronco, correccionTib
   return {tobillo, rodilla, cadera, hombro, pesos, pCarga, encima, incTibia, incFemur};
 }
 
-function modeloPiernas(ej, cuerpo, carga){
+function modeloPiernas(ej, cuerpo, carga, opc){
   const {L} = cuerpo;
   const medioPie = L.pie*0.45;             // el medio del pie, por delante del tobillo
   const puntos = [];
@@ -256,7 +260,7 @@ function modeloPiernas(ej, cuerpo, carga){
       let lo = -55, hi = 40;
       for(let k=0; k<30; k++){
         correccionTibia = (lo+hi)/2;
-        const e = esqueletoPierna(ej, cuerpo, carga, ang, tronco, correccionTibia);
+        const e = esqueletoPierna(ej, cuerpo, carga, ang, tronco, correccionTibia, opc);
         const ref = ej.anclaCarga ? e.pCarga.x : comDe(e.pesos).x;
         if(ref > medioPie) hi = correccionTibia; else lo = correccionTibia;
       }
@@ -267,12 +271,15 @@ function modeloPiernas(ej, cuerpo, carga){
       let lo = 0, hi = 85;
       for(let k=0; k<30; k++){
         tronco = (lo+hi)/2;
-        const e = esqueletoPierna(ej, cuerpo, carga, ang, tronco);
+        /* Con los ajustes puestos: si la búsqueda de equilibrio no ve dónde
+           está la carga, el torso no reacciona a moverla y la sentadilla
+           frontal sale idéntica a la normal. */
+        const e = esqueletoPierna(ej, cuerpo, carga, ang, tronco, 0, opc);
         if(comDe(e.pesos).x > medioPie) hi = tronco; else lo = tronco;
       }
       tronco = (lo+hi)/2;
     }
-    const e = esqueletoPierna(ej, cuerpo, carga, ang, tronco, correccionTibia);
+    const e = esqueletoPierna(ej, cuerpo, carga, ang, tronco, correccionTibia, opc);
 
     /* Torque en cada articulación: todo lo que queda por encima.
        El tobillo lo calcula contra el medio del pie, que es donde
@@ -305,7 +312,7 @@ function modeloPiernas(ej, cuerpo, carga){
    triángulo cadera-rodilla-pie.                                        */
 function modeloPrensa(ej, cuerpo, carga, opciones){
   const {L} = cuerpo;
-  const th = (ej.riel || 45);
+  const th = (opciones && opciones.riel) || ej.riel || 45;
   const d = {x:cos(th), y:sin(th)}, p = {x:-sin(th), y:cos(th)};
   const Lf = L.muslo, Lt = L.pierna;
   const alturaPie = ((opciones && opciones.pie) || 0)/100 + 0.16*(cuerpo.H/1.75);
@@ -343,12 +350,12 @@ function modeloPrensa(ej, cuerpo, carga, opciones){
    De ahí sale, sin inventar nada, por qué una flexión con los pies en alto
    es más dura y una con las manos en alto más suave: no cambia tu peso,
    cambia la distancia.                                                   */
-function modeloApoyos(ej, cuerpo, carga){
+function modeloApoyos(ej, cuerpo, carga, op){
   const puntos = [];
   const [a0, a1] = ej.rango;
   for(let i=0; i<=40; i++){
     const ang = a0 + (a1-a0)*i/40;
-    const g = ej.pose(ang, cuerpo, ej);
+    const g = ej.pose(ang, cuerpo, ej, op);
     const pesos = g.pesos.slice();
     if(carga > 0 && g.pCarga) pesos.push({kg:carga, x:g.pCarga.x, y:g.pCarga.y});
 
@@ -374,7 +381,8 @@ function modeloApoyos(ej, cuerpo, carga){
        que queda para el tríceps es la proyección. Codos pegados al cuerpo
        = casi todo; codos muy abiertos = casi nada, y el trabajo se va al
        pectoral. */
-    const abre = Math.cos((ej.apertura != null ? ej.apertura : 45)*RAD);
+    const abre = Math.cos((op && op.apertura != null ? op.apertura
+                           : (ej.apertura != null ? ej.apertura : 45))*RAD);
 
     /* Torque en cada articulación: se corta el cuerpo ahí y se suma lo que
        queda del lado de las manos. La fuerza de apoyo empuja hacia arriba
@@ -404,14 +412,73 @@ function modeloApoyos(ej, cuerpo, carga){
 const MOTORES = {rotacion:modeloRotacion, brazos:modeloBrazos,
                  piernas:modeloPiernas, prensa:modeloPrensa, apoyos:modeloApoyos};
 
+/* ============================================================
+   4. LO QUE SE PUEDE MOVER
+   Un laboratorio sirve si puedes cambiar el montaje, no solo mirarlo.
+   Cada patrón expone los ajustes que de verdad cambian la mecánica: el
+   sitio donde apoyas las manos y los pies, el ancho del agarre, cuánto
+   abres los codos, la inclinación del banco. Son las mismas variables
+   que decide un entrenador al montar el ejercicio.
+   ============================================================ */
+
+function ajustesDe(ej, cuerpo){
+  if(!ej || ej.descrito) return [];
+  const H = cuerpo ? cuerpo.H : 1.72;
+  const cm = f => Math.round(f*H*100);
+  const L = [];
+
+  if(ej.patron === "apoyos"){
+    const o = (ej.pose && ej.pose.base) || {};
+    L.push({id:"manosCm", et:"Altura del apoyo de las manos", u:"cm",
+            min:0, max:110, paso:5, def:cm(o.hManos||0),
+            ayuda:"Subir las manos a un banco o una barra reparte el peso hacia los pies."});
+    if(!o.rodillas)
+      L.push({id:"piesCm", et:"Altura del apoyo de los pies", u:"cm",
+              min:0, max:80, paso:5, def:cm(o.hPies||0),
+              ayuda:"Los pies en alto corren el peso hacia las manos."});
+    L.push({id:"apertura", et:"Apertura de los codos", u:"°",
+            min:0, max:80, paso:5, def: ej.apertura != null ? ej.apertura : 45,
+            ayuda:"Codos pegados al cuerpo cargan el tríceps; muy abiertos, el pectoral."});
+  }
+  if(ej.patron === "brazos")
+    L.push({id:"agarre", et:"Ancho del agarre", u:"cm", min:-8, max:14, paso:2, def:0,
+            ayuda:"Más ancho aleja la carga del hombro; más cerrado se la pasa al codo."});
+  if(ej.patron === "rotacion")
+    L.push({id:"inclinacion", et:"Inclinación del apoyo", u:"°",
+            min:-40, max:70, paso:5, def: ej.offset || 0,
+            ayuda:"Es lo que separa un curl de pie de uno en banca Scott: mueve el punto duro."});
+  if(ej.patron === "prensa"){
+    L.push({id:"pie", et:"Pie en la plataforma", u:"cm", min:-12, max:12, paso:1, def:0,
+            ayuda:"Arriba reparte a la cadera; abajo, a la rodilla."});
+    L.push({id:"riel", et:"Inclinación de la máquina", u:"°",
+            min:30, max:65, paso:5, def: ej.riel || 45,
+            ayuda:"Cada prensa tiene la suya, y cambia cuánta fuerza llega al pie."});
+  }
+  if(ej.patron === "piernas")
+    L.push(ej.anclaCarga
+      ? {id:"barra", et:"Separación de la barra", u:"cm", min:0, max:20, paso:1, def:0,
+         ayuda:"Cada centímetro que la barra se aleja de la pierna se suma al brazo de palanca."}
+      : {id:"barra", et:"Posición de la carga", u:"cm", min:-8, max:16, paso:1, def:0,
+         ayuda:"Adelante obliga a ir más erguido y carga la rodilla; atrás inclina el torso y carga la cadera."});
+  return L;
+}
+const conDefectos = (ej, cuerpo, op) => {
+  const o = Object.assign({}, op);
+  for(const a of ajustesDe(ej, cuerpo)) if(o[a.id] == null) o[a.id] = a.def;
+  return o;
+};
+
 function calcular(ej, cuerpo, carga, opciones){
   if(!ej || !MOTORES[ej.patron]) return null;
-  const r = MOTORES[ej.patron](ej, cuerpo, carga||0, opciones||{});
+  const op = conDefectos(ej, cuerpo, opciones);
+  const r = MOTORES[ej.patron](ej, cuerpo, carga||0, op);
+  r.ajustes = ajustesDe(ej, cuerpo);
+  r.op = op;
   /* Cuánta fuerza llega de verdad al implemento. En una prensa de 45° no
      es el peso de los discos: es su componente a lo largo del riel. */
   if(r.fuerza == null)
     r.fuerza = ej.patron === "prensa"
-      ? (carga||0)*G*sin(ej.riel || 45)
+      ? (carga||0)*G*sin(op.riel || ej.riel || 45)
       : (carga||0)*G;
   r.pico  = r.puntos.reduce((a,b)=> b.torque  > a.torque  ? b : a);
   r.pico2 = r.puntos.some(x=>x.torque2 != null)
@@ -420,7 +487,7 @@ function calcular(ej, cuerpo, carga, opciones){
 }
 
 global.COACH_ALE_BIOMECANICA = {
-  cuerpoDe, calcular, torqueDe, comDe, kilos, sin, cos,
+  cuerpoDe, calcular, ajustesDe, torqueDe, comDe, kilos, sin, cos,
   LARGO, MASA, COM, G, RAD
 };
 })(window);

@@ -162,6 +162,9 @@ h1{font-size:22px;margin:2px 0 6px;letter-spacing:-.01em}
   font-size:12px;line-height:1;padding-left:2px}
 .play.on{background:var(--accent);color:#fff;border-color:var(--accent);padding-left:0}
 .ctrl input[type=range]{width:100%;margin:0;accent-color:var(--accent)}
+/* Los controles del montaje, cada uno con lo que hace. */
+.ctrl.ajuste{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.ayuda{margin:6px 0 0;font-size:11px;line-height:1.45;color:var(--tx3)}
 .extremos{display:flex;justify-content:space-between;font-size:10.5px;color:var(--tx3);margin-top:2px}
 
 .nota{margin-top:12px;background:var(--accent2);border:1px solid var(--line);

@@ -28,11 +28,14 @@ const entre = (p,q,t)=>({x:p.x+(q.x-p.x)*t, y:p.y+(q.y-p.y)*t});
    hacia abajo y el brazo lo empuja hacia arriba. `xb` se cierra conforme
    se estira el codo, que es lo que hace de verdad la barra.           */
 function posePresion(xb0, xb1){
-  return (ang, L)=>{
+  return (ang, L, op)=>{
+    /* El agarre mueve la carga de lado: más ancho la aleja del hombro,
+       más cerrado se la pasa al codo. */
+    const ag = (op && op.agarre || 0)/100;
     const Lb = L.brazo, Lam = L.antebrazoMano;
     const D = Math.sqrt(Lb*Lb + Lam*Lam - 2*Lb*Lam*cos(ang));
     const t = Math.max(0, Math.min(1, (ang-45)/(175-45)));
-    const xb = xb0 + (xb1-xb0)*t;
+    const xb = Math.max(0.01, xb0 + ag + (xb1-xb0 )*t);
     const y = Math.sqrt(Math.max(1e-4, D*D - xb*xb));
     const hombro = {x:0, y:0}, mano = {x:xb, y};
     return {hombro, mano, codo: articular(hombro, mano, Lb, Lam, -1)};
@@ -43,8 +46,14 @@ function posePresion(xb0, xb1){
    El cuerpo es una tabla entre los pies y las manos. `hManos` y `hPies`
    son las alturas de los dos apoyos: subir uno u otro es toda la
    diferencia entre una flexión inclinada y una declinada.              */
-function poseApoyo(opt){
-  return (ang, cuerpo)=>{
+function poseApoyo(base){
+  const pose = (ang, cuerpo, ej, op)=>{
+    /* Los puntos de apoyo se pueden mover: es lo que separa una flexión
+       normal de una inclinada o una declinada, y aquí es un control en
+       vez de tres ejercicios distintos. */
+    const opt = Object.assign({}, base);
+    if(op && op.manosCm != null) opt.hManos = (op.manosCm/100)/cuerpo.H;
+    if(op && op.piesCm  != null) opt.hPies  = (op.piesCm /100)/cuerpo.H;
     const {L, m} = cuerpo;
     const Lb = L.brazo, Lam = L.antebrazoMano;
     const D = Math.sqrt(Lb*Lb + Lam*Lam - 2*Lb*Lam*cos(ang));
@@ -92,6 +101,8 @@ function poseApoyo(opt){
     };
     return {manos, hombro, codo, cadera, rodilla, pies, inc, pesos, distales};
   };
+  pose.base = base;                 // para saber los valores de partida
+  return pose;
 }
 
 /* ---------- POSE DE COLGADO ----------
@@ -317,7 +328,7 @@ const MODELOS = {
 "Sentadilla frontal": {patron:"piernas", rango:[60,170], carga:60,
   cargaPos:(h,c,L)=>({x:h.x + 0.10, y:h.y}),
   art:"Rodilla", musc:"Cuádriceps", art2:"Cadera", musc2:"Glúteo e isquios",
-  nota:"La barra delante obliga a ir más erguido —si te inclinas, se cae— y eso corre el reparto hacia la rodilla. No es una creencia: sale del equilibrio."},
+  nota:"La barra delante obliga a ir más erguido: si te inclinas, se cae. Ahora bien, mueve el control de la posición de la carga y mira lo que pasa — mientras te quede torso que ceder, tu cuerpo compensa y el reparto entre rodilla y cadera casi no se mueve. Lo que de verdad hace la frontal es ponerte un techo: no te deja inclinarte, y por eso no puedes sostener tanto peso. El reparto solo cambia cuando ya estás vertical y no queda nada que compensar."},
 "Prensa de piernas": {patron:"prensa", rango:[70,165], carga:150, pieRegulable:true,
   art:"Rodilla", musc:"Cuádriceps", art2:"Cadera", musc2:"Glúteo y aductor",
   nota:"El único ejercicio donde puedes mover el reparto sin cambiar el peso: subir o bajar el pie en la plataforma."},

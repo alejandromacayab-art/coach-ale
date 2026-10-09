@@ -3,7 +3,8 @@
 
 window.fichaAbierta = null;
 let puntoSel = 0.5;        // dónde está el cursor dentro del recorrido, 0 a 1
-let pieSel = 0;            // altura del pie en la prensa
+let ajustes = {};          // el montaje: apoyos, agarre, inclinación…
+const ajuste = a => ajustes[a.id] != null ? ajustes[a.id] : a.def;
 
 /* Lo que hace falta para mover el esquema sin volver a dibujarlo: el
    cálculo, el encuadre fijo y el reproductor. */
@@ -51,12 +52,12 @@ function abrirFicha(nombre, opt){
   /* Cambiar de ejercicio es navegar; mover un control no. */
   const cambia = window.fichaAbierta !== nombre;
   if(cambia){
-    window.fichaAbierta = nombre; puntoSel = 0.5; pieSel = 0;
+    window.fichaAbierta = nombre; puntoSel = 0.5; ajustes = {};
     if(!(opt && opt.sinHistoria))
       history.pushState({ej:nombre}, "", "?ej=" + encodeURIComponent(nombre));
   }
 
-  const r = m.descrito ? null : BIO.calcular(m, CUERPO, cargaDe(nombre), {pie:pieSel});
+  const r = m.descrito ? null : BIO.calcular(m, CUERPO, cargaDe(nombre), ajustes);
   const i = r ? Math.round(puntoSel*(r.puntos.length-1)) : 0;
   const p = r ? r.puntos[i] : null;
   const dibujo = window.COACH_ALE_EJERCICIOS.cuerpoSVG(x.g, "#0f62d6");
@@ -100,12 +101,13 @@ function abrirFicha(nombre, opt){
       </div>
       <div class="extremos"><span>inicio</span><span>final</span></div>
     </div>
-    ${m.pieRegulable ? `
-    <div class="ctrl">
-      <label>Pie en la plataforma <b>${pieSel>0?"+":""}${pieSel} cm</b></label>
-      <input type="range" id="inPie" min="-12" max="12" step="1" value="${pieSel}">
-      <div class="extremos"><span>más abajo</span><span>más arriba</span></div>
-    </div>` : ""}
+    ${(r.ajustes||[]).map(a=>`
+    <div class="ctrl ajuste">
+      <label>${esc(a.et)} <b>${ajuste(a)}${a.u === "°" ? "" : " "}${esc(a.u)}</b></label>
+      <input type="range" data-aj="${esc(a.id)}" min="${a.min}" max="${a.max}"
+             step="${a.paso}" value="${ajuste(a)}">
+      <p class="ayuda">${esc(a.ayuda)}</p>
+    </div>`).join("")}
     <div class="medidas" style="margin-top:14px">
       <div>
         <label for="inCarga">Peso que usas (kg)</label>
@@ -166,8 +168,13 @@ function abrirFicha(nombre, opt){
     if(peli.activo) peli.pausa(); else peli.play();
     pintarPlay();
   };
-  const pie = $("inPie");
-  if(pie) pie.oninput = e => { pieSel = parseInt(e.target.value,10); abrirFicha(nombre, {sinHistoria:true}); };
+  /* Cambiar el montaje recalcula el ejercicio entero: no es moverse por
+     el recorrido, es otro ejercicio. */
+  document.querySelectorAll("#vista-ficha [data-aj]").forEach(sl => sl.oninput = e => {
+    peli.pausa();
+    ajustes[e.target.dataset.aj] = parseFloat(e.target.value);
+    abrirFicha(nombre, {sinHistoria:true});
+  });
   const cg = $("inCarga");
   if(cg) cg.oninput = e => {
     const v = parseFloat(e.target.value);
