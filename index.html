@@ -182,7 +182,7 @@
           <input class="inp" id="altura" type="number" inputmode="numeric"
                  min="130" max="220" step="1" placeholder="Por ejemplo, 172"></label>
         <a class="btn ghost" style="display:block;text-align:center;text-decoration:none;margin-top:4px"
-           href="laboratorio.html">Abrir el laboratorio · los 99 ejercicios</a>
+           href="laboratorio/">Abrir Palanca · los 99 ejercicios</a>
       </div>
     </section>
     <section>
@@ -585,7 +585,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.10.09-2";
+const APP_VERSION = "2026.10.09-3";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -3831,7 +3831,7 @@ function panelMecanica(i, e){
   if(k.descrito) return `
     <div class="mecpanel">
       <p class="mecpor">${esc(k.porque)}</p>
-      <a class="meclab" href="laboratorio.html?ej=${encodeURIComponent(e.name)}">Ver la ficha completa ›</a>
+      <a class="meclab" href="laboratorio/?ej=${encodeURIComponent(e.name)}">Ver la ficha completa en Palanca ›</a>
     </div>`;
 
   if(!G || !k.crudo) return "";
@@ -3858,7 +3858,7 @@ function panelMecanica(i, e){
       <p class="mecpie">${esc(r.ejeX)} <b>${Math.round(p.ang)}°</b>${
         idx === iPico ? " · aquí es lo más duro" : ""} · con ${
         k.carga > 0 ? `<b>${fmt(k.carga)} kg</b>` : "tu propio peso"}</p>
-      <a class="meclab" href="laboratorio.html?ej=${encodeURIComponent(e.name)}">Ver la ficha completa ›</a>
+      <a class="meclab" href="laboratorio/?ej=${encodeURIComponent(e.name)}">Ver la ficha completa en Palanca ›</a>
     </div>`;
 }
 
@@ -3920,7 +3920,7 @@ function abrirFicha(nombre){
       <ul>${f.e.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
     </div>
     <a class="btn ghost" style="display:block;text-align:center;text-decoration:none;margin-top:12px"
-       href="laboratorio.html?ej=${encodeURIComponent(f.n)}">🔬 Ver la mecánica de este ejercicio</a>`;
+       href="laboratorio/?ej=${encodeURIComponent(f.n)}">🔬 Abrir en Palanca · el laboratorio</a>`;
   document.getElementById("fiModal").classList.add("open");
 }
 document.getElementById("fiClose").onclick = ()=> document.getElementById("fiModal").classList.remove("open");

@@ -13,9 +13,11 @@ Es la carpeta de trabajo. Todo se edita aquí y desde aquí se publica.
 | `index.html` | La app del deportista, entera |
 | `panel.html` + `panel.js` | El panel del entrenador |
 | `ejercicios.js` | Los 99 ejercicios y la lámina de anatomía |
-| `laboratorio.html` + `laboratorio-ficha.js` | El laboratorio de torque |
 | `biomecanica.js` | Las tablas antropométricas y los cinco modelos de cálculo |
 | `modelos.js` | Qué modelo le toca a cada ejercicio, y por qué |
+| `torque-grafico.js` | La curva y el esquema, que usan las dos apps |
+| `laboratorio/` | **Palanca**, la app de biomecánica, aparte |
+| `laboratorio.html` | Reenvío a la carpeta, para enlaces antiguos |
 | `nube.js` | Cuentas y sincronización |
 | `config.js` | La conexión con la base de datos |
 | `estilos.css` | Los estilos, compartidos por todas |
@@ -37,9 +39,16 @@ rompe, desde ahí se recupera cualquier versión anterior.
 
 Tus datos NO están aquí. Solo el código.
 
-## 3. La app publicada
+## 3. Las apps publicadas
 
-<https://alejandromacayab-art.github.io/coach-ale/>
+<https://alejandromacayab-art.github.io/coach-ale/> — Coach Ale, el entrenamiento
+<https://alejandromacayab-art.github.io/coach-ale/laboratorio/> — Palanca, la biomecánica
+
+Son dos aplicaciones: cada una se instala por su cuenta, con su icono y su
+nombre, y cada una funciona sin internet por separado. Comparten el motor
+de cálculo (un solo juego de archivos, para que nunca den números
+distintos) y el mismo almacenamiento del navegador: si el deportista tiene
+las dos, Palanca usa su estatura, su peso y los kilos que levanta de verdad.
 
 Sale sola del repositorio: cada vez que se sube un cambio, en un par de minutos
 está en línea. El panel está en `/panel.html`.
