@@ -57,6 +57,27 @@ function curva(r, i, opt){
   </svg>`;
 }
 
+/* ---------- la curva en miniatura ----------
+   Para una lista: sin ejes ni números, solo la forma. De un vistazo se ve
+   si el ejercicio es duro abajo, arriba o parejo, que es lo que distingue
+   a dos ejercicios del mismo músculo. */
+function chispa(r, opt){
+  const o = opt || {};
+  const W = o.ancho || 62, H = o.alto || 24, M = 2.5;
+  const xs = r.puntos.map(p=>p.ang);
+  const a0 = Math.min(...xs), a1 = Math.max(...xs);
+  const tope = Math.max(1, ...r.puntos.map(p=>p.torque));
+  const X = a => M + (W-2*M)*(a-a0)/((a1-a0)||1);
+  const Y = t => M + (H-2*M)*(1 - t/tope);
+  const pts = r.puntos.map(p=>`${X(p.ang).toFixed(1)},${Y(p.torque).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" class="chispa" aria-hidden="true">
+    <polyline points="${pts}" fill="none" stroke="var(--q0)" stroke-width="1.8"
+      stroke-linejoin="round" stroke-linecap="round" opacity=".85"/>
+    <circle cx="${X(r.pico.ang).toFixed(1)}" cy="${Y(r.pico.torque).toFixed(1)}" r="2"
+      fill="var(--q0)"/>
+  </svg>`;
+}
+
 /* ---------- el esquema de la posición ---------- */
 const UNE = {
   piernas: [["tobillo","rodilla"], ["rodilla","cadera"], ["cadera","hombro"]],
@@ -119,11 +140,40 @@ function figura(r, i, m, opt){
     <line x1="10" y1="${(OY - suelo*e).toFixed(1)}" x2="310" y2="${(OY - suelo*e).toFixed(1)}"
           stroke="currentColor" stroke-opacity=".2" stroke-width="2"/>` : "";
 
+  /* El brazo de palanca dibujado, que es de lo que va todo esto: la
+     distancia perpendicular entre la articulación que trabaja y la línea
+     por donde tira la carga. Sin verla, los números son solo números. */
+  const clave = {piernas: (m.principal === "cadera" ? "cadera" : "rodilla"),
+                 rotacion:"pivote", brazos:"hombro", apoyos:"codo", prensa:"rodilla"}[m.patron];
+  const J = puntos[clave];
+  let palanca = "";
+  if(J && carga && p.brazo != null){
+    /* La carga tira hacia abajo, así que la perpendicular es horizontal.
+       En la prensa tira por el riel y el pie de la perpendicular se calcula. */
+    const Q = m.patron === "prensa" && g.d
+      ? (()=>{ const t = (J.x-carga.x)*g.d.x + (J.y-carga.y)*g.d.y;
+               return {x: carga.x + t*g.d.x, y: carga.y + t*g.d.y}; })()
+      : {x: carga.x, y: J.y};
+    const mx = +X(J) + (+X(Q) - +X(J))*0.72,
+          my = +Y(J) + (+Y(Q) - +Y(J))*0.72;
+    palanca = `
+      <line x1="${X(J)}" y1="${Y(J)}" x2="${X(Q)}" y2="${Y(Q)}"
+            stroke="var(--c)" stroke-width="2" stroke-dasharray="4 3"/>
+      <text x="${mx.toFixed(1)}" y="${(my-6).toFixed(1)}" text-anchor="middle"
+        font-size="10.5" font-weight="800" fill="var(--c)"
+        stroke="var(--card)" stroke-width="3" paint-order="stroke"
+        stroke-linejoin="round">${(Math.abs(p.brazo)*100).toFixed(0)} cm</text>
+      <text x="${X(J)}" y="${Y(J)}" dx="11" dy="27" font-size="10"
+        font-weight="700" fill="currentColor" opacity=".5"
+        stroke="var(--card)" stroke-width="3" paint-order="stroke"
+        stroke-linejoin="round">${esc(clave)} ${Math.round(p.ang)}°</text>`;
+  }
+
   return `<svg viewBox="0 0 320 ${alto}" class="dibujo" role="img"
-      aria-label="Esquema de la posición y la línea de la carga">
-    ${piso}${linea}${sujeta}${segmentos}${nudos}
+      aria-label="Esquema de la posición, la línea de la carga y el brazo de palanca">
+    ${piso}${linea}${sujeta}${segmentos}${palanca}${nudos}
   </svg>`;
 }
 
-global.COACH_ALE_GRAFICO = {curva, figura};
+global.COACH_ALE_GRAFICO = {curva, chispa, figura};
 })(window);

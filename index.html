@@ -585,7 +585,7 @@ const KEY = "wellness.v1";
    Sin ella la app funciona igual, pero los avisos solo llegan
    mientras la app esté abierta.
    ============================================================ */
-const APP_VERSION = "2026.10.08-6";
+const APP_VERSION = "2026.10.09-2";
 const PUSH_PUBLIC_KEY = "BKHSvttN7Wh4Xyp8s5ftkOrhiXlU8vNKNj-oX3k6RC-urC4YI8a5ODjHcU6uMKbnzRS_Z58E7EXa8BPp7PDimi4";
 const COLORS = ["#22e07a","#38bdf8","#a78bfa","#fb7185","#fbbf24","#f97316","#2dd4bf","#e879f9"];
 const DEF_HABITS = [
@@ -3733,9 +3733,14 @@ function pintarBiblioteca(){
             })()} · ${esc(x.eq)}</span></span>
           </button>
           ${(()=>{ const k = mec.get(x.n);
-            return k && !k.descrito && k.pico > 0
-              ? `<span class="bibtq" title="Torque máximo en ${esc(k.art)}">${
-                  Math.round(k.pico)}<i>N·m</i></span>` : ""; })()}
+            if(!k || k.descrito || !(k.pico > 0)) return "";
+            const G = window.COACH_ALE_GRAFICO;
+            /* La forma de la curva al lado del número: de un vistazo se ve
+               si pesa abajo, arriba o parejo, que es justo lo que separa a
+               dos ejercicios del mismo músculo. */
+            return `${k.crudo && G ? G.chispa(k.crudo, {ancho:46, alto:22}) : ""}
+              <span class="bibtq" title="Torque máximo en ${esc(k.art)}">${
+                Math.round(k.pico)}<i>N·m</i></span>`; })()}
           <button class="exinfo" data-bi="${esc(x.n)}" title="Cómo se hace">ⓘ</button>
         </div>`).join("")
     : `<div class="empty">Ningún ejercicio con ese nombre.<br>
@@ -3759,7 +3764,7 @@ function elegirEjercicio(nombre){
     if(w0) (e.sets||[]).forEach(st=>{ if(!num(st.w)) st.w = w0; });
     save();
   }
-  mecAbierto = bibIdx;        // recién elegido: que se vea qué vas a trabajar
+  mecCerrado.delete(bibIdx);  // recién elegido: que se vea qué vas a trabajar
   delete mecPunto[bibIdx];
   document.getElementById("bibModal").classList.remove("open");
   document.getElementById("wkModal").classList.add("open");
@@ -3779,7 +3784,10 @@ document.getElementById("bibModal").onclick = e=>{
    Al elegir un ejercicio se abre sola: ver qué vas a trabajar es parte de
    elegirlo, no algo que haya que ir a buscar a otra pantalla. Y los
    números se mueven con el peso que estás escribiendo. */
-let mecAbierto = null;      // qué ejercicio tiene la mecánica desplegada
+/* Desplegada por defecto: ver qué trabaja cada ejercicio no debería
+   costar un toque. Se guarda lo que cierras, no lo que abres. */
+const mecCerrado = new Set();
+const mecVisible = i => !mecCerrado.has(i);
 const mecPunto = {};        // en qué punto del recorrido está cada uno
 
 /* La línea de resumen. Está aparte porque la escriben dos sitios: el
@@ -3808,7 +3816,7 @@ function pintarMecanica(i){
   if(!e) return;
   const sl = caja.querySelector("[data-mecsl]");
   const foco = sl && document.activeElement === sl;
-  caja.innerHTML = mecAbierto === i ? panelMecanica(i, e) : "";
+  caja.innerHTML = mecVisible(i) ? panelMecanica(i, e) : "";
   if(foco){ const n = caja.querySelector("[data-mecsl]"); if(n) n.focus(); }
 
   const linea = document.querySelector(`[data-mect="${i}"] > span`);
@@ -3840,8 +3848,10 @@ function panelMecanica(i, e){
         <div class="meccur">${G.curva(r, idx, {alto:150})}</div>
       </div>
       <div class="meclec">
-        <span class="a"><b>${Math.round(p.torque)}</b> N·m · ${esc(r.art)}</span>
-        ${p.torque2 != null ? `<span class="b"><b>${Math.round(p.torque2)}</b> N·m · ${esc(r.art2)}</span>` : ""}
+        <span class="a"><u></u><b>${Math.round(p.torque)}</b> N·m<em>${esc(r.art)}${
+          r.musc ? " · " + esc(r.musc) : ""}</em></span>
+        ${p.torque2 != null ? `<span class="b"><u></u><b>${Math.round(p.torque2)}</b> N·m<em>${
+          esc(r.art2)}${r.musc2 ? " · " + esc(r.musc2) : ""}</em></span>` : ""}
       </div>
       <input type="range" class="mecsl" data-mecsl="${i}" min="0" max="${r.puntos.length-1}"
              step="1" value="${idx}" aria-label="Recorrido del ejercicio">
@@ -4496,7 +4506,7 @@ function renderExercises(){
         const kg = Math.max(0, ...(e.sets||[]).map(st=>num(st.w)));
         const k = mecanicaDe(e.name, kg);
         if(!k) return "";
-        const abierto = mecAbierto === i;
+        const abierto = mecVisible(i);
         return `<button class="exmec${abierto ? " abierta" : ""}" data-mect="${i}"
             aria-expanded="${abierto}"><span>${resumenMecanica(k)}</span><i>${
             abierto ? "▾" : "▸"}</i></button>
@@ -4546,7 +4556,7 @@ function renderExercises(){
     const rm = L.querySelector(`[data-rm="${i}"]`), vo = L.querySelector(`[data-vol="${i}"]`);
     if(rm) rm.textContent = exUnoRM(w.ex[i]) ? kg(exUnoRM(w.ex[i]))+" kg" : "–";
     if(vo) vo.textContent = exVolume(w.ex[i]) ? kg(exVolume(w.ex[i]))+" kg" : "–";
-    if(mecAbierto === i) pintarMecanica(i);     // los números siguen al peso
+    if(mecVisible(i)) pintarMecanica(i);       // los números siguen al peso
     updateWkTotal(); save();
   });
   /* Abrir y cerrar la mecánica, y recorrerla. Por delegación: el panel se
@@ -4558,7 +4568,7 @@ function renderExercises(){
       const b = ev.target.closest("[data-mect]");
       if(!b) return;
       const i = +b.dataset.mect;
-      mecAbierto = mecAbierto === i ? null : i;
+      if(mecCerrado.has(i)) mecCerrado.delete(i); else mecCerrado.add(i);
       renderExercises();
     });
     L.addEventListener("input", ev=>{

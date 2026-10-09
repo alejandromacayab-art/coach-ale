@@ -7,6 +7,11 @@
   --accent:#22e07a; --accent2:#0f2a1c;
   --glow:0 0 0 1px rgba(255,255,255,.03), 0 10px 30px rgba(0,0,0,.6);
   --r:18px;
+  /* Los colores del torque: uno por articulación, más el de los flexores
+     cuando la carga cruza al otro lado. Viven aquí y no en el laboratorio
+     porque los usan las dos pantallas — tenerlos solo allí dejaba los
+     trazos de la app sin color, y una línea sin color no se dibuja. */
+  --q0:#38bdf8; --c:#fbbf24; --f:#c084fc;
 }
 :root[data-theme="light"]{
   --bg:#f5f6f8; --bg2:#ffffff; --card:#ffffff; --card2:#f2f4f7;
@@ -14,6 +19,7 @@
   --tx:#0d1117; --tx2:#4d5765; --tx3:#8992a0;
   --accent:#12a35c; --accent2:#e6f7ee;
   --glow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.07);
+  --q0:#0284c7; --c:#b45309; --f:#7c3aed;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -217,17 +223,17 @@ section{margin:22px 0}
 .chipg{--g:var(--accent);flex:none;font-size:12px;font-weight:700;padding:7px 12px;
   border-radius:99px;border:1px solid var(--line);background:var(--card2);color:var(--tx3)}
 .chipg.on{border-color:var(--g);background:color-mix(in srgb,var(--g) 15%,transparent);color:var(--g)}
-.bibi{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.bibi{display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--line)}
 .bibi:last-child{border-bottom:none}
 .bibsel{flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-align:left;padding:11px 0}
 .bibsel .pt{width:9px;height:9px;border-radius:3px;flex:none}
 .bibsel .tx{min-width:0}
-.bibsel .tx b{display:block;font-size:14px;font-weight:700;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bibsel .tx b{display:block;font-size:14px;font-weight:700;line-height:1.25}
 .bibsel .tx span{display:block;font-size:11.5px;color:var(--tx3)}
 /* El torque máximo de cada ejercicio, al elegirlo: para saber qué estás
    eligiendo antes de elegirlo. */
 .bibnota{font-size:11.5px;line-height:1.45;color:var(--tx3);margin:8px 0 0}
+.chispa{flex:none;width:46px;height:22px;display:block;color:var(--tx)}
 .bibtq{flex:none;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;
   color:var(--tx2);white-space:nowrap}
 .bibtq i{font-style:normal;font-size:9.5px;font-weight:700;color:var(--tx3);margin-left:2px}
@@ -243,9 +249,16 @@ section{margin:22px 0}
   padding:10px 12px 12px;margin:0 0 10px}
 .mecdos{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:center}
 .mecfig svg, .meccur svg{width:100%;height:auto;display:block;color:var(--tx)}
-.meclec{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px;font-size:11.5px;
-  color:var(--tx3);font-weight:600}
-.meclec b{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+/* Las lecturas como en una lámina: el número grande, debajo qué mide, y
+   el color que lo ata a su línea en la curva. */
+.meclec{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.meclec > span{background:var(--card);border:1px solid var(--line);border-radius:11px;
+  padding:7px 9px;font-size:11px;color:var(--tx3);font-weight:600;min-width:0}
+.meclec u{display:block;width:16px;height:3px;border-radius:2px;margin-bottom:4px}
+.meclec b{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx)}
+.meclec em{display:block;font-style:normal;font-size:10.5px;line-height:1.35;
+  margin-top:2px;overflow:hidden;text-overflow:ellipsis}
+.meclec .a u{background:var(--q0)} .meclec .b u{background:var(--c)}
 .meclec .a b{color:var(--q0)} .meclec .b b{color:var(--c)}
 .mecsl{width:100%;margin:8px 0 2px;accent-color:var(--accent)}
 .mecpie{margin:0;font-size:11px;color:var(--tx3);line-height:1.45}
