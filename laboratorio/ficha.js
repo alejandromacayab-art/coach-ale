@@ -234,13 +234,16 @@ function abrirFicha(nombre, opt){
      el control principal no mostraba lo que controla. */
   const recorrido = r ? `
     <div class="recorrido">
-      <button id="play" class="play" aria-label="Reproducir el movimiento">▶</button>
+      <button id="play" class="play" aria-label="${r.ej && r.ej.postura
+        ? "Recorrer las posturas" : "Reproducir el movimiento"}">▶</button>
       <input type="range" id="inPunto" min="0" max="100" step="1"
              value="${Math.round(puntoSel*100)}" aria-label="${esc(r.ejeX||"Recorrido")}">
       <span class="punto"><b id="etPunto">${Math.round(p.ang)}</b>°</span>
     </div>
     <div class="extremos">
-      <span>inicio</span><span>${esc(r.ejeX||"Recorrido")}</span><span>final</span>
+      <span>${r.ej && r.ej.postura ? "más erguido" : "inicio"}</span>
+      <span>${esc(r.ejeX||"Recorrido")}</span>
+      <span>${r.ej && r.ej.postura ? "más tumbado" : "final"}</span>
     </div>` : "";
 
   /* El montaje en su propia lámina: son los mandos que recalculan el
@@ -277,8 +280,9 @@ function abrirFicha(nombre, opt){
     <div>
     ${r ? `<section class="fig">
       <h2><i>FIG. 01</i> Torque a lo largo del recorrido</h2>
-      <p class="sub">El torque externo que tiene que aguantar cada articulación, por
-        extremidad, de punta a punta del movimiento.${vistaNota()}</p>
+      <p class="sub">${r.ej && r.ej.postura
+        ? "Aquí el deslizador no recorre una repetición: recorre en qué inclinación eliges remar. Mientras remas el torso se queda quieto — lo que se mueve son los brazos, y eso pasa en otro plano. Lo que este número mide es lo que te cuesta sostener la postura."
+        : "El torque externo que tiene que aguantar cada articulación, por extremidad, de punta a punta del movimiento."}${vistaNota()}</p>
       ${duo}
       ${grafico(r, i)}
     </section>

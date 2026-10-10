@@ -130,11 +130,24 @@ if(!window.__labRoto){
     const real = cargaDeLaApp(st0, nombre);
     return real > 0 ? real : (m.carga || 0);
   };
+  /* La lista se repinta en cada tecla del buscador y son noventa y nueve
+     modelos: con 120 fotogramas por recorrido eso son veinte milisegundos
+     por letra, que en un teléfono se notan. Como la lista siempre pide lo
+     mismo —sin ajustes, con el peso guardado— se guarda el resultado y se
+     tira cuando cambia el cuerpo o el peso de ese ejercicio. */
+  const guardados = new Map();
+  window.olvidarResultados = ()=> guardados.clear();
   window.resultado = function(nombre, opciones){
     const m = MOD[nombre];
     if(!m || m.descrito) return null;
-    try{ return BIO.calcular(m, CUERPO, cargaDe(nombre), opciones || {}); }
-    catch(e){ return null; }
+    const sinOpciones = !opciones || !Object.keys(opciones).length;
+    const llave = sinOpciones ? nombre + "|" + cargaDe(nombre) : null;
+    if(llave && guardados.has(llave)) return guardados.get(llave);
+    try{
+      const r = BIO.calcular(m, CUERPO, cargaDe(nombre), opciones || {});
+      if(llave) guardados.set(llave, r);
+      return r;
+    }catch(e){ return null; }
   };
 
   /* ---------- FIG. 01 · el cuerpo ---------- */
@@ -172,6 +185,7 @@ if(!window.__labRoto){
 
   window.recalcular = function(){
     CUERPO = BIO.cuerpoDe(ALTURA, PESO);
+    olvidarResultados();
     pintarMedidas(); pintarLista();
     if(window.fichaAbierta) abrirFicha(window.fichaAbierta);
   };

@@ -58,6 +58,13 @@ const COM = {            // × largo del segmento, desde el extremo de arriba
 /* Agarre: la mano no sujeta en la punta de los dedos sino cerca de los
    nudillos, a algo menos de la mitad del largo de la mano. */
 const AGARRE = 0.45;
+/* Cuántos fotogramas tiene un recorrido. Con 40 pasos un recorrido de
+   110° avanzaba de 2,75° en 2,75°, y como la reproducción dura algo más
+   de un segundo por sentido a sesenta cuadros por segundo, la figura
+   repetía la misma postura dos y tres cuadros seguidos: se veía a
+   tirones. Con 120 hay siempre postura nueva en cada cuadro incluso en
+   la parte rápida del recorrido. La biblioteca entera son 19 ms. */
+const PASOS = 120;
 
 function cuerpoDe(alturaCm, pesoKg){
   const H = Math.max(1.30, Math.min(2.20, (alturaCm||170)/100));
@@ -132,8 +139,8 @@ function modeloRotacion(ej, cuerpo, carga, op){
 
   const puntos = [];
   const [a0, a1] = ej.rango;
-  for(let i=0; i<=40; i++){
-    const ang = a0 + (a1-a0)*i/40;
+  for(let i=0; i<=PASOS; i++){
+    const ang = a0 + (a1-a0)*i/PASOS;
     const inc = op && op.inclinacion != null ? op.inclinacion : (ej.offset||0);
     const phi = Math.abs(ang + inc);                  // ángulo con la vertical
     const sp = Math.abs(sin(phi));
@@ -168,8 +175,8 @@ function modeloBrazos(ej, cuerpo, carga, op){
   const puntos = [];
   const [a0, a1] = ej.rango;
 
-  for(let i=0; i<=40; i++){
-    const ang = a0 + (a1-a0)*i/40;
+  for(let i=0; i<=PASOS; i++){
+    const ang = a0 + (a1-a0)*i/PASOS;
     const g = ej.pose(ang, L, op);       // {hombro, codo, mano} en metros
     const pesos = [
       {kg:kgCarga, x:g.mano.x, y:g.mano.y},
@@ -195,12 +202,18 @@ function modeloBrazos(ej, cuerpo, carga, op){
    centro de masa de todo —cuerpo más barra— sobre el medio del pie.
    Eso es lo que hace tu cuerpo para no caerse, y es también lo que
    explica por qué una sentadilla frontal obliga a ir más erguido.     */
+/* De cuánto parte la tibia antes de corregirla por equilibrio. En las
+   bisagras es casi vertical; en las sentadillas ya no se usa como dato
+   fijo, porque ahí la incógnita es justamente ella. */
+function tibiaBase(ej, angRodilla){
+  return ej.tibia ? ej.tibia(angRodilla) : (180-angRodilla)*0.55;
+}
+
 function esqueletoPierna(ej, cuerpo, carga, angRodilla, angTronco, correccionTibia, opc){
   const {L, m} = cuerpo;
   const tobillo = {x:0, y:L.tobillo};
   /* La tibia se inclina hacia adelante con la flexión de rodilla. */
-  const incTibia = (ej.tibia ? ej.tibia(angRodilla) : (180-angRodilla)*0.55)
-                 + (correccionTibia || 0);
+  const incTibia = tibiaBase(ej, angRodilla) + (correccionTibia || 0);
   const rodilla = {x: tobillo.x + L.pierna*sin(incTibia), y: tobillo.y + L.pierna*cos(incTibia)};
   /* El fémur cierra el ángulo de rodilla. */
   const incFemur = incTibia - (180 - angRodilla);
@@ -232,18 +245,72 @@ function esqueletoPierna(ej, cuerpo, carga, angRodilla, angTronco, correccionTib
   return {tobillo, rodilla, cadera, hombro, pesos, pCarga, encima, incTibia, incFemur};
 }
 
+/* El disco de una barra olímpica mide 45 cm: con la barra apoyada en el
+   suelo, el centro está a 22 cm de alto. Eso no es una opinión sobre la
+   técnica, es dónde está la barra antes de que la toques. */
+const ALTO_DISCO = 0.22;
+
+
+/* Una bisagra con la carga colgando: dado el torso y la rodilla, busca
+   cuánto echas la cadera hacia atrás para que la barra caiga sobre el
+   medio del pie. Es lo que haces tú para no irte de narices. */
+function equilibrarBisagra(ej, cuerpo, carga, angRodilla, tronco, medioPie, opc){
+  /* Se busca la tibia en absoluto, no una corrección sobre nada: el tope
+     es anatómico y tiene que estar donde se entiende. La rodilla puede
+     quedar un poco por detrás del tobillo, diez grados, no veinte
+     centímetros — antes el margen daba para tumbar la tibia hacia atrás
+     y un rumano profundo salía con una postura que no existe. Cuando el
+     tope se alcanza no se fuerza nada: la barra se despega de la pierna
+     y el torque de cadera sube, que es exactamente lo que pasa de verdad
+     y es el error clásico del rumano. */
+  const base = tibiaBase(ej, angRodilla);
+  let lo = -10, hi = 45;
+  for(let k=0; k<30; k++){
+    const tib = (lo+hi)/2;
+    const e = esqueletoPierna(ej, cuerpo, carga, angRodilla, tronco, tib - base, opc);
+    const ref = ej.anclaCarga ? e.pCarga.x : comDe(e.pesos).x;
+    if(ref > medioPie) hi = tib; else lo = tib;
+  }
+  return (lo+hi)/2 - base;
+}
+
 function modeloPiernas(ej, cuerpo, carga, opc){
   const {L} = cuerpo;
   const medioPie = L.pie*0.45;             // el medio del pie, por delante del tobillo
   const puntos = [];
   const [a0, a1] = ej.rango;
 
-  for(let i=0; i<=40; i++){
-    const paso = a0 + (a1-a0)*i/40;
+  /* En un peso muerto desde el suelo la postura de arranque no se elige:
+     la barra está a la altura del disco y las manos cuelgan hasta ella.
+     Lo que eso fija es cuánto se dobla la rodilla — y depende de lo largo
+     que seas de brazos, de fémur y de torso. Antes el coeficiente estaba
+     escrito a mano, lo que para un cuerpo cuadra y para otro no: con un
+     brazo corto la barra salía flotando y con uno largo, enterrada. Así
+     que se busca el que deja la barra justo sobre el disco. */
+  let kRodilla = null;
+  if(ej.desdeElSuelo){
+    const tAbajo = Math.max(a0, a1);
+    let lo = 0, hi = 2.2;
+    for(let k=0; k<24; k++){
+      const kk = (lo+hi)/2;
+      const rod = Math.max(60, Math.min(180, 180 - kk*tAbajo));
+      const c = equilibrarBisagra(ej, cuerpo, carga, rod, tAbajo, medioPie, opc);
+      const e = esqueletoPierna(ej, cuerpo, carga, rod, tAbajo, c, opc);
+      /* Más rodilla doblada, más abajo el hombro y más abajo la barra. */
+      if(e.pCarga.y > ALTO_DISCO) lo = kk; else hi = kk;
+    }
+    kRodilla = (lo+hi)/2;
+  }
+
+  for(let i=0; i<=PASOS; i++){
+    const paso = a0 + (a1-a0)*i/PASOS;
     /* En las bisagras —peso muerto, rumano, remo— el que manda es el
        tronco y la rodilla casi no se mueve, así que el slider es ese. */
     const porTronco = ej.eje === "tronco";
-    const ang = porTronco ? (ej.rodilla ? ej.rodilla(paso) : 165) : paso;
+    const ang = porTronco
+      ? (kRodilla != null ? Math.max(60, Math.min(180, 180 - kRodilla*paso))
+                          : (ej.rodilla ? ej.rodilla(paso) : 165))
+      : paso;
 
     let tronco, correccionTibia = 0;
     if(porTronco){
@@ -255,29 +322,34 @@ function modeloPiernas(ej, cuerpo, carga, opc){
       /* Qué tiene que quedar sobre el medio del pie: con la barra colgando
          de las manos, la barra — esa es la regla del peso muerto y del
          remo, y es por lo que la barra va pegada a la pierna. Con la barra
-         en los hombros, el centro de masa de todo. En los dos casos lo que
-         se ajusta es cuánto echas la cadera hacia atrás. */
-      let lo = -55, hi = 40;
-      for(let k=0; k<30; k++){
-        correccionTibia = (lo+hi)/2;
-        const e = esqueletoPierna(ej, cuerpo, carga, ang, tronco, correccionTibia, opc);
-        const ref = ej.anclaCarga ? e.pCarga.x : comDe(e.pesos).x;
-        if(ref > medioPie) hi = correccionTibia; else lo = correccionTibia;
-      }
-      correccionTibia = (lo+hi)/2;
+         en los hombros, el centro de masa de todo. */
+      correccionTibia = equilibrarBisagra(ej, cuerpo, carga, ang, tronco, medioPie, opc);
     }else if(ej.tronco){
       tronco = ej.tronco(ang);
     }else{
-      let lo = 0, hi = 85;
+      /* En una sentadilla lo que ajustas para no caerte no es el torso por
+         su cuenta: es cuánto adelantas la rodilla, y el torso va con la
+         tibia. En una sentadilla con barra atrás los dos salen casi
+         paralelos, y eso no es una regla de entrenador — sale de exigir
+         que el centro de masa caiga sobre el medio del pie.
+
+         Antes era al revés: la tibia estaba escrita a mano, 0,55 por la
+         flexión de rodilla, y se despejaba el torso. Con la rodilla a 60°
+         eso daba una tibia de 66°, o sea la rodilla catorce centímetros
+         por delante de la punta del pie, y un torso de 7°. Eso no es una
+         sentadilla: es una hack con los talones en el aire. */
+      const acople = ej.acople != null ? ej.acople : 1;
+      let lo = -25, hi = 75;
       for(let k=0; k<30; k++){
-        tronco = (lo+hi)/2;
-        /* Con los ajustes puestos: si la búsqueda de equilibrio no ve dónde
-           está la carga, el torso no reacciona a moverla y la sentadilla
-           frontal sale idéntica a la normal. */
-        const e = esqueletoPierna(ej, cuerpo, carga, ang, tronco, 0, opc);
-        if(comDe(e.pesos).x > medioPie) hi = tronco; else lo = tronco;
+        const tib = (lo+hi)/2;
+        const e = esqueletoPierna(ej, cuerpo, carga, ang, acople*tib,
+                                  tib - tibiaBase(ej, ang), opc);
+        /* Más tibia adelante = más peso adelante. */
+        if(comDe(e.pesos).x > medioPie) hi = tib; else lo = tib;
       }
-      tronco = (lo+hi)/2;
+      const tib = (lo+hi)/2;
+      tronco = acople*tib;
+      correccionTibia = tib - tibiaBase(ej, ang);
     }
     const e = esqueletoPierna(ej, cuerpo, carga, ang, tronco, correccionTibia, opc);
 
@@ -325,8 +397,8 @@ function modeloPrensa(ej, cuerpo, carga, opciones){
   const puntos = [];
   const [a0, a1] = ej.rango;
 
-  for(let i=0; i<=40; i++){
-    const ang = a0 + (a1-a0)*i/40;
+  for(let i=0; i<=PASOS; i++){
+    const ang = a0 + (a1-a0)*i/PASOS;
     const D = Math.sqrt(Lf*Lf + Lt*Lt - 2*Lf*Lt*cos(ang));
     const h = Math.min(alturaPie, D - 0.03);
     const s = Math.sqrt(Math.max(0, D*D - h*h));
@@ -358,8 +430,8 @@ function modeloPrensa(ej, cuerpo, carga, opciones){
 function modeloApoyos(ej, cuerpo, carga, op){
   const puntos = [];
   const [a0, a1] = ej.rango;
-  for(let i=0; i<=40; i++){
-    const ang = a0 + (a1-a0)*i/40;
+  for(let i=0; i<=PASOS; i++){
+    const ang = a0 + (a1-a0)*i/PASOS;
     const g = ej.pose(ang, cuerpo, ej, op);
     const pesos = g.pesos.slice();
     if(carga > 0 && g.pCarga) pesos.push({kg:carga, x:g.pCarga.x, y:g.pCarga.y});

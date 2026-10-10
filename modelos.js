@@ -272,10 +272,15 @@ const MODELOS = {
   porque:"El cable tira en línea recta hacia arriba y el hombro gira debajo: el brazo de palanca lo fija la máquina y la polea, no tu postura. La variable que sí controlas es dónde terminas el tirón — al pecho, con los codos hacia abajo y atrás."},
 "Jalón agarre neutro": {descrito:true, art:"Hombro", musc:"Dorsal ancho",
   porque:"Igual que el jalón al pecho. El agarre neutro suele permitir llevar el codo más atrás, que es donde el dorsal termina de acortarse."},
-"Remo con barra": {frontal:true, ancho:30, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, rango:[20,80], carga:60,
+/* postura: el deslizador no recorre una repetición, recorre en qué
+   inclinación eliges remar. Mientras remas el torso se queda quieto y
+   lo que se mueve son los brazos, que es otro plano y otro motor. Lo que
+   este modelo mide —y mide bien— es lo que te cuesta sostener la postura,
+   que es el número que te deja la espalda baja frita antes que el dorsal. */
+"Remo con barra": {frontal:true, ancho:30, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, postura:true, rango:[20,80], carga:60,
   rodilla: t => 160,
   cargaPos:(h,c,L)=>({x:h.x, y:h.y - L.brazoEntero}),
-  art:"Cadera y zona lumbar", musc:"Erectores y glúteo", art2:"Rodilla", musc2:"Cuádriceps", ejeX:"Inclinación del torso",
+  art:"Cadera y zona lumbar", musc:"Erectores y glúteo", art2:"Rodilla", musc2:"Cuádriceps", ejeX:"Cuánto te inclinas",
   nota:"El número grande de este ejercicio no está en la espalda alta: está en la zona lumbar, que tiene que sostener el torso y la barra en voladizo. Por eso un remo pesado cansa la espalda baja antes que el dorsal."},
 "Remo con mancuerna a una mano": {descrito:true, art:"Hombro", musc:"Dorsal ancho",
   porque:"Al apoyar una mano y una rodilla en el banco, el torso deja de estar en voladizo: la carga lumbar se reparte entre los dos apoyos y baja mucho respecto al remo con barra. Esa es toda su ventaja — permite cargar el dorsal sin cargar la espalda baja."},
@@ -283,10 +288,10 @@ const MODELOS = {
   porque:"Sentado y con el torso vertical no hay voladizo: la espalda baja no entra. El cable fija la dirección, así que el brazo de palanca no depende de ti. Lo que sí depende: no balancear el torso para sumar kilos."},
 "Remo en máquina": {descrito:true, art:"Hombro", musc:"Dorsal ancho",
   porque:"La leva decide la curva y el pecho apoyado quita el voladizo. Es la versión del remo con la menor carga lumbar de todas."},
-"Remo en barra T": {frontal:true, ancho:30, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, rango:[25,70], carga:50,
+"Remo en barra T": {frontal:true, ancho:30, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, postura:true, rango:[25,70], carga:50,
   rodilla: t => 160,
   cargaPos:(h,c,L)=>({x:h.x - 0.05, y:h.y - L.brazoEntero}),
-  art:"Cadera y zona lumbar", musc:"Erectores y glúteo", art2:"Rodilla", musc2:"Cuádriceps", ejeX:"Inclinación del torso",
+  art:"Cadera y zona lumbar", musc:"Erectores y glúteo", art2:"Rodilla", musc2:"Cuádriceps", ejeX:"Cuánto te inclinas",
   nota:"Con el pecho apoyado la carga lumbar desaparece casi entera; sin apoyo es un remo con barra con otro nombre. El cálculo es el de la versión sin apoyo."},
 "Face pull": {descrito:true, art:"Hombro", musc:"Deltoides posterior y rotadores",
   porque:"Es rotación externa del hombro con el brazo en alto: el movimiento no está en el plano del dibujo y el brazo de palanca lo fija la polea. Va con poco peso y mucho control; si tienes que tirar con el torso, sobra peso."},
@@ -295,7 +300,7 @@ const MODELOS = {
   art:"Hombro", musc:"Dorsal ancho", ejeX:"Ángulo del brazo",
   nota:"Es de los pocos ejercicios de dorsal donde el codo casi no trabaja: el brazo va estirado, así que todo el torque cae en el hombro."},
 "Peso muerto": {frontal:true, ancho:30, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, rango:[15,75], carga:100,
-  rodilla: t => 180 - t*0.55,
+  desdeElSuelo:true,
   cargaPos:(h,c,L)=>({x:h.x, y:h.y - L.brazoEntero}),
   art:"Cadera y zona lumbar", musc:"Glúteo, isquios y erectores", art2:"Rodilla", musc2:"Cuádriceps", ejeX:"Inclinación del torso",
   nota:"El torque de cadera es el número más grande que vas a ver en toda la biblioteca, y crece con la inclinación del torso: por eso el peso muerto se rompe abajo y no arriba, y por eso la barra tiene que ir pegada a la pierna — cada centímetro que se separa se suma al brazo de palanca."},
@@ -325,7 +330,12 @@ const MODELOS = {
   cargaPos:(h)=>({x:h.x, y:h.y}),
   art:"Rodilla", musc:"Cuádriceps", art2:"Cadera", musc2:"Glúteo e isquios",
   nota:"La postura no está puesta a mano: el modelo busca el ángulo de torso que deja tu centro de masa sobre el medio del pie, que es lo que hace tu cuerpo para no caerse. Por eso al bajar el torso se inclina solo, y con él sube el torque de cadera."},
-"Sentadilla frontal": {frontal:true, patron:"piernas", rango:[60,170], carga:60,
+/* acople: cuánto se inclina el torso por cada grado de tibia. En la
+   trasera salen casi paralelos; con la barra delante te mantienes más
+   erguido a propósito —si no, se cae— y la rodilla viaja más adelante
+   para compensar. 0,6 reproduce los 25° de torso que se miden en una
+   frontal profunda contra los 40° de una trasera. */
+"Sentadilla frontal": {frontal:true, patron:"piernas", acople:0.6, rango:[60,170], carga:60,
   cargaPos:(h,c,L)=>({x:h.x + 0.10, y:h.y}),
   art:"Rodilla", musc:"Cuádriceps", art2:"Cadera", musc2:"Glúteo e isquios",
   nota:"La barra delante obliga a ir más erguido: si te inclinas, se cae. Ahora bien, mueve el control de la posición de la carga y mira lo que pasa — mientras te quede torso que ceder, tu cuerpo compensa y el reparto entre rodilla y cadera casi no se mueve. Lo que de verdad hace la frontal es ponerte un techo: no te deja inclinarte, y por eso no puedes sostener tanto peso. El reparto solo cambia cuando ya estás vertical y no queda nada que compensar."},
@@ -351,7 +361,11 @@ const MODELOS = {
   masa:m=>m.pierna+m.pie, rango:[0,100], lados:2, carga:35, offset:-90,
   art:"Rodilla", musc:"Isquiotibiales", ejeX:"Flexión de la rodilla",
   nota:"Lo más duro está al principio, con la pierna estirada, y se va cayendo a medida que flexionas. Por eso las últimas repeticiones se terminan arriba aunque abajo ya no puedas."},
-"Peso muerto rumano": {frontal:true, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, rango:[10,80], carga:70,
+/* Hasta 70° de torso, no 80: ahí la barra queda justo debajo de la
+   rodilla, que es donde termina un rumano. Más abajo ya no lo permite el
+   isquio de casi nadie, y el modelo lo único que hacía era despegar la
+   barra de la pierna para poder dibujarlo. */
+"Peso muerto rumano": {frontal:true, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, rango:[10,70], carga:70,
   rodilla: t => 165,
   cargaPos:(h,c,L)=>({x:h.x, y:h.y - L.brazoEntero}),
   art:"Cadera", musc:"Isquiotibiales y glúteo", art2:"Rodilla", musc2:"Cuádriceps", ejeX:"Inclinación del torso",
@@ -368,7 +382,7 @@ const MODELOS = {
   cargaPos:(h)=>({x:h.x, y:h.y}),
   art:"Rodilla", musc:"Cuádriceps", art2:"Cadera", musc2:"Glúteo e isquios",
   nota:"Sin barra el torque sigue existiendo: lo pone tu propio torso. Mira el número abajo del todo antes de decidir que no cuenta como ejercicio."},
-"Sentadilla goblet": {frontal:true, ancho:36, patron:"piernas", rango:[60,170], carga:24,
+"Sentadilla goblet": {frontal:true, ancho:36, patron:"piernas", acople:0.6, rango:[60,170], carga:24,
   cargaPos:(h,c,L)=>({x:h.x + 0.16, y:h.y - 0.10}),
   art:"Rodilla", musc:"Cuádriceps", art2:"Cadera", musc2:"Glúteo e isquios",
   nota:"La pesa por delante hace de contrapeso y te deja ir más erguido y más profundo. Es la razón de que sea la mejor sentadilla para aprender."},
@@ -379,12 +393,16 @@ const MODELOS = {
   cargaPos:(h)=>({x:h.x, y:h.y}),
   art:"Rodilla", musc:"Cuádriceps", art2:"Cadera", musc2:"Glúteo e isquios",
   nota:"Toda la subida la hace la pierna de arriba: si empujas con la de abajo el ejercicio deja de serlo. Por eso la altura del cajón importa más que cualquier peso que agregues."},
+/* Espalda en la pared y tibia vertical: las dos cosas definen el
+   ejercicio y las dos hay que decirlas. Con la tibia escrita a mano salía
+   a 52°, con la rodilla ocho centímetros por delante de la punta del pie
+   — que es exactamente lo que la pared impide. */
 "Sentadilla isométrica en pared": {frontal:true, patron:"piernas", rango:[85,120], carga:0,
-  tronco: () => 0,
+  tronco: () => 0, tibia: () => 0,
   cargaPos:(h)=>({x:h.x, y:h.y}),
   art:"Rodilla", musc:"Cuádriceps", art2:"Cadera", musc2:"Glúteo e isquios",
   nota:"La pared mantiene el torso vertical, así que la cadera casi no trabaja y todo el torque se queda en la rodilla. Es cuádriceps puro, y por eso arde donde arde."},
-"Peso muerto rumano con mancuernas": {frontal:true, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, rango:[10,80], carga:40,
+"Peso muerto rumano con mancuernas": {frontal:true, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, rango:[10,70], carga:40,
   rodilla: t => 165,
   cargaPos:(h,c,L)=>({x:h.x, y:h.y - L.brazoEntero}),
   art:"Cadera", musc:"Isquiotibiales y glúteo", art2:"Rodilla", musc2:"Cuádriceps", ejeX:"Inclinación del torso",
@@ -415,7 +433,7 @@ const MODELOS = {
 "Abducción de cadera en máquina": {plano:"frontal", descrito:true, art:"Cadera", musc:"Glúteo medio",
   porque:"Plano de frente otra vez, y con leva. El glúteo medio trabaja sobre todo evitando que la rodilla se caiga adentro cuando estás a una pierna: la máquina lo aísla, pero el gesto que importa está en las zancadas y las subidas al cajón."},
 "Peso muerto sumo": {frontal:true, ancho:72, patron:"piernas", eje:"tronco", principal:"cadera", anclaCarga:true, rango:[15,65], carga:100,
-  rodilla: t => 175 - t*0.75,
+  desdeElSuelo:true,
   cargaPos:(h,c,L)=>({x:h.x, y:h.y - L.brazoEntero}),
   art:"Cadera", musc:"Glúteo, aductores y cuádriceps", art2:"Rodilla", musc2:"Cuádriceps", ejeX:"Inclinación del torso",
   nota:"La postura abierta deja el torso más vertical que en el convencional: menos brazo de palanca en la lumbar para el mismo peso. Ojo con el número de rodilla: el sumo abre las piernas hacia los lados y eso queda fuera del plano del dibujo, así que el modelo se queda corto con el cuádriceps y los aductores, que en la realidad trabajan más que en el convencional."},
