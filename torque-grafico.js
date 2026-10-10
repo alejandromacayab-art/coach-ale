@@ -164,8 +164,11 @@ function encuadre(r, m, opt){
   if(!hay) return null;
   /* Margen: el cuerpo no es una línea, es una silueta con grosor, y la
      cabeza y el implemento sobresalen de las articulaciones. Sin esto se
-     salía del marco por los cuatro lados. */
-  const aire = 0.20;
+     salía del marco por los cuatro lados. El disco de una barra mide 45
+     centímetros de diámetro, así que el aire tiene que dar para su radio
+     o el plato sale cortado por el borde. */
+  const RADIO = {"Barra":0.29, "Mancuernas":0.22, "Máquina":0.17, "Polea":0.14};
+  const aire = Math.max(0.20, RADIO[(opt && opt.eq) || ""] || 0);
   x0 -= aire; x1 += aire; y0 -= aire; y1 += aire;
   const ancho = Math.max(0.5, x1-x0), altoReal = Math.max(0.5, y1-y0);
   const e = Math.min(300/ancho, (alto-20)/altoReal);
@@ -177,12 +180,17 @@ function encuadre(r, m, opt){
 const px = (enc, v) => ({x: enc.OX + v.x*enc.e, y: enc.OY - v.y*enc.e});
 
 /* Grosor de cada segmento, en metros de verdad. */
-const GROSOR = {cadera:0.26, rodilla:0.16, tobillo:0.11, hombro:0.20,
-                codo:0.095, manos:0.075, mano:0.075, pie:0.11, pies:0.11,
-                pivote:0.12, extremo:0.085};
+/* Los anchos de cada segmento, en metros. Eran casi el doble: un muslo
+   salía con una proporción de 2 a 1 contra su largo, cuando uno de verdad
+   anda en 5 a 1. El bulto tapaba justo lo que hay que mirar —la línea de
+   la carga y el brazo de palanca—, así que la silueta se adelgazó hasta
+   la proporción real y el dibujo quedó de trazo, no de mancha. */
+const GROSOR = {cadera:0.115, rodilla:0.075, tobillo:0.052, hombro:0.090,
+                codo:0.048, manos:0.038, mano:0.038, pie:0.052, pies:0.052,
+                pivote:0.055, extremo:0.042};
 function grosor(a, b, enc){
-  const g = ((GROSOR[a] || 0.13) + (GROSOR[b] || 0.13))/2;
-  return Math.max(5, g*enc.e).toFixed(1);
+  const g = ((GROSOR[a] || 0.062) + (GROSOR[b] || 0.062))/2;
+  return Math.max(3, g*enc.e).toFixed(1);
 }
 
 
@@ -197,6 +205,10 @@ function grosor(a, b, enc){
 function implemento(eq, patron, enc, geo){
   const d = m => (m*enc.e).toFixed(1);                 // metros a píxeles
   const col = 'fill="var(--q0)" fill-opacity=".85"';
+  /* De contorno y casi sin relleno: el hierro tiene que leerse como hierro
+     sin tapar la silueta ni competir con el brazo de palanca. */
+  const col2 = 'fill="var(--q0)" fill-opacity=".15" stroke="var(--q0)" stroke-width="2.2"';
+  const linea = w => `stroke="var(--q0)" stroke-width="${w}" fill="none"`;
 
   if(patron === "prensa" && geo && geo.d){
     /* La prensa tiene plataforma y carro: sin ellos el esquema es una
@@ -216,18 +228,50 @@ function implemento(eq, patron, enc, geo){
   /* De perfil una barra es un disco: el eje apunta hacia dentro de la
      pantalla. Por eso no lleva una línea cruzándola — eso sería la barra
      vista de frente. Lo que cambia entre una barra y una mancuerna es el
-     tamaño del disco, y a escala del cuerpo se nota. */
+     tamaño del disco, y a escala del cuerpo se nota.
+
+     Un disco sólido de color, sin embargo, era una mancha: se sabía que
+     había algo en la mano pero no qué. Ahora van dibujados con sus piezas
+     —el plato, el reborde, el buje, el collarín— y de contorno, que es lo
+     que los hace reconocibles sin pesar en el dibujo. */
   if(eq === "Barra")
-    return {svg:`<circle r="${d(0.22)}" ${col}/><circle r="${d(0.045)}" fill="var(--card)"/>`};
+    return {svg:`
+      <circle cx="${d(0.055)}" r="${d(0.225)}" ${col2} opacity=".4"/>
+      <circle r="${d(0.225)}" ${col2}/>
+      <circle r="${d(0.172)}" fill="none" ${linea(1.3)} stroke-opacity=".5"/>
+      <rect x="${d(-0.035)}" y="${d(-0.065)}" width="${d(0.07)}" height="${d(0.13)}"
+            rx="${d(0.02)}" fill="var(--card)" ${linea(2)}/>
+      <circle r="${d(0.028)}" fill="var(--q0)" fill-opacity=".55"/>`};
   if(eq === "Mancuernas")
-    return {svg:`<circle r="${d(0.115)}" ${col}/><circle r="${d(0.03)}" fill="var(--card)"/>`};
+    /* De perfil se ve la campana de cerca; la de atrás asoma apenas y es
+       lo que la distingue de un disco de barra. */
+    return {svg:`
+      <circle cx="${d(0.085)}" r="${d(0.098)}" ${col2} opacity=".4"/>
+      <line x1="0" y1="0" x2="${d(0.085)}" y2="0" ${linea(3)} stroke-opacity=".45"/>
+      <circle r="${d(0.112)}" ${col2}/>
+      <circle r="${d(0.072)}" fill="none" ${linea(1.3)} stroke-opacity=".5"/>
+      <circle r="${d(0.03)}" fill="var(--card)" ${linea(1.8)}/>`};
   if(eq === "Máquina")
-    return {svg:`<rect x="${d(-0.11)}" y="${d(-0.055)}" width="${d(0.22)}" height="${d(0.11)}"
-                   rx="${d(0.04)}" ${col}/>`};
+    /* El rodillo acolchado de la máquina, con su eje. */
+    return {svg:`
+      <rect x="${d(-0.115)}" y="${d(-0.06)}" width="${d(0.23)}" height="${d(0.12)}"
+            rx="${d(0.055)}" ${col2}/>
+      <line x1="${d(-0.055)}" y1="${d(-0.035)}" x2="${d(-0.055)}" y2="${d(0.035)}"
+            ${linea(1.3)} stroke-opacity=".45"/>
+      <line x1="${d(0.055)}" y1="${d(-0.035)}" x2="${d(0.055)}" y2="${d(0.035)}"
+            ${linea(1.3)} stroke-opacity=".45"/>
+      <circle r="${d(0.022)}" fill="var(--q0)" fill-opacity=".55"/>`};
   if(eq === "Polea")
-    return {svg:`<circle r="${d(0.075)}" ${col}/>`, tirante:"cable"};
+    /* El agarre de la polea: el asa y el mosquetón del que sale el cable. */
+    return {svg:`
+      <rect x="${d(-0.085)}" y="${d(-0.022)}" width="${d(0.17)}" height="${d(0.044)}"
+            rx="${d(0.022)}" ${col2}/>
+      <circle cy="${d(-0.062)}" r="${d(0.032)}" fill="none" ${linea(2)}/>`,
+      tirante:"cable"};
   if(eq === "Banda elástica")
-    return {svg:`<circle r="${d(0.055)}" ${col}/>`, tirante:"banda"};
+    return {svg:`
+      <rect x="${d(-0.07)}" y="${d(-0.02)}" width="${d(0.14)}" height="${d(0.04)}"
+            rx="${d(0.02)}" ${col2}/>`, tirante:"banda"};
   return null;                                          // peso corporal: no hay implemento
 }
 
@@ -318,30 +362,36 @@ function figuraSVG(r, i, m, opt){
           x2="${n(P(c.sujeta[1]).x)}" y2="${n(P(c.sujeta[1]).y)}"
           stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-opacity=".45"/>` : "";
 
-  /* Cada segmento con su grosor real: el muslo no es tan ancho como el
-     antebrazo, y con las puntas redondeadas el conjunto se lee como un
-     cuerpo y no como un diagrama de palitos. */
-  const segmentos = unir.map(([a,b], k) =>
-    `<line data-seg="${k}" x1="${n(P(c.puntos[a]).x)}" y1="${n(P(c.puntos[a]).y)}"
-       x2="${n(P(c.puntos[b]).x)}" y2="${n(P(c.puntos[b]).y)}"
-       stroke="var(--cuerpo)" stroke-width="${grosor(a, b, enc)}"
-       stroke-linecap="round"/>`).join("");
+  /* Cada segmento con su ancho real, y debajo un trazo del color del
+     fondo un poco más gordo. Ese halo es lo que separa un brazo que pasa
+     por delante del torso: adelgazada la silueta, sin él los cruces se
+     convertían en una sola mancha. */
+  const segmentos = unir.map(([a,b], k) => {
+    const A = P(c.puntos[a]), B = P(c.puntos[b]), g = +grosor(a, b, enc);
+    const xy = `x1="${n(A.x)}" y1="${n(A.y)}" x2="${n(B.x)}" y2="${n(B.y)}"`;
+    return `<line data-seg="${k}" ${xy} stroke="var(--card)"
+         stroke-width="${(g + 3.4).toFixed(1)}" stroke-linecap="round"/>
+       <line data-seg="${k}" ${xy} stroke="var(--cuerpo)" stroke-opacity=".92"
+         stroke-width="${g.toFixed(1)}" stroke-linecap="round"/>`;
+  }).join("");
 
   /* La cabeza, donde haya tronco: sin ella la silueta no se sabe de qué
      lado mira. */
   const cab = c.puntos.hombro && (c.puntos.cadera || c.puntos.pies) ? (()=>{
     const h = P(c.puntos.hombro), o = P(c.puntos.cadera || c.puntos.pies);
     const dx = h.x-o.x, dy = h.y-o.y, L = Math.hypot(dx,dy) || 1;
-    const rr = 0.105*enc.e;
+    /* La cabeza, de contorno: rellena era el pegote más grande del dibujo. */
+    const rr = 0.098*enc.e;
     return `<circle data-cabeza cx="${n(h.x + dx/L*rr*1.5)}" cy="${n(h.y + dy/L*rr*1.5)}"
-              r="${n(rr)}" fill="var(--cuerpo)"/>`;
+              r="${n(rr)}" fill="var(--card)" stroke="var(--cuerpo)"
+              stroke-opacity=".92" stroke-width="2.6"/>`;
   })() : "";
 
   /* Cada articulación con su nombre y un área de toque generosa: en un
      teléfono un círculo de cuatro píxeles no se acierta nunca. */
   const nudos = nombres.map((k, j) =>
-    `<circle data-nudo="${j}" cx="${n(P(c.puntos[k]).x)}" cy="${n(P(c.puntos[k]).y)}" r="4"
-       fill="none" stroke="var(--bg)" stroke-opacity=".55" stroke-width="2"/>
+    `<circle data-nudo="${j}" cx="${n(P(c.puntos[k]).x)}" cy="${n(P(c.puntos[k]).y)}" r="3.2"
+       fill="var(--card)" stroke="var(--cuerpo)" stroke-width="2.2"/>
      <circle data-toque="${esc(k)}" data-nudo2="${j}"
        cx="${n(P(c.puntos[k]).x)}" cy="${n(P(c.puntos[k]).y)}" r="17"
        fill="transparent" style="cursor:pointer"><title>${esc(k)}</title></circle>
@@ -431,12 +481,14 @@ function moverFigura(svg, r, i, m, enc){
   }
   c.unir.filter(([a,b]) => c.puntos[a] && c.puntos[b]).forEach(([a,b], k)=>{
     const A = P(c.puntos[a]), B = P(c.puntos[b]);
-    const l = svg.querySelector(`[data-seg="${k}"]`);
-    pon(l, "x1", A.x); pon(l, "y1", A.y); pon(l, "x2", B.x); pon(l, "y2", B.y);
+    /* Dos líneas por segmento —el halo y el trazo— y las dos se mueven. */
+    svg.querySelectorAll(`[data-seg="${k}"]`).forEach(l => {
+      pon(l, "x1", A.x); pon(l, "y1", A.y); pon(l, "x2", B.x); pon(l, "y2", B.y);
+    });
   });
   if(c.puntos.hombro && (c.puntos.cadera || c.puntos.pies)){
     const h = P(c.puntos.hombro), o = P(c.puntos.cadera || c.puntos.pies);
-    const dx = h.x-o.x, dy = h.y-o.y, L = Math.hypot(dx,dy) || 1, rr = 0.105*enc.e;
+    const dx = h.x-o.x, dy = h.y-o.y, L = Math.hypot(dx,dy) || 1, rr = 0.098*enc.e;
     const cb = svg.querySelector("[data-cabeza]");
     pon(cb, "cx", h.x + dx/L*rr*1.5); pon(cb, "cy", h.y + dy/L*rr*1.5);
   }
@@ -564,29 +616,33 @@ function figuraFrontal(r, i, m, cuerpo, opt){
   const P = v => ({x: OX + v.x*e, y: OY - v.y*e});
   const n = v => v.toFixed(1);
 
+  /* De frente, los mismos anchos que de perfil: el dibujo era el doble de
+     grueso y la marca del brazo de palanca —que aquí son ocho centímetros—
+     desaparecía dentro de la pierna. */
+  const hueso = (A, B, w) => {
+    const xy = `x1="${n(A.x)}" y1="${n(A.y)}" x2="${n(B.x)}" y2="${n(B.y)}"`;
+    return `<line ${xy} stroke="var(--card)" stroke-width="${n(w*e + 3.4)}"
+              stroke-linecap="round"/>
+            <line ${xy} stroke="var(--cuerpo)" stroke-opacity=".92"
+              stroke-width="${n(w*e)}" stroke-linecap="round"/>`;
+  };
   const pierna = (o, tenue) => {
     const T = P(o.pie), R = P(o.rodilla), C = P(o.cadera);
     const op = tenue ? ' opacity=".38"' : "";
     return `<g${op}>
-      <line x1="${n(T.x)}" y1="${n(T.y)}" x2="${n(R.x)}" y2="${n(R.y)}"
-            stroke="var(--cuerpo)" stroke-width="${n(0.135*e)}" stroke-linecap="round"/>
-      <line x1="${n(R.x)}" y1="${n(R.y)}" x2="${n(C.x)}" y2="${n(C.y)}"
-            stroke="var(--cuerpo)" stroke-width="${n(0.21*e)}" stroke-linecap="round"/>
-      <line x1="${n(T.x - 0.06*e)}" y1="${n(T.y)}" x2="${n(T.x + 0.06*e)}" y2="${n(T.y)}"
-            stroke="var(--cuerpo)" stroke-width="${n(0.085*e)}" stroke-linecap="round"/></g>`;
+      ${hueso(T, R, 0.064)}
+      ${hueso(R, C, 0.098)}
+      ${hueso({x:T.x - 0.055*e, y:T.y}, {x:T.x + 0.055*e, y:T.y}, 0.05)}</g>`;
   };
 
   const C0 = P({x:0, y:yC}), H0 = P({x:0, y:yH});
   const tronco = subeTorso > 0.05 ? `
-    <line x1="${n(C0.x)}" y1="${n(C0.y)}" x2="${n(H0.x)}" y2="${n(H0.y)}"
-          stroke="var(--cuerpo)" stroke-width="${n(0.30*e)}" stroke-linecap="round"/>
-    <line x1="${n(P(D.hombro).x)}" y1="${n(P(D.hombro).y)}"
-          x2="${n(P(I.hombro).x)}" y2="${n(P(I.hombro).y)}"
-          stroke="var(--cuerpo)" stroke-width="${n(0.12*e)}" stroke-linecap="round"/>
-    <circle cx="${n(H0.x)}" cy="${n(H0.y - 0.17*e)}" r="${n(0.105*e)}" fill="var(--cuerpo)"/>` : "";
-  const pelvis = `<line x1="${n(P(D.cadera).x)}" y1="${n(P(D.cadera).y)}"
-      x2="${n(P(I.cadera).x)}" y2="${n(P(I.cadera).y)}"
-      stroke="var(--cuerpo)" stroke-width="${n(0.14*e)}" stroke-linecap="round"/>`;
+    ${hueso(C0, H0, 0.17)}
+    ${hueso(P(D.hombro), P(I.hombro), 0.07)}
+    <circle cx="${n(H0.x)}" cy="${n(H0.y - 0.165*e)}" r="${n(0.098*e)}"
+            fill="var(--card)" stroke="var(--cuerpo)" stroke-opacity=".92"
+            stroke-width="2.6"/>` : "";
+  const pelvis = hueso(P(D.cadera), P(I.cadera), 0.08);
 
   /* Los dos brazos de palanca del plano frontal, en la pierna derecha. */
   /* Las marcas se separan un poco de la articulación: dibujadas justo
@@ -610,8 +666,8 @@ function figuraFrontal(r, i, m, cuerpo, opt){
 
   const nudo = (v, clave) => {
     const q = P(v);
-    return `<circle cx="${n(q.x)}" cy="${n(q.y)}" r="4" fill="none"
-              stroke="var(--bg)" stroke-opacity=".55" stroke-width="2"/>
+    return `<circle cx="${n(q.x)}" cy="${n(q.y)}" r="3.2" fill="var(--card)"
+              stroke="var(--cuerpo)" stroke-width="2.2"/>
             <circle data-toque="${clave}" cx="${n(q.x)}" cy="${n(q.y)}" r="17"
               fill="transparent" style="cursor:pointer"><title>${clave}</title></circle>
             <circle data-halo="${clave}" cx="${n(q.x)}" cy="${n(q.y)}" r="11" fill="none"

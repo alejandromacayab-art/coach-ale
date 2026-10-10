@@ -79,7 +79,6 @@ function irA(u, desdeLaPeli){
   puntoSel = Math.max(0, Math.min(1, u));
   const {r, m} = vivo;
   const i = Math.round(puntoSel*(r.puntos.length-1));
-  const p = r.puntos[i];
 
   if(vista === "frontal"){
     /* La vista de frente cambia de altura con la postura, así que se
@@ -88,13 +87,20 @@ function irA(u, desdeLaPeli){
     if(cont && cont.parentNode){
       const tmp = document.createElement("div");
       tmp.innerHTML = G.frontal(r, i, m, CUERPO, {});
-      if(tmp.firstElementChild) cont.replaceWith(tmp.firstElementChild);
+      if(tmp.firstElementChild){ cont.replaceWith(tmp.firstElementChild); conectarFigura(); }
     }
   }else{
     G.moverFigura(document.querySelector("#vista-ficha .dibujo"), r, i, m, vivo.enc);
   }
   G.moverCurva(document.querySelector("#vista-ficha .grafico"), r, i);
 
+  pintarNumeros(r, i, m, desdeLaPeli);
+}
+
+/* Los números de la ficha en el punto i. Vive aparte de irA porque también
+   hace falta cuando lo que cambia no es el recorrido sino el montaje. */
+function pintarNumeros(r, i, m, desdeLaPeli){
+  const p = r.puntos[i];
   const gb = document.getElementById("granB");
   if(gb) gb.textContent = Math.round(p.torque);
   const gem = document.getElementById("granEm");
@@ -120,6 +126,63 @@ function irA(u, desdeLaPeli){
   if(et) et.textContent = Math.round(p.ang);
   const sl = document.getElementById("inPunto");
   if(sl && desdeLaPeli) sl.value = Math.round(puntoSel*100);
+}
+
+/* ---------- el montaje, en vivo ----------
+   Antes, cada pizca de movimiento del deslizador volvía a construir la
+   ficha entera. Eso hace dos cosas malas: reescribe treinta kilobytes de
+   HTML por fotograma, y —peor— le quita de debajo al dedo el mismo
+   control que estás arrastrando, así que en el teléfono el arrastre se
+   corta a la primera. Ahora se recalcula el ejercicio y se cambian solo
+   el dibujo, la curva y los números; los controles no se tocan. */
+let pendiente = 0;
+function pedirRefresco(nombre){
+  if(pendiente) return;
+  /* Agrupado por fotograma: arrastrando llegan muchos más eventos de
+     input que cuadros de pantalla, y recalcular de más no se ve. */
+  pendiente = requestAnimationFrame(()=>{ pendiente = 0; refrescarMontaje(nombre); });
+}
+
+function refrescarMontaje(nombre){
+  const m = MOD[nombre], x = EJ.find(e => e.n === nombre);
+  if(!m || m.descrito || !x || !vivo) return;
+  const r = BIO.calcular(m, CUERPO, cargaDe(nombre), ajustes);
+  const i = Math.round(puntoSel*(r.puntos.length-1));
+  /* El encuadre se rehace: cambiar el montaje cambia por dónde pasa el
+     cuerpo, y con la escala vieja el dibujo se saldría del marco. */
+  vivo = {r, m, enc: G.encuadre(r, m, {eq:x.eq})};
+
+  reemplazar("#vista-ficha .dibujo", vista === "frontal" && r.frontal
+    ? G.frontal(r, i, m, CUERPO, {})
+    : figura(r, i, m, x.eq, r.fuerza));
+  reemplazar("#vista-ficha .grafico", G.curva(r, i));
+  conectarFigura();
+  pintarNumeros(r, i, m);
+}
+
+/* Cambia un <svg> por otro sin tocar nada de alrededor. */
+function reemplazar(sel, html){
+  const viejo = document.querySelector(sel);
+  if(!viejo) return;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  if(tmp.firstElementChild) viejo.replaceWith(tmp.firstElementChild);
+}
+
+/* Las articulaciones del dibujo se vuelven a enganchar cada vez que el
+   dibujo se rehace: los oyentes se van con el nodo viejo. */
+function conectarFigura(){
+  if(!vivo) return;
+  const {r, m} = vivo;
+  const i = Math.round(puntoSel*(r.puntos.length-1));
+  const conDatos = new Set((vista === "frontal" ? metricasFrontales(r)
+                                                : BIO.metricasDe(r, i, m)).map(z=>z.clave));
+  document.querySelectorAll("#vista-ficha [data-toque]").forEach(o => {
+    if(!conDatos.has(o.dataset.toque)){ o.style.cursor = "default"; return; }
+    o.onclick = ()=> { artSel = o.dataset.toque; abrirFicha(window.fichaAbierta, {sinHistoria:true}); };
+  });
+  const halo = document.querySelector(`#vista-ficha [data-halo="${artSel}"]`);
+  if(halo) halo.setAttribute("opacity", ".9");
 }
 
 function abrirFicha(nombre, opt){
@@ -268,7 +331,7 @@ function abrirFicha(nombre, opt){
   window.scrollTo(0,0);
 
   peli.pausa();
-  vivo = r ? {r, m, enc: G.encuadre(r, m, {})} : null;
+  vivo = r ? {r, m, enc: G.encuadre(r, m, {eq:x.eq})} : null;
 
   const punto = $("inPunto");
   if(punto) punto.oninput = e => { peli.pausa(); pintarPlay(); irA(e.target.value/100); };
@@ -299,15 +362,21 @@ function abrirFicha(nombre, opt){
   if(halo) halo.setAttribute("opacity", ".9");
 
   document.querySelectorAll("#vista-ficha [data-aj]").forEach(sl => sl.oninput = e => {
-    peli.pausa();
-    ajustes[e.target.dataset.aj] = parseFloat(e.target.value);
-    abrirFicha(nombre, {sinHistoria:true});
+    peli.pausa(); pintarPlay();
+    const id = e.target.dataset.aj;
+    ajustes[id] = parseFloat(e.target.value);
+    /* La etiqueta se escribe en el acto: es el número que el dedo está
+       moviendo y tiene que ir con él, no un fotograma después. */
+    const a = (vivo && vivo.r.ajustes || []).find(z => z.id === id);
+    const et = e.target.parentNode.querySelector("label b");
+    if(et && a) et.textContent = ajustes[id] + (a.u === "°" ? "" : " ") + a.u;
+    pedirRefresco(nombre);
   });
   const cg = $("inCarga");
   if(cg) cg.oninput = e => {
     const v = parseFloat(e.target.value);
     ponerCarga(nombre, isFinite(v) && v >= 0 ? v : 0);
-    abrirFicha(nombre, {sinHistoria:true});
+    pedirRefresco(nombre);
   };
 }
 

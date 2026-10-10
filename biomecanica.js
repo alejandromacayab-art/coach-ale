@@ -452,7 +452,15 @@ function modeloFrontal(ej, cuerpo, carga, op){
   const xRodilla = xPie - dentro;
 
   const brazoCadera  = xCadera - xPie;      // + = el pie queda por dentro
-  const brazoRodilla = xRodilla - xPie;     // + = valgo
+
+  /* El signo del valgo estaba al revés. La fuerza del suelo sube por el
+     pie; si la rodilla queda por dentro del pie, esa fuerza le pasa por
+     fuera y la empuja todavía más hacia dentro: eso es valgo, y lo frenan
+     el glúteo medio y los rotadores externos. El código medía
+     xRodilla − xPie, que al meter la rodilla da negativo, y con eso
+     llamaba varo justo al gesto que todo el mundo quiere evitar.
+     Medido al derecho: positivo cuando la rodilla está por dentro. */
+  const brazoRodilla = xPie - xRodilla;     // + = valgo
 
   return {
     unaPierna, F, xCadera, xPie, xRodilla, ancho: xPie*2, masa,
@@ -465,8 +473,14 @@ function modeloFrontal(ej, cuerpo, carga, op){
     rodilla: {
       torque: Math.abs(F * brazoRodilla),
       brazo: Math.abs(brazoRodilla),
-      musc: brazoRodilla > 0 ? "Glúteo medio y rotadores externos" : "Estructuras laterales",
-      gesto: brazoRodilla > 0 ? "valgo" : "varo"
+      /* Con la rodilla sobre el pie no hay momento ninguno, y decir "varo"
+         con cero newton metro es inventarse un gesto que no existe. */
+      musc: Math.abs(brazoRodilla) < 0.005
+              ? "Ninguno: la rodilla cae sobre el pie"
+              : (brazoRodilla > 0 ? "Glúteo medio y rotadores externos"
+                                  : "Estructuras laterales"),
+      gesto: Math.abs(brazoRodilla) < 0.005 ? "nada, está alineada"
+                                            : (brazoRodilla > 0 ? "valgo" : "varo")
     }
   };
 }
