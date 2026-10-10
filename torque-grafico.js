@@ -261,6 +261,16 @@ function etiquetaPalanca(A, B, cm){
   return {x: (A.x+B.x)/2 + nx*sep, y: (A.y+B.y)/2 + ny*sep,
           w: Math.max(34, String(Math.round(cm)).length*8 + 26)};
 }
+/* El rótulo de los newton vive encima de la carga y la pastilla de los
+   centímetros en mitad del brazo de palanca: en el peso muerto, donde el
+   brazo sale casi horizontal desde la cadera hasta la barra, los dos caen
+   en el mismo sitio y uno tapa al otro. Si se pisan, los newton suben. */
+function altoFuerza(q, enc, t){
+  const y = Math.max(16, q.y - 0.30*enc.e);
+  if(t && Math.abs(t.x - q.x) < 46 && Math.abs(t.y - y) < 21)
+    return Math.max(13, Math.min(y, t.y - 25));
+  return y;
+}
 /* El cuadradito del ángulo recto, en el extremo que toca la línea de fuerza. */
 function escuadra(A, B){
   const dx = A.x-B.x, dy = A.y-B.y, L = Math.hypot(dx,dy) || 1;
@@ -290,18 +300,13 @@ function figuraSVG(r, i, m, opt){
      El implemento va en un grupo que solo se traslada, así que animarlo
      es mover un transform y no volver a dibujarlo. */
   const imp = c.carga ? implemento((opt && opt.eq) || "", m.patron, enc, r.puntos[i].geo) : null;
+  const tPal = c.palanca
+    ? etiquetaPalanca(P(c.palanca.J), P(c.palanca.Q), c.palanca.cm) : null;
   const carga = c.carga ? (()=>{
     const q = P(c.carga);
     return `
     <line data-lcarga x1="${n(q.x)}" y1="0" x2="${n(q.x)}" y2="${enc.alto}"
           stroke="currentColor" stroke-opacity=".35" stroke-width="1.2" stroke-dasharray="6 5"/>
-    ${opt && opt.newtons > 0 ? `
-      <g data-fuerza transform="translate(${n(q.x)},${n(Math.max(16, q.y - 0.30*enc.e))})">
-        <rect x="-27" y="-9" width="54" height="18" rx="5"
-              fill="var(--tx)" fill-opacity=".82"/>
-        <text x="0" y="4.5" text-anchor="middle" font-size="11" font-weight="800"
-              fill="var(--bg)">${Math.round(opt.newtons)} N</text>
-      </g>` : ""}
     ${imp && imp.tirante ? tirante(imp.tirante, q.x, q.y, enc.alto) : ""}
     ${imp ? `<g data-imp transform="translate(${n(q.x)},${n(q.y)})">${imp.svg}</g>`
           : `<circle data-carga cx="${n(q.x)}" cy="${n(q.y)}" r="7"
@@ -347,9 +352,21 @@ function figuraSVG(r, i, m, opt){
      propio color, sólido, con la medida en una pastilla y el ángulo recto
      marcado en el pie de la perpendicular: sin ese cuadradito no se ve
      que es una distancia perpendicular y no una línea cualquiera. */
+  /* El rótulo de los newton se dibuja al final, encima del cuerpo: dentro
+     del grupo de la carga iba antes que los segmentos y el muslo lo tapaba. */
+  const fuerzaEt = c.carga && opt && opt.newtons > 0 ? (()=>{
+    const q = P(c.carga);
+    return `
+      <g data-fuerza transform="translate(${n(q.x)},${n(altoFuerza(q, enc, tPal))})">
+        <rect x="-27" y="-9" width="54" height="18" rx="5" fill="var(--tx)"/>
+        <text x="0" y="4.5" text-anchor="middle" font-size="11" font-weight="800"
+              fill="var(--bg)">${Math.round(opt.newtons)} N</text>
+      </g>`;
+  })() : "";
+
   const pal = c.palanca ? (()=>{
     const A = P(c.palanca.J), B = P(c.palanca.Q);
-    const t = etiquetaPalanca(A, B, c.palanca.cm);
+    const t = tPal;
     return `
       <line data-pal x1="${n(A.x)}" y1="${n(A.y)}" x2="${n(B.x)}" y2="${n(B.y)}"
             stroke="var(--marca)" stroke-width="3.5" stroke-linecap="round"/>
@@ -367,7 +384,7 @@ function figuraSVG(r, i, m, opt){
   return `<svg viewBox="0 0 320 ${enc.alto}" class="dibujo" role="img"
       data-patron="${esc(m.patron)}"
       aria-label="Esquema de la posición, la línea de la carga y el brazo de palanca">
-    ${piso}${carga}${sujeta}${segmentos}${cab}${pal}${nudos}
+    ${piso}${carga}${sujeta}${segmentos}${cab}${pal}${fuerzaEt}${nudos}
   </svg>`;
 }
 
@@ -386,8 +403,12 @@ function moverFigura(svg, r, i, m, enc){
     const d = svg.querySelector("[data-carga]");
     pon(d, "cx", q.x); pon(d, "cy", q.y);
     const gf = svg.querySelector("[data-fuerza]");
-    if(gf) gf.setAttribute("transform",
-      `translate(${q.x.toFixed(1)},${Math.max(16, q.y - 0.30*enc.e).toFixed(1)})`);
+    if(gf){
+      const tp = c.palanca
+        ? etiquetaPalanca(P(c.palanca.J), P(c.palanca.Q), c.palanca.cm) : null;
+      gf.setAttribute("transform",
+        `translate(${q.x.toFixed(1)},${altoFuerza(q, enc, tp).toFixed(1)})`);
+    }
     const gi = svg.querySelector("[data-imp]");
     if(gi) gi.setAttribute("transform", `translate(${q.x.toFixed(1)},${q.y.toFixed(1)})`);
     /* El cable sí cambia de largo: su anclaje está quieto. */

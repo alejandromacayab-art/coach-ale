@@ -236,6 +236,17 @@ if(!window.__labRoto){
   document.body.appendChild(mas);
 }
 
+/* La cabecera no mide lo mismo en todos los teléfonos (la muesca), así
+   que su alto se mide y se guarda para que los filtros se peguen justo
+   debajo y no encima ni con un hueco. */
+function medirCabecera(){
+  const h = document.querySelector("header");
+  if(h) document.documentElement.style.setProperty("--hh", h.offsetHeight + "px");
+}
+medirCabecera();
+addEventListener("resize", medirCabecera);
+addEventListener("load", medirCabecera);
+
 $("temaBtn").onclick = ()=>{
   tema = tema === "dark" ? "light" : "dark";
   guardarMio({tema}); aplicarTema();

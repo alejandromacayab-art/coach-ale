@@ -7,6 +7,11 @@ let ajustes = {};          // el montaje: apoyos, agarre, inclinación…
 let artSel = null;         // qué articulación está seleccionada
 let vista = "sagital";     // qué plano se está mirando
 const ajuste = a => ajustes[a.id] != null ? ajustes[a.id] : a.def;
+/* La curva siempre es la del plano sagital. Mirando de frente, los números
+   de la figura no son los de la curva, y eso hay que avisarlo donde se ve. */
+const vistaNota = () => vista === "frontal"
+  ? " Esta curva es la de perfil, la de siempre; los números de frente están más abajo."
+  : "";
 
 /* Lo que hace falta para mover el esquema sin volver a dibujarlo: el
    cálculo, el encuadre fijo y el reproductor. */
@@ -26,11 +31,19 @@ function metricasFrontales(r){
   const f = r.frontal;
   if(!f) return [];
   return [
-    {clave:"caderaF", nombre:"Cadera · plano frontal", musc:f.cadera.musc,
+    {clave:"caderaF", nombre:"Cadera · plano frontal", corto:"Cadera", musc:f.cadera.musc,
      torque:f.cadera.torque, brazo:f.cadera.brazo, gesto:f.cadera.gesto, apoyo:f.F},
-    {clave:"rodillaF", nombre:"Rodilla · plano frontal", musc:f.rodilla.musc,
+    {clave:"rodillaF", nombre:"Rodilla · plano frontal", corto:"Rodilla", musc:f.rodilla.musc,
      torque:f.rodilla.torque, brazo:f.rodilla.brazo, gesto:f.rodilla.gesto, apoyo:f.F}
   ];
+}
+
+/* El pie de la lectura principal: el músculo y, si lo hay, el brazo de
+   palanca del punto donde está el cursor. */
+function pieDe(r, p){
+  const a = r.musc ? esc(r.musc) : "";
+  const b = p.brazo != null ? `brazo ${(Math.abs(p.brazo)*100).toFixed(0)} cm` : "";
+  return a && b ? a + " · " + b : a + b;
 }
 
 /* Las métricas de una articulación, para cuando la tocas. */
@@ -40,7 +53,7 @@ function tarjetaArt(r, i, m){
   const sel = todas.find(x => x.clave === artSel) || todas[0];
   const chips = todas.map(x =>
     `<button class="artchip${x.clave === sel.clave ? " on" : ""}" data-art="${esc(x.clave)}">
-       ${esc(x.nombre || x.clave)}</button>`).join("");
+       ${esc(x.corto || x.nombre || x.clave)}</button>`).join("");
   const dato = (et, v) => v == null ? "" :
     `<div><span>${et}</span><b>${v}</b></div>`;
   return `
@@ -85,9 +98,7 @@ function irA(u, desdeLaPeli){
   const gb = document.getElementById("granB");
   if(gb) gb.textContent = Math.round(p.torque);
   const gem = document.getElementById("granEm");
-  if(gem && p.brazo != null)
-    gem.textContent = `${r.art || ""}${r.musc ? " · " + r.musc : ""}` +
-      ` · brazo ${(Math.abs(p.brazo)*100).toFixed(0)} cm`;
+  if(gem) gem.innerHTML = pieDe(r, p);
   const b = document.getElementById("lecB");
   if(b && p.torque2 != null) b.querySelector("b").textContent = Math.round(p.torque2);
   else if(b && p.efectivo != null) b.querySelector("b").textContent = Math.round(p.efectivo);
@@ -106,7 +117,7 @@ function irA(u, desdeLaPeli){
     (Math.min(1, p.torque / Math.max(1, r.pico.torque))).toFixed(3));
 
   const et = document.getElementById("etPunto");
-  if(et) et.textContent = Math.round(p.ang) + "°";
+  if(et) et.textContent = Math.round(p.ang);
   const sl = document.getElementById("inPunto");
   if(sl && desdeLaPeli) sl.value = Math.round(puntoSel*100);
 }
@@ -130,89 +141,101 @@ function abrirFicha(nombre, opt){
   const dibujo = window.COACH_ALE_EJERCICIOS.cuerpoSVG(x.g, "#0f62d6");
   const sola = r && p.torque2 == null && p.efectivo == null;   // sin segunda lectura
 
-  const grande = r ? `
-    <div class="grande">
-      <span>Torque externo</span>
-      <b id="granB">${Math.round(p.torque)}</b><i>N·m</i>
-      <em id="granEm">${esc(r.art||"")}${r.musc ? " · " + esc(r.musc) : ""}${
-        p.brazo != null ? ` · brazo ${(Math.abs(p.brazo)*100).toFixed(0)} cm` : ""}</em>
-    </div>` : "";
+  /* Las dos lecturas juntas y cada una del color de su curva: así el
+     gráfico no necesita una leyenda aparte y el mismo número no aparece
+     tres veces en la misma pantalla. */
+  const segunda = r && (p.torque2 != null
+    ? {et:r.art2 || "Segunda", v:Math.round(p.torque2), u:"N·m", pie:r.musc2 || ""}
+    : (p.efectivo != null
+      ? {et:"Carga en las manos", v:Math.round(p.efectivo), u:"%",
+         pie:"de tu peso, perpendicular al cuerpo"}
+      : null));
 
-  const lecturas = r ? `
-    <div class="lecturas sola">
-      ${p.torque2 != null ? `
-      <div class="lec b" id="lecB">
-        <u></u><span>${esc(r.art2||"Segunda")}</span>
-        <b>${Math.round(p.torque2)}</b><i>N·m</i>
-        <em>${esc(r.musc2||"")}</em>
-      </div>` : (p.efectivo != null ? `
-      <div class="lec b" id="lecB">
-        <u></u><span>Carga en las manos</span>
-        <b>${Math.round(p.efectivo)}</b><i>%</i>
-        <em>de tu peso, perpendicular al cuerpo</em>
-      </div>` : "")}
-    </div>` : "";
-
-  const leyenda = r && r.puntos.some(q=>q.torque2!=null) ? `
-    <div class="leyenda">
-      <i><u style="background:var(--q0)"></u>${esc(r.art)}</i>
-      <i><u style="background:var(--c)"></u>${esc(r.art2)}</i>
-    </div>` : "";
-
-  const control = r ? `
-    <div class="ctrl">
-      <label>${esc(r.ejeX||"Recorrido")} <b id="etPunto">${Math.round(p.ang)}°</b></label>
-      <div class="reproduce">
-        <button id="play" class="play" aria-label="Reproducir el movimiento">▶</button>
-        <input type="range" id="inPunto" min="0" max="100" step="1" value="${Math.round(puntoSel*100)}">
+  const duo = r ? `
+    <div class="duo${segunda ? "" : " sola"}">
+      <div class="grande a">
+        <u></u><span>${esc(r.art || "Torque externo")}</span>
+        <b id="granB">${Math.round(p.torque)}</b><i>N·m</i>
+        <em id="granEm">${pieDe(r, p)}</em>
       </div>
-      <div class="extremos"><span>inicio</span><span>final</span></div>
+      ${segunda ? `
+      <div class="grande b" id="lecB">
+        <u></u><span>${esc(segunda.et)}</span>
+        <b>${segunda.v}</b><i>${esc(segunda.u)}</i>
+        <em>${esc(segunda.pie)}</em>
+      </div>` : ""}
+    </div>` : "";
+
+  /* El recorrido va pegado debajo del dibujo. Antes estaba al final de
+     la sección y movías la barra con el dibujo fuera de la pantalla:
+     el control principal no mostraba lo que controla. */
+  const recorrido = r ? `
+    <div class="recorrido">
+      <button id="play" class="play" aria-label="Reproducir el movimiento">▶</button>
+      <input type="range" id="inPunto" min="0" max="100" step="1"
+             value="${Math.round(puntoSel*100)}" aria-label="${esc(r.ejeX||"Recorrido")}">
+      <span class="punto"><b id="etPunto">${Math.round(p.ang)}</b>°</span>
     </div>
-    ${(r.ajustes||[]).map(a=>`
-    <div class="ctrl ajuste">
-      <label>${esc(a.et)} <b>${ajuste(a)}${a.u === "°" ? "" : " "}${esc(a.u)}</b></label>
-      <input type="range" data-aj="${esc(a.id)}" min="${a.min}" max="${a.max}"
-             step="${a.paso}" value="${ajuste(a)}">
-      <p class="ayuda">${esc(a.ayuda)}</p>
-    </div>`).join("")}
-    <div class="medidas" style="margin-top:14px">
-      <div>
-        <label for="inCarga">Peso que usas (kg)</label>
-        <input id="inCarga" type="number" inputmode="numeric" min="0" max="500" step="2.5"
-               value="${cargaDe(nombre)}">
-      </div>
+    <div class="extremos">
+      <span>inicio</span><span>${esc(r.ejeX||"Recorrido")}</span><span>final</span>
     </div>` : "";
+
+  /* El montaje en su propia lámina: son los mandos que recalculan el
+     ejercicio entero, no los que te mueven por el recorrido. */
+  const montaje = r ? `
+    <section class="fig">
+      <h2><i>FIG. 03</i> El montaje</h2>
+      <p class="sub">Lo que puedes cambiar sin cambiar de ejercicio. Cada cosa que mueves
+        aquí vuelve a calcular la curva entera.</p>
+      <div class="campo">
+        <label for="inCarga">Peso que usas</label>
+        <div class="conUnidad">
+          <input id="inCarga" type="number" inputmode="decimal" min="0" max="500" step="2.5"
+                 value="${cargaDe(nombre)}"><i>kg</i>
+        </div>
+      </div>
+      ${(r.ajustes||[]).map(a=>`
+      <div class="ctrl ajuste">
+        <label>${esc(a.et)} <b>${ajuste(a)}${a.u === "°" ? "" : " "}${esc(a.u)}</b></label>
+        <input type="range" data-aj="${esc(a.id)}" min="${a.min}" max="${a.max}"
+               step="${a.paso}" value="${ajuste(a)}">
+        <p class="ayuda">${esc(a.ayuda)}</p>
+      </div>`).join("")}
+      ${m.nota ? `<div class="nota">${m.nota}</div>` : ""}
+    </section>` : "";
+
+  const nLam = r ? "04" : "02", nErr = r ? "05" : "03";
 
   $("vista-ficha").innerHTML = `
     <h1>${esc(x.n)}</h1>
     <p class="lead" style="margin-bottom:14px">${esc(NOMBRE_GRUPO[x.g])} · ${esc(x.eq)}</p>
 
+    <div class="dosc">
+    <div>
     ${r ? `<section class="fig">
       <h2><i>FIG. 01</i> Torque a lo largo del recorrido</h2>
-      <p class="sub">Por extremidad. Mueve el control para recorrer el ejercicio.</p>
-      ${grande}
+      <p class="sub">El torque externo que tiene que aguantar cada articulación, por
+        extremidad, de punta a punta del movimiento.${vistaNota()}</p>
+      ${duo}
       ${grafico(r, i)}
-      ${leyenda}
-      ${lecturas}
     </section>
     <section class="fig">
       <h2><i>FIG. 02</i> La posición y el brazo de palanca</h2>
       ${r.frontal ? `
-      <div class="planos">
-        <button class="chipg ${vista==="sagital"?"on":""}" data-vista="sagital">De perfil</button>
-        <button class="chipg ${vista==="frontal"?"on":""}" data-vista="frontal">De frente</button>
+      <div class="seg">
+        <button class="${vista==="sagital"?"on":""}" data-vista="sagital">De perfil</button>
+        <button class="${vista==="frontal"?"on":""}" data-vista="frontal">De frente</button>
       </div>` : ""}
       ${vista === "frontal" && r.frontal
         ? G.frontal(r, i, m, CUERPO, {})
         : figura(r, i, m, x.eq, r.fuerza)}
+      ${recorrido}
       ${tarjetaArt(r, i, m)}
       <p class="plano">${r.frontal
         ? (vista === "frontal"
             ? "De frente manda otra cosa: dónde cae el pie respecto a la cadera y hacia dónde apunta la rodilla. Son otros músculos y otro cálculo — no es la misma cuenta vista de lado."
             : "Los números de perfil son los del empuje. Cambia a <b>De frente</b> para ver lo que este plano no puede: el glúteo medio, los aductores y el valgo de rodilla.")
         : `Los números son del <b>plano ${esc(r.plano)}</b>, que es donde ocurre este movimiento. Lo que pase en el otro plano no entra.`}</p>
-      ${control}
-      ${m.nota ? `<div class="nota">${m.nota}</div>` : ""}
     </section>` : `
     <section class="fig">
       <h2><i>FIG. 01</i> Este no se calcula, se explica</h2>
@@ -221,20 +244,26 @@ function abrirFicha(nombre, opt){
         <span>Articulación <b>${esc(m.art)}</b></span>
         <span>Músculo <b>${esc(m.musc)}</b></span></div>` : ""}
     </section>`}
+    </div>
 
+    <div>
+    ${montaje}
     <section class="fig">
-      <h2><i>FIG. ${r ? "03" : "02"}</i> Dónde deberías sentirlo</h2>
+      <h2><i>FIG. ${nLam}</i> Dónde deberías sentirlo</h2>
       <div id="lamina" class="lamina" style="--int:1">${dibujo}</div>
       <p class="sub" style="margin:10px 0 0">${esc(x.s)}</p>
     </section>
 
     <section class="fig">
-      <h2><i>FIG. ${r ? "04" : "03"}</i> Errores más comunes</h2>
+      <h2><i>FIG. ${nErr}</i> Errores más comunes</h2>
       <ul class="listas">${x.e.map(e=>`<li>${esc(e)}</li>`).join("")}</ul>
-    </section>`;
+    </section>
+    </div>
+    </div>`;
 
   $("vista-lista").classList.add("hidden");
   $("vista-ficha").classList.remove("hidden");
+  document.body.classList.add("ancho");
   $("atras").classList.remove("hidden");
   window.scrollTo(0,0);
 
@@ -293,6 +322,7 @@ function mostrarLista(){
   window.fichaAbierta = null;
   $("vista-ficha").classList.add("hidden");
   $("vista-lista").classList.remove("hidden");
+  document.body.classList.remove("ancho");
   $("atras").classList.add("hidden");
   pintarLista();
   window.scrollTo(0,0);
