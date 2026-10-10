@@ -3,7 +3,7 @@
    entrenamiento sigue con el suyo. Los archivos del motor viven un nivel
    más arriba y se guardan igual: el alcance limita qué páginas controla,
    no qué direcciones puede guardar. */
-const CACHE = "palanca-v8";
+const CACHE = "palanca-v9";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest",
   "./estilos.css", "./app.js", "./ficha.js",
