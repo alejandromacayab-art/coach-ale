@@ -232,6 +232,20 @@ input[type=range]{width:100%;margin:0;height:26px;accent-color:var(--accent)}
    el músculo que trabaja quedaba con la misma opacidad que uno apagado y
    parecía que no entraba en el ejercicio, cuando lo que pasa es que en
    ese punto no tiene nada que aguantar. */
+/* La banda del músculo sobre el hueso que se mueve: se enciende con el
+   torque de su articulación, igual que su músculo en la lámina. El suelo
+   es alto a propósito —el músculo está ahí aunque en ese punto no tenga
+   nada que aguantar—, pero lo bastante bajo para que se note cuándo
+   entra de verdad. */
+.dibujo [data-musculo]{opacity:calc(.30 + .70*var(--m, 1));
+  transition:opacity .06s linear}
+.dibujo [data-musculo="rodilla"]{--m:var(--m-rodilla, 1)}
+.dibujo [data-musculo="cadera"] {--m:var(--m-cadera, 1)}
+.dibujo [data-musculo="tobillo"]{--m:var(--m-tobillo, 1)}
+.dibujo [data-musculo="codo"]   {--m:var(--m-codo, 1)}
+.dibujo [data-musculo="hombro"] {--m:var(--m-hombro, 1)}
+.dibujo [data-musculo="pivote"] {--m:var(--m-pivote, 1)}
+
 .lamina [data-on]{
   fill-opacity:calc(.28 + .62*var(--i, 1)) !important;
   stroke-opacity:calc(.45 + .50*var(--i, 1)) !important;

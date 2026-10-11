@@ -108,6 +108,86 @@ const UNE = {
 const ARTICULACION = {piernas:"rodilla", rotacion:"pivote", brazos:"hombro",
                       apoyos:"codo", prensa:"rodilla"};
 
+/* ---------- los músculos sobre el hueso ----------
+   Cada músculo va dibujado encima del hueso que mueve, del lado que le
+   toca, y se enciende con el torque de su articulación. Así no hay que
+   mirar la lámina y el esquema por separado: el músculo anda con el
+   hueso.                                                               */
+const MUSCULO_EN = {
+  rodilla: ["rodilla","cadera"],      // cuádriceps, en el muslo
+  cadera:  ["cadera","rodilla"],      // glúteo e isquios, el mismo muslo por detrás
+  tobillo: ["tobillo","rodilla"],     // gemelo, en la pierna
+  codo:    ["codo","hombro"],         // tríceps o bíceps, en el brazo
+  hombro:  ["hombro","codo"],         // el del hombro, el mismo brazo por el otro lado
+  pivote:  ["pivote","extremo"]
+};
+
+const uni = v => { const L = Math.hypot(v.x, v.y) || 1; return {x:v.x/L, y:v.y/L}; };
+
+/* De qué lado del hueso está. Cuando en la articulación se juntan dos
+   huesos, por fuera del ángulo: ahí va el que extiende —el cuádriceps
+   delante del muslo, el glúteo detrás de la cadera, el tríceps detrás
+   del brazo—. Cuando hay un hueso solo no hay ángulo que mirar, así que
+   manda la carga: el músculo está del lado hacia el que tiene que tirar,
+   que es por donde no está el peso. */
+function ladoMusculo(c, clave, A, B){
+  const J = c.puntos[clave];
+  const u = uni({x:B.x-A.x, y:B.y-A.y});
+  const n = {x:-u.y, y:u.x};
+  const vecinos = [];
+  for(const [a,b] of c.unir){
+    if(a === clave && c.puntos[b]) vecinos.push(c.puntos[b]);
+    if(b === clave && c.puntos[a]) vecinos.push(c.puntos[a]);
+  }
+  if(J && vecinos.length >= 2){
+    const d1 = uni({x:vecinos[0].x-J.x, y:vecinos[0].y-J.y});
+    const d2 = uni({x:vecinos[1].x-J.x, y:vecinos[1].y-J.y});
+    const dentro = {x:d1.x+d2.x, y:d1.y+d2.y};
+    return (dentro.x*n.x + dentro.y*n.y) > 0 ? -1 : 1;
+  }
+  if(J && c.carga) return (c.carga.x - J.x) >= 0 ? 1 : -1;
+  return 1;
+}
+
+/* La banda del músculo, en píxeles: corrida hacia su lado y un poco más
+   corta que el hueso, para que se vea el hueso debajo en las puntas. */
+/* usados: por hueso, hacia dónde salió la banda anterior. Dos músculos
+   que comparten hueso —el cuádriceps y el glúteo en el fémur— tienen que
+   quedar en caras opuestas. En la prensa los dos caían encima del mismo
+   lado, superpuestos, porque la cadera no tiene segundo hueso que mirar
+   y se resolvía por la carga. */
+function bandaMusculo(c, enc, clave, usados){
+  const par = MUSCULO_EN[clave];
+  if(!par) return null;
+  const A = c.puntos[par[0]], B = c.puntos[par[1]];
+  if(!A || !B) return null;
+  const a = px(enc, A), b = px(enc, B);
+  const dx = b.x-a.x, dy = b.y-a.y, L = Math.hypot(dx,dy) || 1;
+  if(L < 12) return null;
+  const ux = dx/L, uy = dy/L;
+  /* El lado se calcula en metros, con la y hacia arriba; en pantalla la
+     y va al revés, así que la normal se voltea con él. */
+  let s = ladoMusculo(c, clave, A, B);
+  let nx = uy*s, ny = -ux*s;
+  const hueso = par.slice().sort().join("-");
+  if(usados){
+    const antes = usados.get(hueso);
+    if(antes && antes.x*nx + antes.y*ny > 0.5){ s = -s; nx = -nx; ny = -ny; }
+    usados.set(hueso, {x:nx, y:ny});
+  }
+  const g = +grosor(par[0], par[1], enc);
+  /* Encima del hueso y no al lado: separada del todo parecían dos palos
+     paralelos en vez de un músculo pegado a su hueso. La banda cubre la
+     mitad de fuera y asoma un poco por el borde, que es como se ve un
+     músculo sobre el hueso que mueve. */
+  const w = Math.max(2.6, g*0.62);
+  const sep = g*0.30;
+  const d0 = L*0.16, d1 = L*0.84;
+  return {w,
+    x1: a.x + ux*d0 + nx*sep, y1: a.y + uy*d0 + ny*sep,
+    x2: a.x + ux*d1 + nx*sep, y2: a.y + uy*d1 + ny*sep};
+}
+
 /* Los puntos del cuerpo en un fotograma, en metros. */
 function cuadro(r, i, m){
   const p = r.puntos[i], g = p && p.geo;
@@ -375,6 +455,17 @@ function figuraSVG(r, i, m, opt){
          stroke-width="${g.toFixed(1)}" stroke-linecap="round"/>`;
   }).join("");
 
+  /* Los músculos que este ejercicio mueve, encima de su hueso. La página
+     los enciende después con una variable por articulación. */
+  const usados = new Map();
+  const musculos = ((opt && opt.musculos) || []).map(mu => {
+    const b = bandaMusculo(c, enc, mu.clave, usados);
+    if(!b) return "";
+    return `<line data-musculo="${esc(mu.clave)}" x1="${n(b.x1)}" y1="${n(b.y1)}"
+       x2="${n(b.x2)}" y2="${n(b.y2)}" stroke="${mu.color || "var(--q0)"}"
+       stroke-width="${n(b.w)}" stroke-linecap="round"/>`;
+  }).join("");
+
   /* La cabeza, donde haya tronco: sin ella la silueta no se sabe de qué
      lado mira. */
   const cab = c.puntos.hombro && (c.puntos.cadera || c.puntos.pies) ? (()=>{
@@ -434,7 +525,7 @@ function figuraSVG(r, i, m, opt){
   return `<svg viewBox="0 0 320 ${enc.alto}" class="dibujo" role="img"
       data-patron="${esc(m.patron)}"
       aria-label="Esquema de la posición, la línea de la carga y el brazo de palanca">
-    ${piso}${carga}${sujeta}${segmentos}${cab}${pal}${fuerzaEt}${nudos}
+    ${piso}${carga}${sujeta}${segmentos}${musculos}${cab}${pal}${fuerzaEt}${nudos}
   </svg>`;
 }
 
@@ -485,6 +576,14 @@ function moverFigura(svg, r, i, m, enc){
     svg.querySelectorAll(`[data-seg="${k}"]`).forEach(l => {
       pon(l, "x1", A.x); pon(l, "y1", A.y); pon(l, "x2", B.x); pon(l, "y2", B.y);
     });
+  });
+  const usadosM = new Map();
+  svg.querySelectorAll("[data-musculo]").forEach(l => {
+    const b = bandaMusculo(c, enc, l.dataset.musculo, usadosM);
+    if(!b) return;
+    pon(l, "x1", b.x1); pon(l, "y1", b.y1);
+    pon(l, "x2", b.x2); pon(l, "y2", b.y2);
+    pon(l, "stroke-width", b.w);
   });
   if(c.puntos.hombro && (c.puntos.cadera || c.puntos.pies)){
     const h = P(c.puntos.hombro), o = P(c.puntos.cadera || c.puntos.pies);

@@ -545,9 +545,14 @@ function grupoDeMusculo(nombre){
 
 /* grupos: uno solo, o varios cuando la página quiere encenderlos por
    separado siguiendo el torque de cada articulación. */
+/* color: uno para todos, o un color por grupo cuando la página quiere
+   que cada músculo lleve el de su articulación —el mismo de su curva y
+   el de su banda sobre la figura que se mueve—. */
 function cuerpoSVG(grupos, color){
-  const c = color || "#22e07a";
-  const activos = new Set([].concat(grupos || []).filter(Boolean));
+  const porGrupo = color && typeof color === "object" ? color : null;
+  const c = porGrupo ? null : (color || "#22e07a");
+  const activos = new Set(porGrupo ? Object.keys(porGrupo)
+                                   : [].concat(grupos || []).filter(Boolean));
 
   /* Casi todo es par: se dibuja el lado derecho y se refleja. Los que nacen
      en la línea media (pectoral, recto abdominal, dorsal) también, porque
@@ -564,9 +569,10 @@ function cuerpoSVG(grupos, color){
        puede encender el muslo con el torque de rodilla y el glúteo con el
        de cadera, por separado y en el mismo fotograma. La lámina deja de
        ser un dibujo fijo y pasa a seguir el movimiento. */
+    const col = on ? (porGrupo ? porGrupo[m.g] : c) : "currentColor";
     return `<path d="${m.d}"${on ? ` data-on="1" data-grupo="${m.g}"` : ""}
-      fill="${on ? c : "currentColor"}" fill-opacity="${on ? .82 : .17}"
-      stroke="${on ? c : "currentColor"}" stroke-opacity="${on ? .95 : .34}"
+      fill="${col}" fill-opacity="${on ? .82 : .17}"
+      stroke="${col}" stroke-opacity="${on ? .95 : .34}"
       stroke-width=".7" stroke-linejoin="round"/>`;
   }).join(""));
 

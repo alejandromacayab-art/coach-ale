@@ -20,7 +20,20 @@ const G = window.COACH_ALE_GRAFICO;
 const peli = G.reproductor(u => { if(vivo) irA(u, true); });
 
 const grafico = (r, i) => G.curva(r, i);
-const figura  = (r, i, m, eq, N) => G.figura(r, i, m, {eq, newtons:N});
+const figura  = (r, i, m, eq, N, mus) =>
+  G.figura(r, i, m, {eq, newtons:N, musculos: mus || []});
+/* Qué músculos se pueden dibujar encima del hueso: solo aquellos cuyo
+   hueso está en el dibujo. En los de una sola articulación el esquema
+   dibuja el hueso que se mueve y nada más, y el músculo que lo mueve casi
+   siempre está en el de al lado —el bíceps está en el brazo, no en el
+   antebrazo—; pintarlo ahí sería decir una mentira anatómica. La
+   excepción es el hombro: ahí el hueso que se mueve es el brazo, que es
+   justo donde está el deltoides. */
+function conHueso(r, m, lista){
+  if(m.patron !== "rotacion") return lista.filter(z => z.clave);
+  return /hombro/i.test(r.art || "") ? lista.filter(z => z.clave) : [];
+}
+const bandas = () => conHueso(vivo.r, vivo.m, vivo.grupos || []);
 
 /* Mueve la ficha a un punto del recorrido tocando solo lo que cambia.
    Redibujarla entera en cada fotograma parpadeaba y perdía el foco del
@@ -43,6 +56,13 @@ function metricasFrontales(r){
    sentadilla eso son el muslo con el torque de rodilla y el glúteo con
    el de cadera, cada uno a su ritmo. El grupo del ejercicio va de
    respaldo, para que nunca quede la lámina entera apagada. */
+/* Un color por articulación, el mismo que ya usa su curva y su lectura:
+   el azul es la principal, el ámbar la segunda, el morado la tercera.
+   Así el muslo encendido en la lámina, la banda sobre el hueso que se
+   mueve, la línea del gráfico y el número grande son del mismo color y
+   se leen como una sola cosa. */
+const COLOR_ART = ["var(--q0)", "var(--c)", "var(--f)"];
+
 function gruposDe(r, m, grupoEj){
   const EJS = window.COACH_ALE_EJERCICIOS;
   const N = r.puntos.length - 1;
@@ -61,9 +81,10 @@ function gruposDe(r, m, grupoEj){
   for(const x of (BIO.metricasDe(r, medio, m) || [])){
     const g = EJS.grupoDeMusculo(x.musc);
     if(!g || (techo[x.clave] || 0) < mayor*0.02) continue;
-    if(!out.some(z => z.grupo === g)) out.push({clave:x.clave, grupo:g});
+    if(!out.some(z => z.grupo === g))
+      out.push({clave:x.clave, grupo:g, color:COLOR_ART[out.length] || COLOR_ART[0]});
   }
-  if(!out.length) out.push({clave:null, grupo:grupoEj});
+  if(!out.length) out.push({clave:null, grupo:grupoEj, color:COLOR_ART[0]});
   return out;
 }
 
@@ -83,11 +104,15 @@ function encenderLamina(r, i, m){
   const lam = document.getElementById("lamina");
   if(!lam || !vivo || !vivo.grupos) return;
   const metr = BIO.metricasDe(r, i, m) || [];
+  const fig = document.querySelector("#vista-ficha .dibujo");
   for(const {clave, grupo} of vivo.grupos){
     const x = clave ? metr.find(z => z.clave === clave) : null;
     const v = x && x.torque != null ? Math.min(1, x.torque/vivo.pico)
                                     : Math.min(1, r.puntos[i].torque/vivo.pico);
     lam.style.setProperty("--i-" + grupo, v.toFixed(3));
+    /* La banda sobre el hueso se enciende con lo mismo que el músculo de
+       la lámina: son el mismo músculo contado dos veces. */
+    if(fig && clave) fig.style.setProperty("--m-" + clave, v.toFixed(3));
   }
 }
 
@@ -206,7 +231,7 @@ function refrescarMontaje(nombre){
 
   reemplazar("#vista-ficha .dibujo", vista === "frontal" && r.frontal
     ? G.frontal(r, i, m, CUERPO, {})
-    : figura(r, i, m, x.eq, r.fuerza));
+    : figura(r, i, m, x.eq, r.fuerza, bandas()));
   reemplazar("#vista-ficha .grafico", G.curva(r, i));
   conectarFigura();
   pintarNumeros(r, i, m);
@@ -256,8 +281,8 @@ function abrirFicha(nombre, opt){
   /* La lámina se dibuja con todos los grupos que este ejercicio mueve,
      no solo con el del menú: así cada uno se puede encender aparte. */
   const grupos = r ? gruposDe(r, m, x.g) : [{clave:null, grupo:x.g}];
-  const dibujo = window.COACH_ALE_EJERCICIOS.cuerpoSVG(
-    grupos.map(z => z.grupo), "#0f62d6");
+  const dibujo = window.COACH_ALE_EJERCICIOS.cuerpoSVG(null,
+    Object.fromEntries(grupos.map(z => [z.grupo, z.color])));
   const sola = r && p.torque2 == null && p.efectivo == null;   // sin segunda lectura
 
   /* Las dos lecturas juntas y cada una del color de su curva: así el
@@ -348,7 +373,7 @@ function abrirFicha(nombre, opt){
       </div>` : ""}
       ${vista === "frontal" && r.frontal
         ? G.frontal(r, i, m, CUERPO, {})
-        : figura(r, i, m, x.eq, r.fuerza)}
+        : figura(r, i, m, x.eq, r.fuerza, conHueso(r, m, grupos))}
       ${recorrido}
       ${tarjetaArt(r, i, m)}
       <p class="plano">${r.frontal
