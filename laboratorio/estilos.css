@@ -216,9 +216,26 @@ input[type=range]{width:100%;margin:0;height:26px;accent-color:var(--accent)}
 .artdatos b{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx)}
 .plano{margin:10px 0 0;font-size:11px;line-height:1.45;color:var(--tx3)}
 .plano b{color:var(--tx2)}
-/* La lámina late con el torque del momento. */
-.lamina [data-on]{fill-opacity:calc(.22 + .62*var(--int, 1)) !important;
-  stroke-opacity:calc(.4 + .55*var(--int, 1)) !important}
+/* La lámina sigue el movimiento, y cada músculo por su cuenta: el muslo
+   se enciende con el torque de rodilla y el glúteo con el de cadera, que
+   no llegan a su máximo en el mismo punto del recorrido. Antes latían
+   todos a la vez con un solo número y eso no decía nada. */
+.lamina [data-grupo="pierna"] {--i:var(--i-pierna, 1)}
+.lamina [data-grupo="gluteo"] {--i:var(--i-gluteo, 1)}
+.lamina [data-grupo="pecho"]  {--i:var(--i-pecho, 1)}
+.lamina [data-grupo="hombros"]{--i:var(--i-hombros, 1)}
+.lamina [data-grupo="biceps"] {--i:var(--i-biceps, 1)}
+.lamina [data-grupo="triceps"]{--i:var(--i-triceps, 1)}
+.lamina [data-grupo="espalda"]{--i:var(--i-espalda, 1)}
+.lamina [data-grupo="core"]   {--i:var(--i-core, 1)}
+/* El suelo no baja de .28: con torque cero —el codo al empezar un curl—
+   el músculo que trabaja quedaba con la misma opacidad que uno apagado y
+   parecía que no entraba en el ejercicio, cuando lo que pasa es que en
+   ese punto no tiene nada que aguantar. */
+.lamina [data-on]{
+  fill-opacity:calc(.28 + .62*var(--i, 1)) !important;
+  stroke-opacity:calc(.45 + .50*var(--i, 1)) !important;
+  transition:fill-opacity .06s linear, stroke-opacity .06s linear}
 .ctrl.ajuste{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
 .ayuda{margin:6px 0 0;font-size:11px;line-height:1.45;color:var(--tx3)}
 .extremos{display:flex;justify-content:space-between;gap:10px;font-size:10px;
@@ -236,7 +253,9 @@ input[type=range]{width:100%;margin:0;height:26px;accent-color:var(--accent)}
 .porque b{display:block;color:var(--tx);font-size:10.5px;text-transform:uppercase;
   letter-spacing:.08em;margin-bottom:5px}
 
-.cuerpo{width:100%;height:auto;max-height:230px;display:block;margin:0 auto}
+/* Más baja que antes: ahora comparte pantalla con la figura que se mueve
+   y las dos tienen que verse de una sola mirada. */
+.cuerpo{width:100%;height:auto;max-height:188px;display:block;margin:0 auto}
 .listas li{font-size:13px;color:var(--tx2);line-height:1.55;margin-bottom:7px}
 .listas b{color:var(--tx)}
 .btn{display:block;width:100%;text-align:center;padding:12px;border-radius:11px;

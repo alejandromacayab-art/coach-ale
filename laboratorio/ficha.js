@@ -38,6 +38,59 @@ function metricasFrontales(r){
   ];
 }
 
+/* Qué músculos de la lámina enciende este ejercicio: uno por
+   articulación medida, para poder encenderlos por separado. En una
+   sentadilla eso son el muslo con el torque de rodilla y el glúteo con
+   el de cadera, cada uno a su ritmo. El grupo del ejercicio va de
+   respaldo, para que nunca quede la lámina entera apagada. */
+function gruposDe(r, m, grupoEj){
+  const EJS = window.COACH_ALE_EJERCICIOS;
+  const N = r.puntos.length - 1;
+  const medio = Math.round(N/2);
+  /* El techo de cada articulación a lo largo del recorrido: una que no
+     llega a nada en ningún punto no se enciende. En una sentadilla en
+     pared la cadera da cero de principio a fin —la pared se lo come—, y
+     pintar el glúteo como si trabajara contradecía al propio ejercicio. */
+  const techo = {};
+  for(let k = 0; k <= 8; k++){
+    for(const x of (BIO.metricasDe(r, Math.round(N*k/8), m) || []))
+      if(x.torque != null && !(techo[x.clave] >= x.torque)) techo[x.clave] = x.torque;
+  }
+  const mayor = Math.max(1, ...Object.values(techo));
+  const out = [];
+  for(const x of (BIO.metricasDe(r, medio, m) || [])){
+    const g = EJS.grupoDeMusculo(x.musc);
+    if(!g || (techo[x.clave] || 0) < mayor*0.02) continue;
+    if(!out.some(z => z.grupo === g)) out.push({clave:x.clave, grupo:g});
+  }
+  if(!out.length) out.push({clave:null, grupo:grupoEj});
+  return out;
+}
+
+/* El pico más alto de todo el recorrido, contra el que se mide cuánto se
+   enciende cada músculo. Así se ve a la vez cuándo trabaja cada uno y
+   cuál de los dos trabaja más. */
+function picoDe(r){
+  let p = 1;
+  for(const q of r.puntos)
+    for(const v of [q.torque, q.torque2, q.torque3])
+      if(v != null && v > p) p = v;
+  return p;
+}
+
+/* Enciende la lámina en el fotograma i. */
+function encenderLamina(r, i, m){
+  const lam = document.getElementById("lamina");
+  if(!lam || !vivo || !vivo.grupos) return;
+  const metr = BIO.metricasDe(r, i, m) || [];
+  for(const {clave, grupo} of vivo.grupos){
+    const x = clave ? metr.find(z => z.clave === clave) : null;
+    const v = x && x.torque != null ? Math.min(1, x.torque/vivo.pico)
+                                    : Math.min(1, r.puntos[i].torque/vivo.pico);
+    lam.style.setProperty("--i-" + grupo, v.toFixed(3));
+  }
+}
+
 /* El pie de la lectura principal: el músculo y, si lo hay, el brazo de
    palanca del punto donde está el cursor. */
 function pieDe(r, p){
@@ -118,9 +171,7 @@ function pintarNumeros(r, i, m, desdeLaPeli){
     const nueva = t2.querySelector("#artFicha");
     if(nueva) tf.innerHTML = nueva.innerHTML;
   }
-  const lam = document.getElementById("lamina");
-  if(lam) lam.style.setProperty("--int",
-    (Math.min(1, p.torque / Math.max(1, r.pico.torque))).toFixed(3));
+  encenderLamina(r, i, m);
 
   const et = document.getElementById("etPunto");
   if(et) et.textContent = Math.round(p.ang);
@@ -150,7 +201,8 @@ function refrescarMontaje(nombre){
   const i = Math.round(puntoSel*(r.puntos.length-1));
   /* El encuadre se rehace: cambiar el montaje cambia por dónde pasa el
      cuerpo, y con la escala vieja el dibujo se saldría del marco. */
-  vivo = {r, m, enc: G.encuadre(r, m, {eq:x.eq})};
+  vivo = {r, m, enc: G.encuadre(r, m, {eq:x.eq}),
+          grupos: gruposDe(r, m, x.g), pico: picoDe(r)};
 
   reemplazar("#vista-ficha .dibujo", vista === "frontal" && r.frontal
     ? G.frontal(r, i, m, CUERPO, {})
@@ -201,7 +253,11 @@ function abrirFicha(nombre, opt){
   const r = m.descrito ? null : BIO.calcular(m, CUERPO, cargaDe(nombre), ajustes);
   const i = r ? Math.round(puntoSel*(r.puntos.length-1)) : 0;
   const p = r ? r.puntos[i] : null;
-  const dibujo = window.COACH_ALE_EJERCICIOS.cuerpoSVG(x.g, "#0f62d6");
+  /* La lámina se dibuja con todos los grupos que este ejercicio mueve,
+     no solo con el del menú: así cada uno se puede encender aparte. */
+  const grupos = r ? gruposDe(r, m, x.g) : [{clave:null, grupo:x.g}];
+  const dibujo = window.COACH_ALE_EJERCICIOS.cuerpoSVG(
+    grupos.map(z => z.grupo), "#0f62d6");
   const sola = r && p.torque2 == null && p.efectivo == null;   // sin segunda lectura
 
   /* Las dos lecturas juntas y cada una del color de su curva: así el
@@ -270,7 +326,7 @@ function abrirFicha(nombre, opt){
       ${m.nota ? `<div class="nota">${m.nota}</div>` : ""}
     </section>` : "";
 
-  const nLam = r ? "04" : "02", nErr = r ? "05" : "03";
+  const nErr = r ? "04" : "03";
 
   $("vista-ficha").innerHTML = `
     <h1>${esc(x.n)}</h1>
@@ -279,15 +335,12 @@ function abrirFicha(nombre, opt){
     <div class="dosc">
     <div>
     ${r ? `<section class="fig">
-      <h2><i>FIG. 01</i> Torque a lo largo del recorrido</h2>
-      <p class="sub">${r.ej && r.ej.postura
-        ? "Aquí el deslizador no recorre una repetición: recorre en qué inclinación eliges remar. Mientras remas el torso se queda quieto — lo que se mueve son los brazos, y eso pasa en otro plano. Lo que este número mide es lo que te cuesta sostener la postura."
-        : "El torque externo que tiene que aguantar cada articulación, por extremidad, de punta a punta del movimiento."}${vistaNota()}</p>
-      ${duo}
-      ${grafico(r, i)}
-    </section>
-    <section class="fig">
-      <h2><i>FIG. 02</i> La posición y el brazo de palanca</h2>
+      <h2><i>FIG. 01</i> El músculo y el movimiento</h2>
+      <p class="sub">Las dos figuras van juntas: cada músculo se enciende con el torque que
+        aguanta su articulación en ese punto del recorrido. Dale a reproducir y mira cuál de
+        los dos se prende primero.</p>
+      <div id="lamina" class="lamina">${dibujo}</div>
+      <p class="sub" style="margin:9px 0 14px">${esc(x.s)}</p>
       ${r.frontal ? `
       <div class="seg">
         <button class="${vista==="sagital"?"on":""}" data-vista="sagital">De perfil</button>
@@ -303,6 +356,14 @@ function abrirFicha(nombre, opt){
             ? "De frente manda otra cosa: dónde cae el pie respecto a la cadera y hacia dónde apunta la rodilla. Son otros músculos y otro cálculo — no es la misma cuenta vista de lado."
             : "Los números de perfil son los del empuje. Cambia a <b>De frente</b> para ver lo que este plano no puede: el glúteo medio, los aductores y el valgo de rodilla.")
         : `Los números son del <b>plano ${esc(r.plano)}</b>, que es donde ocurre este movimiento. Lo que pase en el otro plano no entra.`}</p>
+    </section>
+    <section class="fig">
+      <h2><i>FIG. 02</i> Torque a lo largo del recorrido</h2>
+      <p class="sub">${r.ej && r.ej.postura
+        ? "Aquí el deslizador no recorre una repetición: recorre en qué inclinación eliges remar. Mientras remas el torso se queda quieto — lo que se mueve son los brazos, y eso pasa en otro plano. Lo que este número mide es lo que te cuesta sostener la postura."
+        : "El torque externo que tiene que aguantar cada articulación, por extremidad, de punta a punta del movimiento."}${vistaNota()}</p>
+      ${duo}
+      ${grafico(r, i)}
     </section>` : `
     <section class="fig">
       <h2><i>FIG. 01</i> Este no se calcula, se explica</h2>
@@ -310,17 +371,13 @@ function abrirFicha(nombre, opt){
       ${m.art ? `<div class="derivadas" style="margin-top:10px">
         <span>Articulación <b>${esc(m.art)}</b></span>
         <span>Músculo <b>${esc(m.musc)}</b></span></div>` : ""}
+      <div id="lamina" class="lamina" style="margin-top:12px">${dibujo}</div>
+      <p class="sub" style="margin:10px 0 0">${esc(x.s)}</p>
     </section>`}
     </div>
 
     <div>
     ${montaje}
-    <section class="fig">
-      <h2><i>FIG. ${nLam}</i> Dónde deberías sentirlo</h2>
-      <div id="lamina" class="lamina" style="--int:1">${dibujo}</div>
-      <p class="sub" style="margin:10px 0 0">${esc(x.s)}</p>
-    </section>
-
     <section class="fig">
       <h2><i>FIG. ${nErr}</i> Errores más comunes</h2>
       <ul class="listas">${x.e.map(e=>`<li>${esc(e)}</li>`).join("")}</ul>
@@ -335,7 +392,9 @@ function abrirFicha(nombre, opt){
   window.scrollTo(0,0);
 
   peli.pausa();
-  vivo = r ? {r, m, enc: G.encuadre(r, m, {eq:x.eq})} : null;
+  vivo = r ? {r, m, enc: G.encuadre(r, m, {eq:x.eq}),
+              grupos, pico: picoDe(r)} : null;
+  if(r) encenderLamina(r, i, m);
 
   const punto = $("inPunto");
   if(punto) punto.oninput = e => { peli.pausa(); pintarPlay(); irA(e.target.value/100); };

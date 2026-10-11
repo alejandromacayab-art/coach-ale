@@ -519,8 +519,35 @@ const MAPA = {
 /* Un cuerpo de frente y otro de espalda. Todos los músculos dibujados en
    gris, como una lámina de anatomía, y encendido el que trabaja: así ves
    dónde está, no solo una mancha flotando. */
-function cuerpoSVG(grupo, color){
+/* Qué grupo de la lámina enciende cada músculo. El modelo nombra el
+   músculo en palabras —"Cuádriceps", "Glúteo e isquios"— y la lámina los
+   tiene agrupados; esta tabla es el puente entre los dos, y es lo que
+   permite que en una sentadilla el muslo y el glúteo se enciendan cada
+   uno con su propio torque en vez de todos a la vez. */
+const GRUPO_DE_MUSCULO = [
+  /* El glúteo va primero a propósito: "Glúteo e isquios" nombra dos y el
+     primero es el que manda. Si se probara la pierna antes, "isquios"
+     capturaría la frase entera y la cadera encendería el muslo. */
+  [/gl[uú]teo/i,                                          "gluteo"],
+  [/cu[aá]driceps|isquio|gemelo|s[oó]leo|aductor|pierna/i, "pierna"],
+  [/pectoral|pecho/i,                                     "pecho"],
+  [/deltoides|hombro/i,                                   "hombros"],
+  [/b[ií]ceps|braquial/i,                                 "biceps"],
+  [/tr[ií]ceps/i,                                         "triceps"],
+  [/dorsal|romboides|trapecio|erectores|lumbar|espalda/i,  "espalda"],
+  [/abdominal|core|oblicuo/i,                             "core"]
+];
+function grupoDeMusculo(nombre){
+  if(!nombre) return null;
+  for(const [re, g] of GRUPO_DE_MUSCULO) if(re.test(nombre)) return g;
+  return null;
+}
+
+/* grupos: uno solo, o varios cuando la página quiere encenderlos por
+   separado siguiendo el torque de cada articulación. */
+function cuerpoSVG(grupos, color){
   const c = color || "#22e07a";
+  const activos = new Set([].concat(grupos || []).filter(Boolean));
 
   /* Casi todo es par: se dibuja el lado derecho y se refleja. Los que nacen
      en la línea media (pectoral, recto abdominal, dorsal) también, porque
@@ -532,11 +559,12 @@ function cuerpoSVG(grupo, color){
     ${par(CUERPO.brazoD)}${par(CUERPO.piernaD)}`;
 
   const musculos = id => par((MAPA[id] || []).map(m=>{
-    const on = m.g === grupo;
-    /* El que trabaja va marcado: así la página puede encenderlo más o
-       menos según el torque del momento, y la lámina deja de ser un
-       dibujo fijo para seguir al movimiento. */
-    return `<path d="${m.d}"${on ? " data-on=\"1\"" : ""}
+    const on = activos.has(m.g);
+    /* Cada músculo que trabaja va marcado con su grupo: así la página
+       puede encender el muslo con el torque de rodilla y el glúteo con el
+       de cadera, por separado y en el mismo fotograma. La lámina deja de
+       ser un dibujo fijo y pasa a seguir el movimiento. */
+    return `<path d="${m.d}"${on ? ` data-on="1" data-grupo="${m.g}"` : ""}
       fill="${on ? c : "currentColor"}" fill-opacity="${on ? .82 : .17}"
       stroke="${on ? c : "currentColor"}" stroke-opacity="${on ? .95 : .34}"
       stroke-width=".7" stroke-linejoin="round"/>`;
@@ -558,5 +586,5 @@ function cuerpoSVG(grupo, color){
     </svg>`;
 }
 
-global.COACH_ALE_EJERCICIOS = {lista: EJERCICIOS, cuerpoSVG};
+global.COACH_ALE_EJERCICIOS = {lista: EJERCICIOS, cuerpoSVG, grupoDeMusculo};
 })(window);
