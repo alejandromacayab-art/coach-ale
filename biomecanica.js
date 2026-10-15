@@ -686,6 +686,10 @@ function calcular(ej, cuerpo, carga, opciones){
   if(ej.frontal) r.frontal = modeloFrontal(ej, cuerpo, carga||0, op);
   r.plano = ej.plano || "sagital";
   r.ej = ej;
+  /* El cuerpo viaja con el resultado: el dibujo necesita saber cuánto
+     mide un pie para poder dibujarlo, y pedírselo a quien llama era una
+     pieza más que enganchar en cada sitio. */
+  r.cuerpo = cuerpo;
   r.op = op;
   /* Cuánta fuerza llega de verdad al implemento. En una prensa de 45° no
      es el peso de los discos: es su componente a lo largo del riel. */

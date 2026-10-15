@@ -108,6 +108,130 @@ const UNE = {
 const ARTICULACION = {piernas:"rodilla", rotacion:"pivote", brazos:"hombro",
                       apoyos:"codo", prensa:"rodilla"};
 
+/* ---------- la escena de los ejercicios de brazo ----------
+   El motor de brazos solo conoce hombro, codo y mano: un press de banca
+   salía como dos palos flotando al lado de un disco y no había forma de
+   saber qué ejercicio era. El torso, la cabeza y el mueble no se calculan
+   —no entran en ninguna cuenta— pero son lo que hace que se reconozca.
+   Van en gris de mobiliario, aparte del cuerpo que sí se mide.        */
+const ESCENA = {
+  tumbado:   {tronco:{x:1, y:0},  banco:"plano"},
+  depie:     {tronco:{x:0, y:-1}},
+  sentado:   {tronco:{x:0, y:-1}, banco:"asiento"},
+  paralelas: {tronco:{x:0, y:-1}, barras:true}
+};
+
+function escenaDe(c, enc, m, cuerpo){
+  let e = m.escena && ESCENA[m.escena];
+  const L = cuerpo && cuerpo.L;
+  if(!e || !L || !c.puntos.hombro) return "";
+  const n = v => v.toFixed(1);
+  const H = c.puntos.hombro, T = L.tronco;
+  /* El banco inclinado o declinado gira el torso y el banco con él: un
+     press inclinado dibujado sobre un banco plano es otro ejercicio. */
+  const a = (m.escenaAng || 0)*Math.PI/180;
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const u = {x: e.tronco.x*ca - e.tronco.y*sa, y: e.tronco.x*sa + e.tronco.y*ca};
+  e = Object.assign({}, e, {tronco:u});
+  const fin = {x: H.x + u.x*T, y: H.y + u.y*T};
+  const h = px(enc, H), f = px(enc, fin);
+  const rr = 0.098*enc.e;
+  /* La cabeza, al otro lado del hombro que el torso. Se calcula en metros
+     y se pasa a píxeles después: mezclarlos dejaba la cabeza pegada al
+     hombro en vez de encima. */
+  const cab = px(enc, {x: H.x - e.tronco.x*0.17, y: H.y - e.tronco.y*0.17});
+  const gris = 'stroke="currentColor" stroke-opacity=".34"';
+
+  /* El mueble: un banco debajo del torso, o un asiento con respaldo. */
+  let mueble = "";
+  if(e.banco === "plano"){
+    /* Paralelo al torso y un poco por debajo: es la superficie en la que
+       la espalda se apoya, no una mesa que pasa por ahí. */
+    const nx = -u.y*0.12*T, ny = u.x*0.12*T;
+    const p1 = px(enc, {x:H.x - u.x*0.26*T + nx, y:H.y - u.y*0.26*T + ny});
+    const p2 = px(enc, {x:H.x + u.x*1.10*T + nx, y:H.y + u.y*1.10*T + ny});
+    mueble = `<line data-mueble x1="${n(p1.x)}" y1="${n(p1.y)}" x2="${n(p2.x)}" y2="${n(p2.y)}"
+      ${gris} stroke-width="${n(Math.max(7, 0.09*T*enc.e))}" stroke-linecap="round"/>`;
+  }else if(e.banco === "asiento"){
+    const a = px(enc, {x:H.x - 0.30*T, y:H.y - T});
+    const b = px(enc, {x:H.x + 0.55*T, y:H.y - T});
+    const c2 = px(enc, {x:H.x - 0.26*T, y:H.y + 0.12*T});
+    mueble = `<line data-mueble x1="${n(a.x)}" y1="${n(a.y)}" x2="${n(b.x)}" y2="${n(b.y)}"
+        ${gris} stroke-width="${n(Math.max(7, 0.09*T*enc.e))}" stroke-linecap="round"/>
+      <line data-mueble2 x1="${n(a.x)}" y1="${n(a.y)}" x2="${n(c2.x)}" y2="${n(c2.y)}"
+        ${gris} stroke-width="${n(Math.max(6, 0.075*T*enc.e))}" stroke-linecap="round"/>`;
+  }else if(e.barras && c.puntos.mano){
+    const q = px(enc, c.puntos.mano), d = 0.13*T*enc.e;
+    mueble = `<line data-mueble x1="${n(q.x-d)}" y1="${n(q.y)}" x2="${n(q.x+d)}" y2="${n(q.y)}"
+      ${gris} stroke-width="5" stroke-linecap="round"/>`;
+  }
+
+  /* El torso y la cabeza, en el mismo gris: no son cuerpo medido. */
+  return `${mueble}
+    <line data-tronco x1="${n(h.x)}" y1="${n(h.y)}" x2="${n(f.x)}" y2="${n(f.y)}"
+      ${gris} stroke-width="${n(Math.max(8, 0.17*T*enc.e))}" stroke-linecap="round"/>
+    <circle data-cabezaEsc cx="${n(cab.x)}" cy="${n(cab.y)}" r="${n(rr*0.92)}"
+      fill="none" ${gris} stroke-width="2.4"/>`;
+}
+
+/* ---------- el pie y los apoyos ----------
+   Una pierna que termina en el tobillo no se entiende: no se sabe hacia
+   dónde mira la persona ni dónde está el suelo. Con el pie puesto, la
+   figura se ancla y el ejercicio se reconoce de un vistazo. Todo sale
+   del modelo —el largo del pie es antropometría y la altura de los
+   apoyos la decide el propio ejercicio—, no hay nada inventado.      */
+function piezaPie(c, enc, m, cuerpo){
+  const L = cuerpo && cuerpo.L;
+  if(!L || c.suelo == null) return null;
+  const n = v => v.toFixed(1);
+  const linea = (pts, w) =>
+    `<polyline points="${pts.map(q=>`${n(q.x)},${n(q.y)}`).join(" ")}"
+       fill="none" stroke="var(--cuerpo)" stroke-opacity=".92" stroke-width="${n(w)}"
+       stroke-linecap="round" stroke-linejoin="round"/>`;
+  const halo = (pts, w) =>
+    `<polyline points="${pts.map(q=>`${n(q.x)},${n(q.y)}`).join(" ")}"
+       fill="none" stroke="var(--card)" stroke-width="${n(w+3.4)}"
+       stroke-linecap="round" stroke-linejoin="round"/>`;
+  const w = Math.max(3, GROSOR.pie*enc.e);
+
+  if(m.patron === "piernas" && c.puntos.tobillo){
+    /* El tobillo del modelo cae casi sobre el talón, y el medio del pie
+       —el punto sobre el que se busca el equilibrio— a 0,45 del largo por
+       delante. El dibujo respeta eso: talón justo detrás, punta al final. */
+    const t = c.puntos.tobillo;
+    const pts = [t, {x:t.x - 0.08*L.pie, y:c.suelo}, {x:t.x + 0.92*L.pie, y:c.suelo}]
+      .map(q => px(enc, q));
+    return {pts, w};
+  }
+  if(m.patron === "apoyos" && c.puntos.pies && c.puntos.cadera){
+    /* La punta apunta al lado contrario de la cadera: en una flexión los
+       dedos quedan por detrás del cuerpo, que es como se apoya. */
+    const f = c.puntos.pies, h = c.puntos.cadera;
+    const s = f.x >= h.x ? 1 : -1;
+    const pts = [f, {x:f.x + s*0.55*L.pie, y:f.y - 0.22*L.pie}].map(q => px(enc, q));
+    return {pts, w: w*0.9};
+  }
+  return null;
+}
+
+/* Los bloques bajo las manos o los pies cuando el ejercicio los sube: es
+   lo que separa una flexión normal de una inclinada o una declinada, y
+   la altura la dice el modelo, no el dibujo. */
+function apoyosDe(c, enc, m){
+  if(m.patron !== "apoyos" || c.suelo == null) return [];
+  const colgado = c.puntos.hombro && c.puntos.manos &&
+                  c.puntos.hombro.y < c.puntos.manos.y;
+  const out = [];
+  for(const k of ["manos", "pies"]){
+    const v = c.puntos[k];
+    if(!v || v.y - c.suelo < 0.05) continue;
+    if(k === "manos" && colgado){ out.push({barra:true, v:px(enc, v)}); continue; }
+    const a = px(enc, {x:v.x, y:v.y}), b = px(enc, {x:v.x, y:c.suelo});
+    out.push({x:a.x, y:a.y, alto:b.y - a.y, ancho:Math.max(16, 0.16*enc.e)});
+  }
+  return out;
+}
+
 /* ---------- los músculos sobre el hueso ----------
    Cada músculo va dibujado encima del hueso que mueve, del lado que le
    toca, y se enciende con el torque de su articulación. Así no hay que
@@ -235,6 +359,18 @@ function encuadre(r, m, opt){
     if(!c) continue;
     hay = true;
     const vs = Object.values(c.puntos).filter(Boolean).concat(c.carga ? [c.carga] : []);
+    /* El torso y el mueble también ocupan: sin contarlos el asiento salía
+       cortado por el borde de abajo. */
+    const esc = m.escena && ESCENA[m.escena];
+    if(esc && c.puntos.hombro && r.cuerpo){
+      const H = c.puntos.hombro, T = r.cuerpo.L.tronco;
+      const a = (m.escenaAng || 0)*Math.PI/180, ca = Math.cos(a), sa = Math.sin(a);
+      const u = {x: esc.tronco.x*ca - esc.tronco.y*sa,
+                 y: esc.tronco.x*sa + esc.tronco.y*ca};
+      vs.push({x:H.x + u.x*T*1.2 - u.y*0.2*T, y:H.y + u.y*T*1.2 + u.x*0.2*T});
+      vs.push({x:H.x - u.x*0.35*T,            y:H.y - u.y*0.35*T});
+      if(esc.banco === "asiento") vs.push({x:H.x - 0.4*T, y:H.y - T*1.15});
+    }
     for(const v of vs){
       if(v.x < x0) x0 = v.x; if(v.x > x1) x1 = v.x;
       if(v.y < y0) y0 = v.y; if(v.y > y1) y1 = v.y;
@@ -437,6 +573,28 @@ function figuraSVG(r, i, m, opt){
                fill="var(--q0)" fill-opacity=".85"/>`}`;
   })() : "";
 
+  /* Los bloques de apoyo van al fondo: son mobiliario, no cuerpo. */
+  const apoyos = apoyosDe(c, enc, m).map((a, k) => a.barra
+    ? `<circle data-apoyo="${k}" cx="${n(a.v.x)}" cy="${n(a.v.y)}" r="7"
+         fill="none" stroke="currentColor" stroke-opacity=".45" stroke-width="3"/>`
+    : `<rect data-apoyo="${k}" x="${n(a.x - a.ancho/2)}" y="${n(a.y)}"
+         width="${n(a.ancho)}" height="${n(Math.max(2, a.alto))}" rx="3"
+         fill="currentColor" fill-opacity=".12" stroke="currentColor"
+         stroke-opacity=".3" stroke-width="1.5"/>`).join("");
+
+  const pie = (()=>{
+    const q = piezaPie(c, enc, m, r.cuerpo);
+    if(!q) return "";
+    const pts = q.pts.map(v=>`${n(v.x)},${n(v.y)}`).join(" ");
+    return `<polyline data-piehalo points="${pts}" fill="none" stroke="var(--card)"
+        stroke-width="${n(q.w + 3.4)}" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline data-pie points="${pts}" fill="none" stroke="var(--cuerpo)"
+        stroke-opacity=".92" stroke-width="${n(q.w)}" stroke-linecap="round"
+        stroke-linejoin="round"/>`;
+  })();
+
+  const escena = escenaDe(c, enc, m, r.cuerpo);
+
   const sujeta = c.sujeta ? `
     <line data-sujeta x1="${n(P(c.sujeta[0]).x)}" y1="${n(P(c.sujeta[0]).y)}"
           x2="${n(P(c.sujeta[1]).x)}" y2="${n(P(c.sujeta[1]).y)}"
@@ -525,7 +683,7 @@ function figuraSVG(r, i, m, opt){
   return `<svg viewBox="0 0 320 ${enc.alto}" class="dibujo" role="img"
       data-patron="${esc(m.patron)}"
       aria-label="Esquema de la posición, la línea de la carga y el brazo de palanca">
-    ${piso}${carga}${sujeta}${segmentos}${musculos}${cab}${pal}${fuerzaEt}${nudos}
+    ${piso}${apoyos}${escena}${carga}${sujeta}${pie}${segmentos}${musculos}${cab}${pal}${fuerzaEt}${nudos}
   </svg>`;
 }
 
@@ -577,6 +735,35 @@ function moverFigura(svg, r, i, m, enc){
       pon(l, "x1", A.x); pon(l, "y1", A.y); pon(l, "x2", B.x); pon(l, "y2", B.y);
     });
   });
+  const q = piezaPie(c, enc, m, r.cuerpo);
+  if(q){
+    const pts = q.pts.map(v=>`${v.x.toFixed(1)},${v.y.toFixed(1)}`).join(" ");
+    svg.querySelectorAll("[data-pie],[data-piehalo]").forEach(l => {
+      l.setAttribute("points", pts);
+      l.setAttribute("stroke-width", (q.w + (l.hasAttribute("data-piehalo") ? 3.4 : 0)).toFixed(1));
+    });
+  }
+  apoyosDe(c, enc, m).forEach((a, k) => {
+    const el = svg.querySelector(`[data-apoyo="${k}"]`);
+    if(!el) return;
+    if(a.barra){ pon(el, "cx", a.v.x); pon(el, "cy", a.v.y); }
+    else { pon(el, "x", a.x - a.ancho/2); pon(el, "y", a.y);
+           pon(el, "height", Math.max(2, a.alto)); }
+  });
+
+  /* La escena —torso, cabeza y mueble— se rehace entera: son cuatro
+     trazos y no vale la pena moverlos uno a uno. */
+  if(m.escena){
+    const viejos = svg.querySelectorAll("[data-mueble],[data-mueble2],[data-tronco],[data-cabezaEsc]");
+    if(viejos.length){
+      const tmp = document.createElementNS("http://www.w3.org/2000/svg","g");
+      tmp.innerHTML = escenaDe(c, enc, m, r.cuerpo);
+      const nuevos = [...tmp.children];
+      viejos.forEach((el, k) => { const z = nuevos[k]; if(!z) return;
+        for(const at of z.getAttributeNames()) el.setAttribute(at, z.getAttribute(at)); });
+    }
+  }
+
   const usadosM = new Map();
   svg.querySelectorAll("[data-musculo]").forEach(l => {
     const b = bandaMusculo(c, enc, l.dataset.musculo, usadosM);
